@@ -1,7 +1,13 @@
 import type { Bundle, BundleScene, Place, Scene, SceneFile, Source } from '../schema.ts'
 import { findCoverageProblems } from '../scenes/coverage.ts'
+import { audioName } from '../tts/select.ts'
 
-export function buildBundle(source: Source, sceneFiles: SceneFile[], places: Place[]): Bundle {
+export function buildBundle(
+  source: Source,
+  sceneFiles: SceneFile[],
+  places: Place[],
+  audioNames: ReadonlySet<string> = new Set(),
+): Bundle {
   const placeIds = new Set(places.map((place) => place.id))
 
   const seenChapters = new Set<number>()
@@ -14,7 +20,12 @@ export function buildBundle(source: Source, sceneFiles: SceneFile[], places: Pla
   }
 
   const chapters = source.chapters.map((sourceChapter) => {
-    const { chapter, verses } = sourceChapter
+    const { chapter } = sourceChapter
+    // 본문은 원본 그대로 두고, 음성 파일이 있는 절에만 경로를 붙인다.
+    const verses = sourceChapter.verses.map((verse) => {
+      const name = audioName(chapter, verse.verse)
+      return { ...verse, audio: audioNames.has(name) ? `content/audio/${name}` : null }
+    })
     const sceneFile = sceneFiles.find((file) => file.chapter === chapter)
     if (!sceneFile) return { chapter, verses, scenes: [fallbackScene(chapter, verses.length)] }
 

@@ -84,6 +84,8 @@ export const SceneFileSchema = z.object({
 })
 
 // 앱용 묶음
+export const BundleVerseSchema = VerseSchema.extend({ audio: z.string().nullable() })
+
 export const BundleSceneSchema = z.object({
   id: z.string(),
   verseStart: z.number().int().positive(),
@@ -104,7 +106,7 @@ export const BundleSchema = z.object({
   chapters: z.array(
     z.object({
       chapter: z.number().int().positive(),
-      verses: z.array(VerseSchema).min(1),
+      verses: z.array(BundleVerseSchema).min(1),
       scenes: z.array(BundleSceneSchema).min(1),
     }),
   ),

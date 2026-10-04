@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
-import { appContentDir, imagesDir, placesFile, repoRoot, scenesDir, sourceFile } from '../paths.ts'
+import { appContentDir, audioDir, imagesDir, placesFile, repoRoot, scenesDir, sourceFile } from '../paths.ts'
 import { BundleSchema, PlaceSchema, SceneFileSchema, SourceSchema, type Bundle, type SceneFile } from '../schema.ts'
 import { buildBundle } from './buildBundle.ts'
 
@@ -48,15 +48,22 @@ export async function writeBundle(): Promise<Bundle> {
   const source = await readJson(sourceFile, (value) => SourceSchema.parse(value))
   const places = await readJson(placesFile, (value) => z.array(PlaceSchema).parse(value))
   const sceneFiles = await readSceneFiles()
-  const bundle = BundleSchema.parse(buildBundle(source, sceneFiles, places))
+  const audioNames = existsSync(audioDir) ? new Set(await readdir(audioDir)) : new Set<string>()
+  const bundle = BundleSchema.parse(buildBundle(source, sceneFiles, places, audioNames))
   checkImages(sceneFiles)
 
   await rm(appContentDir, { recursive: true, force: true })
   await mkdir(appContentDir, { recursive: true })
   await writeFile(path.join(appContentDir, 'genesis.json'), JSON.stringify(bundle), 'utf8')
-  await cp(imagesDir, path.join(appContentDir, 'images'), {
-    recursive: true,
-    filter: (src) => src === imagesDir || !path.basename(src).startsWith('.'),
-  })
+  for (const [from, to] of [
+    [imagesDir, 'images'],
+    [audioDir, 'audio'],
+  ]) {
+    if (!existsSync(from)) continue
+    await cp(from, path.join(appContentDir, to), {
+      recursive: true,
+      filter: (src) => src === from || !path.basename(src).startsWith('.'),
+    })
+  }
   return bundle
 }

@@ -44,10 +44,21 @@ function scene(overrides: Partial<Scene>): Scene {
   }
 }
 
+const textOf = (verses: { verse: number; text: string }[]) => verses.map(({ verse, text }) => ({ verse, text }))
+
 describe('buildBundle', () => {
+  it('음성 파일이 있는 절에는 경로를 넣고 없는 절은 null로 둔다', () => {
+    const bundle = buildBundle(source, [], places, new Set(['genesis-01-002.mp3']))
+    expect(bundle.chapters[0].verses.map((verse) => verse.audio)).toEqual([
+      null,
+      'content/audio/genesis-01-002.mp3',
+      null,
+    ])
+  })
+
   it('본문은 원본 그대로 들어간다', () => {
     const bundle = buildBundle(source, [], places)
-    expect(bundle.chapters[0].verses).toEqual(source.chapters[0].verses)
+    expect(textOf(bundle.chapters[0].verses)).toEqual(source.chapters[0].verses)
   })
 
   it('장면 파일이 없는 장은 장 전체를 덮는 기본 장면 하나를 만든다', () => {
@@ -96,7 +107,7 @@ describe('buildBundle', () => {
 
   it('장면 파일이 있는 장도 본문은 원본 그대로 들어간다', () => {
     const file = { chapter: 1, scenes: [scene({})] }
-    expect(buildBundle(source, [file], places).chapters[0].verses).toEqual(source.chapters[0].verses)
+    expect(textOf(buildBundle(source, [file], places).chapters[0].verses)).toEqual(source.chapters[0].verses)
   })
 
   it('같은 장의 장면 파일이 둘 이상이면 오류를 낸다', () => {

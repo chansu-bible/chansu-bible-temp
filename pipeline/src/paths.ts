@@ -12,4 +12,5 @@ export function sceneFilePath(chapter: number): string {
 }
 export const scenesDir = path.join(contentDir, 'scenes')
 export const imagesDir = path.join(contentDir, 'images')
+export const audioDir = path.join(contentDir, 'audio')
 export const appContentDir = path.join(repoRoot, 'app', 'public', 'content')

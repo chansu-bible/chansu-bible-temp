@@ -1,4 +1,5 @@
-export type Verse = { verse: number; text: string }
+// audio: 사이트 루트 기준 절 낭독 파일 경로(예: content/audio/genesis-01-001.mp3). 없으면 null이다.
+export type Verse = { verse: number; text: string; audio: string | null }
 
 export type Term = { word: string; meaning: string }
 

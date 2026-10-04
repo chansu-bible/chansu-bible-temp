@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Bundle } from '../content/types.ts'
-import { loadPosition, savePosition, type Position } from '../reader/position.ts'
+import { loadPosition, savePosition } from '../reader/position.ts'
+import { findSceneIndex, initialPosition, nextPosition, startOfChapter, verseAt } from '../reader/readingPosition.ts'
 import { buildRoute } from '../reader/route.ts'
+import { useNarration, verseAudioUrl } from '../reader/useNarration.ts'
 import BackgroundSheet from './BackgroundSheet.tsx'
 import MapScreen from './MapScreen.tsx'
 import ScenePane from './ScenePane.tsx'
@@ -9,31 +11,30 @@ import VersePane from './VersePane.tsx'
 
 type Overlay = 'none' | 'map' | 'sheet'
 
-function initialChapterNumber(bundle: Bundle, saved: Position | null): number {
-  return bundle.chapters.find((chapter) => chapter.chapter === saved?.chapter)?.chapter ?? bundle.chapters[0].chapter
-}
-
 export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
-  const [saved] = useState(loadPosition)
-  const [chapterNumber, setChapterNumber] = useState(() => initialChapterNumber(bundle, saved))
-  const [restoreSceneId, setRestoreSceneId] = useState(saved?.sceneId ?? null)
-  const chapter = bundle.chapters.find((c) => c.chapter === chapterNumber) ?? bundle.chapters[0]
-  const [activeIndex, setActiveIndex] = useState(() =>
-    Math.max(
-      0,
-      chapter.scenes.findIndex((scene) => scene.id === saved?.sceneId),
-    ),
-  )
+  // 지금 읽는 곳은 절 단위로 들고, 장면은 절에서 정한다.
+  const [position, setPosition] = useState(() => initialPosition(bundle.chapters, loadPosition()))
   const [overlay, setOverlay] = useState<Overlay>('none')
   const openerRef = useRef<HTMLElement | null>(null)
 
-  const sceneIndex = Math.min(activeIndex, chapter.scenes.length - 1)
+  const chapter = bundle.chapters.find((c) => c.chapter === position.chapter) ?? bundle.chapters[0]
+  const sceneIndex = findSceneIndex(chapter.scenes, position.verse)
   const scene = chapter.scenes[sceneIndex]
+  const verse = verseAt(bundle.chapters, position)
+  const audioUrl = verseAudioUrl(verse)
   const route = useMemo(() => buildRoute(bundle.chapters, bundle.places, scene.id), [bundle, scene.id])
 
+  // 한 절을 다 읽으면 다음 절(장의 끝이면 다음 장의 첫 절)로 넘어가 이어 읽는다.
+  const narration = useNarration(() => {
+    const next = nextPosition(bundle.chapters, position.chapter, position.verse)
+    if (!next) return null
+    setPosition(next)
+    return verseAudioUrl(verseAt(bundle.chapters, next))
+  })
+
   useEffect(() => {
-    savePosition({ chapter: chapter.chapter, sceneId: scene.id })
-  }, [chapter.chapter, scene.id])
+    savePosition(position)
+  }, [position])
 
   function openOverlay(next: Exclude<Overlay, 'none'>) {
     openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -55,9 +56,14 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   }, [overlay])
 
   function goToChapter(next: number) {
-    setChapterNumber(next)
-    setActiveIndex(0)
-    setRestoreSceneId(null)
+    narration.stop()
+    const target = bundle.chapters.find((c) => c.chapter === next)
+    if (target) setPosition(startOfChapter(target))
+  }
+
+  function togglePlay() {
+    if (narration.playing) narration.stop()
+    else if (audioUrl) narration.play(audioUrl)
   }
 
   return (
@@ -67,6 +73,10 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           scene={scene}
           sceneNumber={sceneIndex + 1}
           sceneCount={chapter.scenes.length}
+          verse={verse}
+          playing={narration.playing}
+          canPlay={audioUrl !== null}
+          onTogglePlay={togglePlay}
           onOpenMap={() => openOverlay('map')}
           onOpenSheet={() => openOverlay('sheet')}
         />
@@ -74,9 +84,9 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           key={chapter.chapter}
           chapter={chapter}
           chapterNumbers={bundle.chapters.map((c) => c.chapter)}
-          restoreSceneId={restoreSceneId}
-          activeIndex={sceneIndex}
-          onActiveIndexChange={setActiveIndex}
+          verse={position.verse}
+          following={narration.playing}
+          onVerseChange={(next) => setPosition({ chapter: chapter.chapter, verse: next })}
           onChapterChange={goToChapter}
         />
       </div>

@@ -1,21 +1,40 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
-import type { ReviewStatus, Scene } from '../content/types.ts'
+import type { ReviewStatus, Scene, Verse } from '../content/types.ts'
+import { loadSubtitles, saveSubtitles } from '../reader/subtitles.ts'
 import Icon from './Icon.tsx'
 
 const badgeText: Partial<Record<ReviewStatus, string>> = { draft: '검수 전', flagged: '확인 필요' }
+
+// 이 글자 수보다 긴 절은 자막 글자를 줄여 그림 위에 다 들어가게 한다.
+const longVerse = 60
 
 type Props = {
   scene: Scene
   sceneNumber: number
   sceneCount: number
+  verse: Verse | undefined
+  playing: boolean
+  canPlay: boolean
+  onTogglePlay: () => void
   onOpenMap: () => void
   onOpenSheet: () => void
 }
 
-export default function ScenePane({ scene, sceneNumber, sceneCount, onOpenMap, onOpenSheet }: Props) {
+export default function ScenePane({
+  scene,
+  sceneNumber,
+  sceneCount,
+  verse,
+  playing,
+  canPlay,
+  onTogglePlay,
+  onOpenMap,
+  onOpenSheet,
+}: Props) {
   const [shown, setShown] = useState(scene)
   const [previous, setPrevious] = useState<Scene | null>(null)
+  const [subtitles, setSubtitles] = useState(loadSubtitles)
 
   // 장면이 바뀌면 이전 그림을 아래에 깔아 두고 새 그림을 위에서 서서히 나타나게 한다.
   if (scene.id !== shown.id) {
@@ -23,7 +42,14 @@ export default function ScenePane({ scene, sceneNumber, sceneCount, onOpenMap, o
     setShown(scene)
   }
 
+  function toggleSubtitles() {
+    setSubtitles(!subtitles)
+    saveSubtitles(!subtitles)
+  }
+
   const badge = badgeText[shown.reviewStatus]
+  // 소리가 없는 절에서는 재생 버튼을 흐리게 두되, 포커스는 받을 수 있게 한다.
+  const playDisabled = !playing && !canPlay
 
   return (
     <section className="scene-pane" aria-label="장면 그림">
@@ -39,13 +65,44 @@ export default function ScenePane({ scene, sceneNumber, sceneCount, onOpenMap, o
         </button>
       </div>
 
-      {badge && <div className="review-badge">{badge}</div>}
+      <div className="scene-controls">
+        {playing && <span className="ai-voice">AI 음성</span>}
+        <button
+          type="button"
+          className="round-button"
+          aria-label={playing ? 'AI 음성 읽기 멈춤' : 'AI 음성으로 듣기'}
+          aria-disabled={playDisabled || undefined}
+          onClick={playDisabled ? undefined : onTogglePlay}
+        >
+          <Icon name={playing ? 'pause' : 'play'} />
+        </button>
+        <button
+          type="button"
+          className="round-button toggle"
+          aria-label="자막 켜기/끄기"
+          aria-pressed={subtitles}
+          onClick={toggleSubtitles}
+        >
+          <Icon name="subtitles" />
+        </button>
+      </div>
 
-      <div className="scene-caption">
-        <span className="scene-title">{shown.title}</span>
-        <span className="scene-count">
-          {sceneNumber} / {sceneCount}
-        </span>
+      <div className="scene-bottom">
+        {subtitles && verse && (
+          <p className={verse.text.length > longVerse ? 'subtitle long' : 'subtitle'}>
+            <span className="subtitle-number">{verse.verse}</span>
+            {verse.text}
+          </p>
+        )}
+        <div className="scene-caption">
+          <span className="scene-title">{shown.title}</span>
+          <span className="scene-meta">
+            {badge && <span className="review-badge">{badge}</span>}
+            <span className="scene-count">
+              {sceneNumber} / {sceneCount}
+            </span>
+          </span>
+        </div>
       </div>
     </section>
   )

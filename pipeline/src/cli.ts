@@ -5,6 +5,8 @@ import { generateImages } from './images/generateImages.ts'
 import { createOpenAiDraw } from './images/openaiDraw.ts'
 import { envFile } from './paths.ts'
 import { fetchSource } from './source/fetchSource.ts'
+import { generateSpeech } from './tts/generateSpeech.ts'
+import { createOpenAiSpeak } from './tts/openaiSpeak.ts'
 
 type Flags = {
   chapter?: string
@@ -61,6 +63,30 @@ const commands: Record<string, (flags: Flags) => Promise<void>> = {
     }
     console.log(`그림 생성 완료: 성공 ${result.drawn.length}개, 실패 ${result.failed.length}개`)
     for (const failure of result.failed) console.error(`- ${failure.id}: ${failure.reason}`)
+    if (result.failed.length > 0) process.exitCode = 1
+  },
+  async tts(flags) {
+    const chapter = positiveInteger(flags.chapter, 'chapter')
+    if (chapter === undefined) throw new Error('--chapter <장 번호>가 필요합니다')
+    const dryRun = flags['dry-run']
+    const speak = dryRun
+      ? async () => {
+          throw new Error('dry-run에서는 음성을 만들지 않습니다')
+        }
+      : createOpenAiSpeak()
+
+    const result = await generateSpeech(
+      { chapter, force: flags.force, dryRun, limit: positiveInteger(flags.limit, 'limit') },
+      speak,
+      console.log,
+    )
+
+    if (dryRun) {
+      console.log(`음성을 만들 절 ${result.selected}개 (dry-run이라 API를 부르지 않았습니다)`)
+      return
+    }
+    console.log(`음성 생성 완료: 성공 ${result.spoken}개, 실패 ${result.failed.length}개`)
+    for (const failure of result.failed) console.error(`- ${chapter}:${failure.verse} ${failure.reason}`)
     if (result.failed.length > 0) process.exitCode = 1
   },
   async build() {

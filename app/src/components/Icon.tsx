@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-type IconName = 'map' | 'question' | 'close' | 'back'
+type IconName = 'map' | 'question' | 'close' | 'back' | 'play' | 'pause' | 'subtitles'
 
 const paths: Record<IconName, ReactNode> = {
   map: (
@@ -17,6 +17,14 @@ const paths: Record<IconName, ReactNode> = {
   ),
   close: <path d="M6 6l12 12M18 6 6 18" />,
   back: <path d="M15 5l-7 7 7 7" />,
+  play: <path d="M8 5v14l11-7z" />,
+  pause: <path d="M9 5v14M15 5v14" />,
+  subtitles: (
+    <>
+      <path d="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+      <path d="M7 15h4M14 15h3M7 11h10" />
+    </>
+  ),
 }
 
 export default function Icon({ name, size = 22 }: { name: IconName; size?: number }) {

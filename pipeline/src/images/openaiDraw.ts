@@ -8,8 +8,8 @@ export function createOpenAiDraw(): DrawImage {
   if (!apiKey) throw new Error('OPENAI_API_KEY가 없습니다. 리포 루트의 .env 파일에 넣어 주세요.')
 
   const client = new OpenAI({ apiKey, maxRetries: 3 })
-  const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2.5-flare'
-  const quality = (process.env.OPENAI_IMAGE_QUALITY || 'medium') as Quality
+  const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2.5-sunburst'
+  const quality = (process.env.OPENAI_IMAGE_QUALITY || 'high') as Quality
 
   return async (prompt) => {
     const response = await client.images.generate({
