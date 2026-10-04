@@ -84,7 +84,7 @@ chansu-bible-temp/
     source/           본문 (개역한글)
     story-bible/      설정집: style.json, characters.json, places.json, refs/
     scenes/           장별 장면 파일: genesis-01.json …
-    images/           장면 그림
+    images/           장면 그림. 버전마다 폴더 하나(v1-flare/ 등)와 버전 목록(versions.json)
     audio/            절마다 낭독 음성 (genesis-01-001.mp3)
     review-report.md  검수 요약 (자동 생성)
   docs/
@@ -130,7 +130,7 @@ chansu-bible-temp/
 | `visual.shot` | 구도 지시: 거리, 시점, 시간대, 여백. 장면마다 다르게 주어 그림들이 서로 닮지 않게 한다 |
 | `visual.characters` | 등장 인물 `id` 목록 |
 | `placeId` | 장소 `id`. 장소가 없는 장면은 `null` |
-| `image` | 그림 파일 경로. 아직 없으면 `null` |
+| `image` | 지금 만들고 있는 그림 버전 폴더 안의 파일 이름. 아직 없으면 `null` |
 | `review.status` | `draft` → `reviewed` 또는 `flagged` → `approved` |
 | `review.text`, `review.facts`, `review.image` | 글·역사 사실·그림 검수의 판정과 지적 사항 목록 |
 | `review.attempts` | 재작성 횟수 |
@@ -238,6 +238,12 @@ API 키는 `.env`의 `OPENAI_API_KEY`로 읽는다. `.env`는 커밋하지 않�
 - 재생 버튼을 누르면 현재 절부터 음성으로 읽는다. 한 절이 끝나면 다음 절로 넘어가고, 장의 끝에서는 다음 장으로 넘어간다. 본문은 현재 절을 따라 스크롤된다.
 - 읽는 동안 "AI 음성"이라고 표시한다. OpenAI 사용 정책상 AI가 만든 목소리임을 알려야 한다.
 - 음성이 없는 절에서는 재생할 수 없다.
+
+### 그림 버전 (시험용)
+
+- 그림 생성 방식을 비교하기 위해 그림을 버전별로 보관한다. `content/images/versions.json`에 버전 목록(id, 이름, 만든 방식)이 있고, 버전마다 `content/images/<id>/` 폴더가 있다.
+- `images` 명령은 목록의 마지막 버전 폴더에 그린다. 새 방식을 시험하려면 목록에 버전을 추가하고 `--force`로 다시 그린다.
+- 앱에서는 그림 위의 버튼을 누를 때마다 다음 버전의 그림으로 바뀐다. 기본은 마지막 버전이고, 선택은 기기에 저장된다. 그 버전에 그림이 없는 장면은 빈 그림 칸으로 나온다.
 
 ## 8. 오류 처리
 

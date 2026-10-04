@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
-import type { ReviewStatus, Scene, Verse } from '../content/types.ts'
+import type { ImageVersion, ReviewStatus, Scene, Verse } from '../content/types.ts'
 import { loadSubtitles, saveSubtitles } from '../reader/subtitles.ts'
 import Icon from './Icon.tsx'
 
@@ -14,6 +14,9 @@ type Props = {
   sceneNumber: number
   sceneCount: number
   verse: Verse | undefined
+  // 보여 줄 그림 버전. 버전이 둘 이상이면 버튼으로 바꿔 볼 수 있다.
+  imageVersion: ImageVersion | null
+  onCycleImageVersion?: () => void
   playing: boolean
   canPlay: boolean
   onTogglePlay: () => void
@@ -26,6 +29,8 @@ export default function ScenePane({
   sceneNumber,
   sceneCount,
   verse,
+  imageVersion,
+  onCycleImageVersion,
   playing,
   canPlay,
   onTogglePlay,
@@ -53,8 +58,8 @@ export default function ScenePane({
 
   return (
     <section className="scene-pane" aria-label="장면 그림">
-      {previous && <SceneLayer key={previous.id} scene={previous} />}
-      <SceneLayer key={shown.id} scene={shown} entering={previous !== null} />
+      {previous && <SceneLayer key={previous.id} scene={previous} version={imageVersion} />}
+      <SceneLayer key={shown.id} scene={shown} version={imageVersion} entering={previous !== null} />
 
       <div className="scene-buttons">
         <button type="button" className="round-button" aria-label="여정 지도 보기" onClick={onOpenMap}>
@@ -87,6 +92,18 @@ export default function ScenePane({
         </button>
       </div>
 
+      {imageVersion && onCycleImageVersion && (
+        <button
+          type="button"
+          className="version-pill"
+          aria-label={`그림 버전 바꾸기. 지금은 ${imageVersion.label}`}
+          title={imageVersion.note}
+          onClick={onCycleImageVersion}
+        >
+          그림 {imageVersion.label}
+        </button>
+      )}
+
       <div className="scene-bottom">
         {subtitles && verse && (
           <p className={verse.text.length > longVerse ? 'subtitle long' : 'subtitle'}>
@@ -108,11 +125,20 @@ export default function ScenePane({
   )
 }
 
-function SceneLayer({ scene, entering = false }: { scene: Scene; entering?: boolean }) {
+function SceneLayer({
+  scene,
+  version,
+  entering = false,
+}: {
+  scene: Scene
+  version: ImageVersion | null
+  entering?: boolean
+}) {
+  const image = version ? scene.images[version.id] : undefined
   return (
     <div className={entering ? 'scene-layer entering' : 'scene-layer'}>
-      {scene.image ? (
-        <img src={import.meta.env.BASE_URL + scene.image} alt={scene.title} />
+      {image ? (
+        <img src={import.meta.env.BASE_URL + image} alt={scene.title} />
       ) : (
         <div className="scene-placeholder" style={{ '--hue': hueOf(scene.id) } as CSSProperties}>
           그림 준비 중

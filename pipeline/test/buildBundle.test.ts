@@ -47,6 +47,12 @@ function scene(overrides: Partial<Scene>): Scene {
 const textOf = (verses: { verse: number; text: string }[]) => verses.map(({ verse, text }) => ({ verse, text }))
 
 describe('buildBundle', () => {
+  it('그림 버전이 없으면 기본 버전도 없다', () => {
+    const bundle = buildBundle(source, [], places)
+    expect(bundle.imageVersions).toEqual([])
+    expect(bundle.defaultImageVersion).toBeNull()
+  })
+
   it('음성 파일이 있는 절에는 경로를 넣고 없는 절은 null로 둔다', () => {
     const bundle = buildBundle(source, [], places, new Set(['genesis-01-002.mp3']))
     expect(bundle.chapters[0].verses.map((verse) => verse.audio)).toEqual([
@@ -73,7 +79,7 @@ describe('buildBundle', () => {
         background: null,
         history: [],
         placeId: null,
-        image: null,
+        images: {},
         reviewStatus: 'none',
       },
     ])
@@ -87,12 +93,25 @@ describe('buildBundle', () => {
         scene({ id: 'genesis-01-02', verseStart: 3, verseEnd: 3 }),
       ],
     }
-    const [first, second] = buildBundle(source, [file], places).chapters[0].scenes
-    expect(first.image).toBe('content/images/genesis-01-01.png')
+    const catalog = {
+      versions: [
+        { id: 'v1', label: '1차', note: '' },
+        { id: 'v2', label: '2차', note: '' },
+      ],
+      files: { v1: ['genesis-01-01.png'], v2: ['genesis-01-01.jpg', 'genesis-01-02.jpg'] },
+    }
+    const bundle = buildBundle(source, [file], places, new Set(), catalog)
+    const [first, second] = bundle.chapters[0].scenes
+    expect(bundle.imageVersions.map((version) => version.id)).toEqual(['v1', 'v2'])
+    expect(bundle.defaultImageVersion).toBe('v2')
+    expect(first.images).toEqual({
+      v1: 'content/images/v1/genesis-01-01.png',
+      v2: 'content/images/v2/genesis-01-01.jpg',
+    })
     expect(first.reviewStatus).toBe('draft')
     expect(first.placeId).toBe('eden')
     expect(first).not.toHaveProperty('visual')
-    expect(second.image).toBeNull()
+    expect(second.images).toEqual({ v2: 'content/images/v2/genesis-01-02.jpg' })
   })
 
   it('절 범위가 맞지 않으면 오류를 낸다', () => {

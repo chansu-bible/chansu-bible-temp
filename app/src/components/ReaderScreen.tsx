@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Bundle } from '../content/types.ts'
+import { loadImageVersion, nextImageVersion, pickImageVersion, saveImageVersion } from '../reader/imageVersion.ts'
 import { loadPosition, savePosition } from '../reader/position.ts'
 import { findSceneIndex, initialPosition, nextPosition, startOfChapter, verseAt } from '../reader/readingPosition.ts'
 import { buildRoute } from '../reader/route.ts'
@@ -15,6 +16,7 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   // 지금 읽는 곳은 절 단위로 들고, 장면은 절에서 정한다.
   const [position, setPosition] = useState(() => initialPosition(bundle.chapters, loadPosition()))
   const [overlay, setOverlay] = useState<Overlay>('none')
+  const [imageVersionId, setImageVersionId] = useState(() => pickImageVersion(bundle, loadImageVersion()))
   const openerRef = useRef<HTMLElement | null>(null)
 
   const chapter = bundle.chapters.find((c) => c.chapter === position.chapter) ?? bundle.chapters[0]
@@ -61,6 +63,13 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
     if (target) setPosition(startOfChapter(target))
   }
 
+  function cycleImageVersion() {
+    const next = nextImageVersion(bundle.imageVersions, imageVersionId)
+    if (!next) return
+    setImageVersionId(next)
+    saveImageVersion(next)
+  }
+
   function togglePlay() {
     if (narration.playing) narration.stop()
     else if (audioUrl) narration.play(audioUrl)
@@ -74,6 +83,8 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           sceneNumber={sceneIndex + 1}
           sceneCount={chapter.scenes.length}
           verse={verse}
+          imageVersion={bundle.imageVersions.find((version) => version.id === imageVersionId) ?? null}
+          onCycleImageVersion={bundle.imageVersions.length > 1 ? cycleImageVersion : undefined}
           playing={narration.playing}
           canPlay={audioUrl !== null}
           onTogglePlay={togglePlay}

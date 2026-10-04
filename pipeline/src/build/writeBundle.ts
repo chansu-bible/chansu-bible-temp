@@ -4,7 +4,8 @@ import path from 'node:path'
 import { z } from 'zod'
 import { appContentDir, audioDir, imagesDir, placesFile, repoRoot, scenesDir, sourceFile } from '../paths.ts'
 import { BundleSchema, PlaceSchema, SceneFileSchema, SourceSchema, type Bundle, type SceneFile } from '../schema.ts'
-import { buildBundle } from './buildBundle.ts'
+import { readImageCatalog } from '../images/versions.ts'
+import { buildBundle, type ImageCatalog } from './buildBundle.ts'
 
 function relativeName(file: string): string {
   return path.relative(repoRoot, file).split(path.sep).join('/')
@@ -34,11 +35,14 @@ async function readSceneFiles(): Promise<SceneFile[]> {
   )
 }
 
-function checkImages(sceneFiles: SceneFile[]): void {
+// 장면 파일의 image는 지금 만들고 있는 버전(목록의 마지막) 폴더 안의 파일 이름이다.
+function checkImages(sceneFiles: SceneFile[], catalog: ImageCatalog): void {
+  const active = catalog.versions.at(-1)
+  const names = new Set(active ? catalog.files[active.id] : [])
   for (const file of sceneFiles) {
     for (const scene of file.scenes) {
-      if (scene.image && !existsSync(path.join(imagesDir, scene.image))) {
-        throw new Error(`${scene.id}: 그림 파일 ${scene.image}이 content/images에 없습니다`)
+      if (scene.image && !names.has(scene.image)) {
+        throw new Error(`${scene.id}: 그림 파일 ${scene.image}이 content/images/${active?.id ?? ''}에 없습니다`)
       }
     }
   }
@@ -49,8 +53,9 @@ export async function writeBundle(): Promise<Bundle> {
   const places = await readJson(placesFile, (value) => z.array(PlaceSchema).parse(value))
   const sceneFiles = await readSceneFiles()
   const audioNames = existsSync(audioDir) ? new Set(await readdir(audioDir)) : new Set<string>()
-  const bundle = BundleSchema.parse(buildBundle(source, sceneFiles, places, audioNames))
-  checkImages(sceneFiles)
+  const catalog = await readImageCatalog()
+  const bundle = BundleSchema.parse(buildBundle(source, sceneFiles, places, audioNames, catalog))
+  checkImages(sceneFiles, catalog)
 
   await rm(appContentDir, { recursive: true, force: true })
   await mkdir(appContentDir, { recursive: true })
@@ -62,7 +67,11 @@ export async function writeBundle(): Promise<Bundle> {
     if (!existsSync(from)) continue
     await cp(from, path.join(appContentDir, to), {
       recursive: true,
-      filter: (src) => src === from || !path.basename(src).startsWith('.'),
+      // 숨김 파일과 버전 목록 파일은 앱에 필요 없다.
+      filter: (src) => {
+        const name = path.basename(src)
+        return src === from || !(name.startsWith('.') || name === 'versions.json')
+      },
     })
   }
   return bundle

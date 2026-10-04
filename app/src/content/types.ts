@@ -23,7 +23,8 @@ export type Scene = {
   background: Background | null
   history: HistoryNote[]
   placeId: string | null
-  image: string | null
+  // 그림 버전 id → 그림 경로. 그 버전에 그림이 없으면 키가 없다.
+  images: Record<string, string>
   reviewStatus: ReviewStatus
 }
 
@@ -38,4 +39,13 @@ export type Place = {
 
 export type Chapter = { chapter: number; verses: Verse[]; scenes: Scene[] }
 
-export type Bundle = { book: string; translation: string; places: Place[]; chapters: Chapter[] }
+export type ImageVersion = { id: string; label: string; note: string }
+
+export type Bundle = {
+  book: string
+  translation: string
+  places: Place[]
+  imageVersions: ImageVersion[]
+  defaultImageVersion: string | null
+  chapters: Chapter[]
+}

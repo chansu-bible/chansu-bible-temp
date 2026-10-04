@@ -1,12 +1,16 @@
-import type { Bundle, BundleScene, Place, Scene, SceneFile, Source } from '../schema.ts'
+import type { Bundle, BundleScene, ImageVersion, Place, Scene, SceneFile, Source } from '../schema.ts'
 import { findCoverageProblems } from '../scenes/coverage.ts'
 import { audioName } from '../tts/select.ts'
+
+// files: 버전 id → 그 버전 폴더에 있는 그림 파일 이름들
+export type ImageCatalog = { versions: ImageVersion[]; files: Record<string, string[]> }
 
 export function buildBundle(
   source: Source,
   sceneFiles: SceneFile[],
   places: Place[],
   audioNames: ReadonlySet<string> = new Set(),
+  catalog: ImageCatalog = { versions: [], files: {} },
 ): Bundle {
   const placeIds = new Set(places.map((place) => place.id))
 
@@ -27,7 +31,7 @@ export function buildBundle(
       return { ...verse, audio: audioNames.has(name) ? `content/audio/${name}` : null }
     })
     const sceneFile = sceneFiles.find((file) => file.chapter === chapter)
-    if (!sceneFile) return { chapter, verses, scenes: [fallbackScene(chapter, verses.length)] }
+    if (!sceneFile) return { chapter, verses, scenes: [fallbackScene(chapter, verses.length, catalog)] }
 
     checkSceneIds(sceneFile)
 
@@ -40,15 +44,24 @@ export function buildBundle(
         throw new Error(`${scene.id}: 장소 ${scene.placeId}가 places.json에 없습니다`)
       }
     }
-    return { chapter, verses, scenes: sceneFile.scenes.map(toBundleScene) }
+    return { chapter, verses, scenes: sceneFile.scenes.map((scene) => toBundleScene(scene, catalog)) }
   })
 
-  return { book: source.book, translation: source.translation, places, chapters }
+  return {
+    book: source.book,
+    translation: source.translation,
+    places,
+    imageVersions: catalog.versions,
+    // 가장 나중에 추가한 버전을 기본으로 보여 준다.
+    defaultImageVersion: catalog.versions.at(-1)?.id ?? null,
+    chapters,
+  }
 }
 
-function fallbackScene(chapter: number, verseCount: number): BundleScene {
+function fallbackScene(chapter: number, verseCount: number, catalog: ImageCatalog): BundleScene {
+  const id = `genesis-${String(chapter).padStart(2, '0')}-00`
   return {
-    id: `genesis-${String(chapter).padStart(2, '0')}-00`,
+    id,
     verseStart: 1,
     verseEnd: verseCount,
     title: `창세기 ${chapter}장`,
@@ -56,12 +69,22 @@ function fallbackScene(chapter: number, verseCount: number): BundleScene {
     background: null,
     history: [],
     placeId: null,
-    image: null,
+    images: imagesFor(id, catalog),
     reviewStatus: 'none',
   }
 }
 
-function toBundleScene(scene: Scene): BundleScene {
+// 버전마다 파일 이름(확장자 제외)이 장면 id와 같은 그림을 찾는다.
+function imagesFor(sceneId: string, catalog: ImageCatalog): Record<string, string> {
+  const images: Record<string, string> = {}
+  for (const version of catalog.versions) {
+    const file = (catalog.files[version.id] ?? []).find((name) => name.slice(0, name.lastIndexOf('.')) === sceneId)
+    if (file) images[version.id] = `content/images/${version.id}/${file}`
+  }
+  return images
+}
+
+function toBundleScene(scene: Scene, catalog: ImageCatalog): BundleScene {
   return {
     id: scene.id,
     verseStart: scene.verseStart,
@@ -71,7 +94,7 @@ function toBundleScene(scene: Scene): BundleScene {
     background: scene.background,
     history: scene.history,
     placeId: scene.placeId,
-    image: scene.image ? `content/images/${scene.image}` : null,
+    images: imagesFor(scene.id, catalog),
     reviewStatus: scene.review.status,
   }
 }

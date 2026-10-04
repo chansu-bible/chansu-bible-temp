@@ -1,0 +1,17 @@
+[
+  {
+    "id": "v1-flare",
+    "label": "1차: 기본 모델",
+    "note": "gpt-image-2.5-flare, 품질 medium. 그림체를 말로만 지시했다."
+  },
+  {
+    "id": "v2-sunburst",
+    "label": "2차: 최상위 모델",
+    "note": "gpt-image-2.5-sunburst, 품질 high. 프롬프트는 1차와 같다."
+  },
+  {
+    "id": "v3-reference",
+    "label": "3차: 참고 이미지",
+    "note": "사람이 그린 수채화의 붓질 조각을 참고 이미지로 넣고, 손그림의 물성과 장면별 구도를 지정했다."
+  }
+]

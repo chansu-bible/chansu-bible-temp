@@ -12,7 +12,7 @@ function scene(id: string, verseStart: number, verseEnd: number): Scene {
     background: null,
     history: [],
     placeId: null,
-    image: null,
+    images: {},
     reviewStatus: 'none',
   }
 }

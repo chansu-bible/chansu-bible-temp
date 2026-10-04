@@ -1,11 +1,12 @@
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { imagesDir, refsDir, sceneFilePath, styleFile } from '../paths.ts'
+import { refsDir, sceneFilePath, styleFile } from '../paths.ts'
 import { SceneFileSchema, StyleSchema } from '../schema.ts'
 import { detectImageExtension } from './format.ts'
 import { buildImagePrompt } from './prompt.ts'
 import { selectScenesToDraw } from './select.ts'
+import { activeImageVersion, versionDir } from './versions.ts'
 
 // references: 화풍 참고 이미지 파일 경로
 export type DrawImage = (prompt: string, references: string[]) => Promise<Uint8Array>
@@ -43,7 +44,10 @@ export async function generateImages(
   const selected = selectScenesToDraw(sceneFile.scenes, options)
   const result: ImagesResult = { selected: selected.length, drawn: [], failed: [] }
 
-  await mkdir(imagesDir, { recursive: true })
+  const version = await activeImageVersion()
+  const outDir = versionDir(version)
+  await mkdir(outDir, { recursive: true })
+  if (!options.dryRun && selected.length > 0) log(`그림 버전: ${version.label} (${version.id})`)
   for (const scene of selected) {
     const prompt = buildImagePrompt(style, scene)
     if (options.dryRun) {
@@ -54,7 +58,7 @@ export async function generateImages(
       log(`${scene.id} ${scene.title}: 그리는 중`)
       const bytes = await draw(prompt, references)
       const name = `${scene.id}.${detectImageExtension(bytes)}`
-      await writeFile(path.join(imagesDir, name), bytes)
+      await writeFile(path.join(outDir, name), bytes)
       scene.image = name
       // 중간에 멈춰도 이어서 할 수 있게 장면마다 바로 저장한다.
       await writeFile(file, `${JSON.stringify(sceneFile, null, 2)}\n`, 'utf8')
