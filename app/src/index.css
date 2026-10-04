@@ -104,69 +104,30 @@ select {
 }
 
 .map-canvas {
-  width: 100%;
-  height: auto;
-  display: block;
-  background: #f1ead9;
+  flex: 1 1 55%;
+  min-height: 240px;
+  background: #e8e2d6;
 }
 
-.map-sea {
-  fill: #cfe0e6;
+.leaflet-tooltip.map-tooltip {
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+  color: var(--ink-soft);
+  font-family: var(--sans);
+  font-size: 13px;
 }
 
-.map-river {
-  fill: none;
-  stroke: #9dbccb;
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.map-label {
-  font-size: 34px;
-  fill: #7f95a0;
-}
-
-.map-route {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.map-route.next {
-  stroke-dasharray: 10 12;
-  opacity: 0.5;
-}
-
-.map-dot {
-  fill: var(--accent);
-}
-
-.map-dot.next {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 4;
-  opacity: 0.5;
-}
-
-.map-halo {
-  fill: var(--accent);
-  opacity: 0.2;
-}
-
-.map-place {
-  font-size: 42px;
+.leaflet-tooltip.map-tooltip.current {
+  color: var(--ink);
+  font-size: 14px;
   font-weight: 600;
-  fill: var(--ink);
-  text-anchor: middle;
 }
 
-.map-place.passed {
-  font-size: 36px;
-  font-weight: 400;
-  fill: var(--ink-soft);
+.leaflet-tooltip.map-tooltip::before {
+  display: none;
 }
 
 .map-info {

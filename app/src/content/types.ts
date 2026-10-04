@@ -31,8 +31,8 @@ export type Place = {
   name: string
   description: string
   estimated: boolean
-  x: number | null
-  y: number | null
+  lat: number | null
+  lng: number | null
 }
 
 export type Chapter = { chapter: number; verses: Verse[]; scenes: Scene[] }

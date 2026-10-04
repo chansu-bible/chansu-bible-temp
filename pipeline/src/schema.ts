@@ -23,8 +23,14 @@ export const PlaceSchema = z.object({
   name: z.string(),
   description: z.string(),
   estimated: z.boolean(),
-  x: z.number().min(0).max(1).nullable(),
-  y: z.number().min(0).max(1).nullable(),
+  lat: z.number().min(-90).max(90).nullable(),
+  lng: z.number().min(-180).max(180).nullable(),
+})
+
+export const StyleSchema = z.object({
+  description: z.string(),
+  promptPrefix: z.string().min(1),
+  promptRules: z.string().min(1),
 })
 
 // 장면
@@ -108,6 +114,7 @@ export type Verse = z.infer<typeof VerseSchema>
 export type SourceChapter = z.infer<typeof SourceChapterSchema>
 export type Source = z.infer<typeof SourceSchema>
 export type Place = z.infer<typeof PlaceSchema>
+export type Style = z.infer<typeof StyleSchema>
 export type Scene = z.infer<typeof SceneSchema>
 export type SceneFile = z.infer<typeof SceneFileSchema>
 export type BundleScene = z.infer<typeof BundleSceneSchema>

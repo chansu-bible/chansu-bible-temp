@@ -24,7 +24,7 @@ const source: Source = {
   ],
 }
 
-const places: Place[] = [{ id: 'eden', name: '에덴', description: '동산', estimated: true, x: 0.5, y: 0.5 }]
+const places: Place[] = [{ id: 'eden', name: '에덴', description: '동산', estimated: true, lat: 31, lng: 47 }]
 
 function scene(overrides: Partial<Scene>): Scene {
   return {

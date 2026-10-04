@@ -26,4 +26,7 @@ npm run dev
 | `npm run dev` | 묶음을 만들고 읽기 화면을 띄운다 |
 | `npm test` | 전체 테스트 |
 | `npm run pipeline -- source` | 개역한글 창세기 1~10장을 받아 `content/source/genesis.json`에 저장한다 |
+| `npm run pipeline -- images --chapter 1 --allow-draft` | 1장 장면 중 그림이 없는 것을 OpenAI로 그려 `content/images/`에 저장한다 |
 | `npm run pipeline -- build` | 본문·장면·장소를 합쳐 `app/public/content/`에 묶음을 만든다 |
+
+그림을 만들려면 `.env.example`을 `.env`로 복사하고 `OPENAI_API_KEY`를 넣는다. `images`에 `--dry-run`을 붙이면 API를 부르지 않고 프롬프트만 출력하고, `--limit 2`처럼 개수를 제한할 수 있다.

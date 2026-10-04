@@ -21,10 +21,10 @@ function chapter(number: number, scenes: Scene[]): Chapter {
   return { chapter: number, verses: [], scenes }
 }
 
-const eden: Place = { id: 'eden', name: '에덴', description: '', estimated: true, x: 0.7, y: 0.7 }
-const nod: Place = { id: 'nod', name: '놋', description: '', estimated: true, x: 0.8, y: 0.7 }
-const ararat: Place = { id: 'ararat', name: '아라랏 산', description: '', estimated: false, x: 0.6, y: 0.2 }
-const unmapped: Place = { id: 'somewhere', name: '어딘가', description: '', estimated: true, x: null, y: null }
+const eden: Place = { id: 'eden', name: '에덴', description: '', estimated: true, lat: 31, lng: 47.4 }
+const nod: Place = { id: 'nod', name: '놋', description: '', estimated: true, lat: 31, lng: 49 }
+const ararat: Place = { id: 'ararat', name: '아라랏 산', description: '', estimated: false, lat: 39.7, lng: 44.3 }
+const unmapped: Place = { id: 'somewhere', name: '어딘가', description: '', estimated: true, lat: null, lng: null }
 const places = [eden, nod, ararat, unmapped]
 
 describe('buildRoute', () => {

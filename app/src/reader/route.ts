@@ -1,11 +1,11 @@
 import type { Chapter, Place } from '../content/types.ts'
 
-export type MappedPlace = Place & { x: number; y: number }
+export type MappedPlace = Place & { lat: number; lng: number }
 
 export type Route = { visited: MappedPlace[]; current: MappedPlace | null; next: MappedPlace | null }
 
 function isMapped(place: Place): place is MappedPlace {
-  return place.x !== null && place.y !== null
+  return place.lat !== null && place.lng !== null
 }
 
 export function buildRoute(chapters: Chapter[], places: Place[], currentSceneId: string): Route {

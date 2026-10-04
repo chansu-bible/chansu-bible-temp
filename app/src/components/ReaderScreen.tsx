@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Bundle } from '../content/types.ts'
 import { loadPosition, savePosition, type Position } from '../reader/position.ts'
 import { buildRoute } from '../reader/route.ts'
@@ -29,6 +29,7 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
 
   const sceneIndex = Math.min(activeIndex, chapter.scenes.length - 1)
   const scene = chapter.scenes[sceneIndex]
+  const route = useMemo(() => buildRoute(bundle.chapters, bundle.places, scene.id), [bundle, scene.id])
 
   useEffect(() => {
     savePosition({ chapter: chapter.chapter, sceneId: scene.id })
@@ -79,9 +80,7 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           onChapterChange={goToChapter}
         />
       </div>
-      {overlay === 'map' && (
-        <MapScreen route={buildRoute(bundle.chapters, bundle.places, scene.id)} onClose={() => setOverlay('none')} />
-      )}
+      {overlay === 'map' && <MapScreen route={route} onClose={() => setOverlay('none')} />}
       {overlay === 'sheet' && <BackgroundSheet scene={scene} onClose={() => setOverlay('none')} />}
     </div>
   )
