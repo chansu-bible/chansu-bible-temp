@@ -15,6 +15,7 @@ export type ImagesOptions = {
   force: boolean
   dryRun: boolean
   limit?: number
+  sceneIds?: string[]
 }
 
 export type ImagesResult = { selected: number; drawn: string[]; failed: { id: string; reason: string }[] }
@@ -29,6 +30,11 @@ export async function generateImages(
 
   const sceneFile = SceneFileSchema.parse(JSON.parse(await readFile(file, 'utf8')))
   const style = StyleSchema.parse(JSON.parse(await readFile(styleFile, 'utf8')))
+  for (const id of options.sceneIds ?? []) {
+    if (!sceneFile.scenes.some((scene) => scene.id === id)) {
+      throw new Error(`${id} 장면이 ${options.chapter}장에 없습니다`)
+    }
+  }
   const selected = selectScenesToDraw(sceneFile.scenes, options)
   const result: ImagesResult = { selected: selected.length, drawn: [], failed: [] }
 

@@ -13,17 +13,38 @@
         "who": "하나님",
         "where": "아직 모양을 갖추기 전의 땅",
         "terms": [
-          { "word": "태초", "meaning": "맨 처음, 모든 것이 시작된 때" },
-          { "word": "혼돈하고 공허하며", "meaning": "모양이 잡히지 않고 비어 있다는 뜻" },
-          { "word": "흑암", "meaning": "깊은 어둠" },
-          { "word": "깊음", "meaning": "깊은 물" }
+          {
+            "word": "태초",
+            "meaning": "맨 처음, 모든 것이 시작된 때"
+          },
+          {
+            "word": "혼돈하고 공허하며",
+            "meaning": "모양이 잡히지 않고 비어 있다는 뜻"
+          },
+          {
+            "word": "흑암",
+            "meaning": "깊은 어둠"
+          },
+          {
+            "word": "깊음",
+            "meaning": "깊은 물"
+          }
         ]
       },
       "history": [],
-      "visual": { "description": "빛이 없는 어두운 물이 끝없이 펼쳐져 있고 수면이 잔잔히 일렁인다. 사람이나 형상은 없다.", "characters": [] },
+      "visual": {
+        "description": "빛이 전혀 없는 캄캄한 어둠 속에 깊은 물만 끝없이 펼쳐져 있고 수면이 잔잔히 일렁인다. 물과 어둠만 있다. 땅, 해안, 식물, 해, 달, 별, 빛줄기, 사람, 동물은 없다.",
+        "characters": []
+      },
       "placeId": null,
-      "image": null,
-      "review": { "status": "draft", "text": null, "facts": null, "image": null, "attempts": 0 }
+      "image": "genesis-01-01.jpg",
+      "review": {
+        "status": "draft",
+        "text": null,
+        "facts": null,
+        "image": null,
+        "attempts": 0
+      }
     },
     {
       "id": "genesis-01-02",
@@ -37,15 +58,30 @@
         "who": "하나님",
         "where": "어둠이 깊음 위에 있던 때",
         "terms": [
-          { "word": "가라사대", "meaning": "'말씀하시기를'의 옛말" },
-          { "word": "칭하시니라", "meaning": "이름을 붙이셨다는 뜻" }
+          {
+            "word": "가라사대",
+            "meaning": "'말씀하시기를'의 옛말"
+          },
+          {
+            "word": "칭하시니라",
+            "meaning": "이름을 붙이셨다는 뜻"
+          }
         ]
       },
       "history": [],
-      "visual": { "description": "어두운 물 위로 밝은 빛이 퍼지고, 화면이 밝은 쪽과 어두운 쪽으로 나뉜다. 사람이나 형상은 없다.", "characters": [] },
+      "visual": {
+        "description": "캄캄한 물 위로 밝은 빛이 퍼지며 화면이 밝은 쪽과 어두운 쪽으로 나뉜다. 빛은 해 같은 광원 없이 은은하게 퍼진다. 물과 빛과 어둠만 있다. 땅, 해안, 식물, 해, 달, 별, 사람, 동물은 없다.",
+        "characters": []
+      },
       "placeId": null,
-      "image": null,
-      "review": { "status": "draft", "text": null, "facts": null, "image": null, "attempts": 0 }
+      "image": "genesis-01-02.jpg",
+      "review": {
+        "status": "draft",
+        "text": null,
+        "facts": null,
+        "image": null,
+        "attempts": 0
+      }
     },
     {
       "id": "genesis-01-03",
@@ -59,14 +95,26 @@
         "who": "하나님",
         "where": "물과 물 사이",
         "terms": [
-          { "word": "궁창", "meaning": "하늘을 가리키는 옛말. 위의 물과 아래의 물 사이에 펼쳐진 공간" }
+          {
+            "word": "궁창",
+            "meaning": "하늘을 가리키는 옛말. 위의 물과 아래의 물 사이에 펼쳐진 공간"
+          }
         ]
       },
       "history": [],
-      "visual": { "description": "아래에는 넓은 물, 위에는 구름이 있고 그 사이에 맑은 공간이 넓게 펼쳐진다.", "characters": [] },
+      "visual": {
+        "description": "아래에는 끝없이 넓은 물, 위에는 구름이 있고 그 사이에 맑은 공간이 넓게 펼쳐진다. 물과 하늘과 구름만 있다. 땅, 해안, 식물, 해, 달, 별, 사람, 동물은 없다.",
+        "characters": []
+      },
       "placeId": null,
-      "image": null,
-      "review": { "status": "draft", "text": null, "facts": null, "image": null, "attempts": 0 }
+      "image": "genesis-01-03.jpg",
+      "review": {
+        "status": "draft",
+        "text": null,
+        "facts": null,
+        "image": null,
+        "attempts": 0
+      }
     },
     {
       "id": "genesis-01-04",
@@ -80,16 +128,34 @@
         "who": "하나님",
         "where": "새로 드러난 땅과 바다",
         "terms": [
-          { "word": "천하", "meaning": "하늘 아래" },
-          { "word": "뭍", "meaning": "물에 잠기지 않은 땅, 육지" },
-          { "word": "과목", "meaning": "열매를 맺는 나무" }
+          {
+            "word": "천하",
+            "meaning": "하늘 아래"
+          },
+          {
+            "word": "뭍",
+            "meaning": "물에 잠기지 않은 땅, 육지"
+          },
+          {
+            "word": "과목",
+            "meaning": "열매를 맺는 나무"
+          }
         ]
       },
       "history": [],
-      "visual": { "description": "바다에서 드러난 땅 위에 풀밭과 열매 달린 나무들이 자라 있다.", "characters": [] },
+      "visual": {
+        "description": "바다에서 드러난 땅 위에 풀밭과 열매 달린 나무들이 자라 있다. 하늘은 은은하게 밝다. 해, 달, 별, 동물, 사람은 없다.",
+        "characters": []
+      },
       "placeId": null,
-      "image": null,
-      "review": { "status": "draft", "text": null, "facts": null, "image": null, "attempts": 0 }
+      "image": "genesis-01-04.jpg",
+      "review": {
+        "status": "draft",
+        "text": null,
+        "facts": null,
+        "image": null,
+        "attempts": 0
+      }
     },
     {
       "id": "genesis-01-05",
@@ -103,16 +169,34 @@
         "who": "하나님",
         "where": "하늘의 궁창",
         "terms": [
-          { "word": "광명", "meaning": "빛을 내는 것" },
-          { "word": "징조와 사시와 일자와 연한", "meaning": "표시와 계절과 날과 해" },
-          { "word": "주관하게", "meaning": "맡아 다스리게" }
+          {
+            "word": "광명",
+            "meaning": "빛을 내는 것"
+          },
+          {
+            "word": "징조와 사시와 일자와 연한",
+            "meaning": "표시와 계절과 날과 해"
+          },
+          {
+            "word": "주관하게",
+            "meaning": "맡아 다스리게"
+          }
         ]
       },
       "history": [],
-      "visual": { "description": "낮 하늘에는 큰 광명이, 밤 하늘에는 작은 광명과 별들이 떠 있고 아래로 땅과 바다가 보인다.", "characters": [] },
+      "visual": {
+        "description": "하늘의 왼쪽은 낮이고 크고 밝은 광명 하나가 떠 있다. 오른쪽은 밤이고 그보다 작은 둥근 광명 하나와 많은 별들이 떠 있다. 아래로 땅과 바다가 보인다. 동물과 사람은 없다.",
+        "characters": []
+      },
       "placeId": null,
-      "image": null,
-      "review": { "status": "draft", "text": null, "facts": null, "image": null, "attempts": 0 }
+      "image": "genesis-01-05.jpg",
+      "review": {
+        "status": "draft",
+        "text": null,
+        "facts": null,
+        "image": null,
+        "attempts": 0
+      }
     },
     {
       "id": "genesis-01-06",
@@ -126,16 +210,34 @@
         "who": "하나님",
         "where": "바다와 하늘",
         "terms": [
-          { "word": "번성", "meaning": "수가 많아지고 널리 퍼지는 것" },
-          { "word": "생육", "meaning": "낳아서 기르는 것" },
-          { "word": "충만하라", "meaning": "가득 차라" }
+          {
+            "word": "번성",
+            "meaning": "수가 많아지고 널리 퍼지는 것"
+          },
+          {
+            "word": "생육",
+            "meaning": "낳아서 기르는 것"
+          },
+          {
+            "word": "충만하라",
+            "meaning": "가득 차라"
+          }
         ]
       },
       "history": [],
-      "visual": { "description": "바다에는 큰 물고기와 물고기 떼가 헤엄치고, 하늘에는 새들이 날아간다.", "characters": [] },
+      "visual": {
+        "description": "바다에는 큰 물고기와 물고기 떼가 헤엄치고, 하늘에는 새들이 날아간다. 땅의 짐승과 사람은 없다.",
+        "characters": []
+      },
       "placeId": null,
-      "image": null,
-      "review": { "status": "draft", "text": null, "facts": null, "image": null, "attempts": 0 }
+      "image": "genesis-01-06.jpg",
+      "review": {
+        "status": "draft",
+        "text": null,
+        "facts": null,
+        "image": null,
+        "attempts": 0
+      }
     },
     {
       "id": "genesis-01-07",
@@ -149,15 +251,30 @@
         "who": "하나님",
         "where": "땅",
         "terms": [
-          { "word": "육축", "meaning": "집에서 기르는 짐승, 가축" },
-          { "word": "기는 것", "meaning": "땅 위를 기어 다니는 동물" }
+          {
+            "word": "육축",
+            "meaning": "집에서 기르는 짐승, 가축"
+          },
+          {
+            "word": "기는 것",
+            "meaning": "땅 위를 기어 다니는 동물"
+          }
         ]
       },
       "history": [],
-      "visual": { "description": "풀밭과 숲에 소와 양, 들짐승, 땅을 기는 작은 동물들이 어울려 있다.", "characters": [] },
+      "visual": {
+        "description": "풀밭과 숲에 소와 양, 들짐승, 땅을 기는 작은 동물들이 어울려 있다. 사람은 없다.",
+        "characters": []
+      },
       "placeId": null,
-      "image": null,
-      "review": { "status": "draft", "text": null, "facts": null, "image": null, "attempts": 0 }
+      "image": "genesis-01-07.jpg",
+      "review": {
+        "status": "draft",
+        "text": null,
+        "facts": null,
+        "image": null,
+        "attempts": 0
+      }
     },
     {
       "id": "genesis-01-08",
@@ -171,16 +288,34 @@
         "who": "하나님, 처음 창조된 남자와 여자",
         "where": "땅",
         "terms": [
-          { "word": "형상", "meaning": "모습, 닮은 꼴" },
-          { "word": "식물", "meaning": "여기서는 풀과 나무가 아니라 '먹을거리'라는 뜻" },
-          { "word": "심히", "meaning": "매우" }
+          {
+            "word": "형상",
+            "meaning": "모습, 닮은 꼴"
+          },
+          {
+            "word": "식물",
+            "meaning": "여기서는 풀과 나무가 아니라 '먹을거리'라는 뜻"
+          },
+          {
+            "word": "심히",
+            "meaning": "매우"
+          }
         ]
       },
       "history": [],
-      "visual": { "description": "동물들이 있는 푸른 땅에 남자와 여자가 멀리 작게 서 있다. 두 사람은 수풀에 가려 자세히 보이지 않는다.", "characters": [] },
+      "visual": {
+        "description": "동물들이 있는 푸른 땅 멀리에 남자와 여자가 서 있다. 두 사람은 무성한 수풀 뒤에 있어 머리와 어깨만 작게 보인다. 옷은 입지 않았고 옷이 보이지 않는다.",
+        "characters": []
+      },
       "placeId": null,
-      "image": null,
-      "review": { "status": "draft", "text": null, "facts": null, "image": null, "attempts": 0 }
+      "image": "genesis-01-08.jpg",
+      "review": {
+        "status": "draft",
+        "text": null,
+        "facts": null,
+        "image": null,
+        "attempts": 0
+      }
     }
   ]
 }

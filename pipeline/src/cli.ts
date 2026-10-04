@@ -9,6 +9,7 @@ import { fetchSource } from './source/fetchSource.ts'
 type Flags = {
   chapter?: string
   limit?: string
+  scene?: string[]
   'allow-draft': boolean
   force: boolean
   'dry-run': boolean
@@ -44,6 +45,7 @@ const commands: Record<string, (flags: Flags) => Promise<void>> = {
         force: flags.force,
         dryRun,
         limit: positiveInteger(flags.limit, 'limit'),
+        sceneIds: flags.scene,
       },
       draw,
       console.log,
@@ -77,6 +79,7 @@ try {
     options: {
       chapter: { type: 'string' },
       limit: { type: 'string' },
+      scene: { type: 'string', multiple: true },
       'allow-draft': { type: 'boolean', default: false },
       force: { type: 'boolean', default: false },
       'dry-run': { type: 'boolean', default: false },

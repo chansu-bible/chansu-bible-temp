@@ -66,6 +66,11 @@ describe('selectScenesToDraw', () => {
     expect(ids(selectScenesToDraw(scenes, { allowDraft: true, force: true }))).not.toContain('genesis-01-03')
   })
 
+  it('sceneIds를 주면 그 장면만 고르고, 그림이 있어도 다시 고른다', () => {
+    const selected = selectScenesToDraw(scenes, { allowDraft: true, force: false, sceneIds: ['genesis-01-04', 'genesis-01-03'] })
+    expect(ids(selected)).toEqual(['genesis-01-04'])
+  })
+
   it('limit만큼만 고른다', () => {
     expect(ids(selectScenesToDraw(scenes, { allowDraft: true, force: false, limit: 1 }))).toEqual(['genesis-01-01'])
   })
