@@ -31,6 +31,9 @@ export const StyleSchema = z.object({
   description: z.string(),
   promptPrefix: z.string().min(1),
   promptRules: z.string().min(1),
+  // 화풍 참고 이미지. content/story-bible/refs/ 아래의 파일 이름이다.
+  references: z.array(z.string()).default([]),
+  referenceInstruction: z.string().default(''),
 })
 
 // 장면
@@ -66,7 +69,12 @@ export const SceneSchema = z.object({
   commentary: z.string(),
   background: BackgroundSchema,
   history: z.array(HistoryNoteSchema),
-  visual: z.object({ description: z.string(), characters: z.array(z.string()) }),
+  visual: z.object({
+    description: z.string(),
+    characters: z.array(z.string()),
+    // 거리, 시점, 시간대, 여백 같은 구도 지시. 장면마다 다르게 준다.
+    shot: z.string().optional(),
+  }),
   placeId: z.string().nullable(),
   image: z.string().nullable(),
   review: z.object({

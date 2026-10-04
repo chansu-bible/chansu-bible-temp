@@ -5,6 +5,7 @@ export const contentDir = path.join(repoRoot, 'content')
 export const sourceFile = path.join(contentDir, 'source', 'genesis.json')
 export const placesFile = path.join(contentDir, 'story-bible', 'places.json')
 export const styleFile = path.join(contentDir, 'story-bible', 'style.json')
+export const refsDir = path.join(contentDir, 'story-bible', 'refs')
 export const envFile = path.join(repoRoot, '.env')
 
 export function sceneFilePath(chapter: number): string {

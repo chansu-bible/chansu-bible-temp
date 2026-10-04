@@ -1,13 +1,14 @@
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { imagesDir, sceneFilePath, styleFile } from '../paths.ts'
+import { imagesDir, refsDir, sceneFilePath, styleFile } from '../paths.ts'
 import { SceneFileSchema, StyleSchema } from '../schema.ts'
 import { detectImageExtension } from './format.ts'
 import { buildImagePrompt } from './prompt.ts'
 import { selectScenesToDraw } from './select.ts'
 
-export type DrawImage = (prompt: string) => Promise<Uint8Array>
+// references: 화풍 참고 이미지 파일 경로
+export type DrawImage = (prompt: string, references: string[]) => Promise<Uint8Array>
 
 export type ImagesOptions = {
   chapter: number
@@ -35,6 +36,10 @@ export async function generateImages(
       throw new Error(`${id} 장면이 ${options.chapter}장에 없습니다`)
     }
   }
+  const references = style.references.map((name) => path.join(refsDir, name))
+  for (const file of references) {
+    if (!existsSync(file)) throw new Error(`화풍 참고 이미지가 없습니다: ${path.basename(file)}`)
+  }
   const selected = selectScenesToDraw(sceneFile.scenes, options)
   const result: ImagesResult = { selected: selected.length, drawn: [], failed: [] }
 
@@ -47,7 +52,7 @@ export async function generateImages(
     }
     try {
       log(`${scene.id} ${scene.title}: 그리는 중`)
-      const bytes = await draw(prompt)
+      const bytes = await draw(prompt, references)
       const name = `${scene.id}.${detectImageExtension(bytes)}`
       await writeFile(path.join(imagesDir, name), bytes)
       scene.image = name

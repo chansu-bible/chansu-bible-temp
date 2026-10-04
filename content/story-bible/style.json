@@ -1,5 +1,11 @@
 {
-  "description": "따뜻한 수채화풍 그림책 삽화. 부드러운 붓 자국, 은은한 흙빛 색감.",
-  "promptPrefix": "Warm watercolor picture-book illustration with soft brush texture and a muted earthy palette. Wide establishing composition, square format, calm and reverent mood.",
-  "promptRules": "Rules: Paint only what the scene describes. Do not add people, animals, land, shores, plants, buildings, sun, moon or stars unless the scene mentions them, and leave out everything the scene says is absent. God is never shown as a figure or a face. When the scene mentions people, keep them small and distant, modestly covered by foliage or shadow. No violence or gore. No text, letters, captions, borders, frames or watermarks."
+  "description": "거친 수채화지에 큰 붓으로 빠르게 그린 투명 수채화. 물감이 고르지 않게 번지고, 연필 밑그림이 비치고, 종이가 군데군데 남는다. 붓질은 존 싱어 사전트의 수채화(퍼블릭 도메인)를 참고한다.",
+  "promptPrefix": "Hand-painted transparent watercolor on rough cold-press paper, painted quickly on location with one large round brush. Broad uneven washes, pigment pooling and blooms where wet paint met wet paper, dry-brush streaks, a mix of hard and soft edges. Faint graphite underdrawing shows through in places. Limited palette of four pigments: ultramarine, burnt sienna, raw sienna, sap green. Details are only suggested: foliage, waves and fur are simplified into a few broad shapes, not many small repeated marks. Some white paper is left unpainted. Not uniformly sharp, no smooth digital gradients. Square format.",
+  "promptRules": "Rules: Paint only what the scene describes. Do not add people, animals, land, shores, plants, buildings, sun, moon or stars unless the scene mentions them, and leave out everything the scene says is absent. God is never shown as a figure or a face. When the scene mentions people, keep them small and distant, modestly covered by foliage or shadow. No violence or gore. No text, letters, captions, borders, frames or watermarks.",
+  "references": [
+    "sargent-olive-trees-canopy.jpg",
+    "sargent-olive-trees-grass.jpg",
+    "sargent-olive-trees-sky.jpg"
+  ],
+  "referenceInstruction": "The attached images are close-up details of one hand-painted watercolor. They are a style reference only: paint as if by the same hand, matching its loose brushwork, the way the paint sits on the paper, and how much it leaves unfinished. Take the subject, the composition, the lighting and the colors from the scene described below, not from the reference details."
 }

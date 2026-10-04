@@ -8,6 +8,8 @@ const style: Style = {
   description: '수채화풍',
   promptPrefix: 'Watercolor illustration.',
   promptRules: 'No text in the image.',
+  references: [],
+  referenceInstruction: 'Images are style references.',
 }
 
 function scene(id: string, status: Scene['review']['status'], image: string | null = null): Scene {
@@ -31,6 +33,33 @@ describe('buildImagePrompt', () => {
   it('그림체, 장면 묘사, 표현 기준 순서로 조립한다', () => {
     expect(buildImagePrompt(style, scene('genesis-01-01', 'draft'))).toBe(
       'Watercolor illustration.\n\n장면: 어두운 물 위로 빛이 퍼진다.\n\nNo text in the image.',
+    )
+  })
+})
+
+describe('buildImagePrompt: 참고 이미지와 구도', () => {
+  it('참고 이미지가 있으면 참고 지시문을 맨 앞에 붙인다', () => {
+    const withRefs = { ...style, references: ['brush.jpg'] }
+    expect(buildImagePrompt(withRefs, scene('genesis-01-01', 'draft'))).toBe(
+      [
+        'Images are style references.',
+        'Watercolor illustration.',
+        '장면: 어두운 물 위로 빛이 퍼진다.',
+        'No text in the image.',
+      ].join('\n\n'),
+    )
+  })
+
+  it('장면에 구도가 있으면 장면 묘사 앞에 넣는다', () => {
+    const withShot = scene('genesis-01-01', 'draft')
+    withShot.visual.shot = '수면 가까운 낮은 시점.'
+    expect(buildImagePrompt(style, withShot)).toBe(
+      [
+        'Watercolor illustration.',
+        '구도: 수면 가까운 낮은 시점.',
+        '장면: 어두운 물 위로 빛이 퍼진다.',
+        'No text in the image.',
+      ].join('\n\n'),
     )
   })
 })
