@@ -1,0 +1,10 @@
+{
+  "name": "chansu-bible",
+  "private": true,
+  "type": "module",
+  "workspaces": ["pipeline"],
+  "scripts": {
+    "pipeline": "npm run cli -w pipeline --",
+    "test": "npm test -w pipeline"
+  }
+}
