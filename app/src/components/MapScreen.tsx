@@ -13,10 +13,19 @@ export default function MapScreen({ route, onClose }: { route: Route; onClose: (
   const passed = visited.slice(0, -1)
   const path = visited.map((place) => `${place.x * width},${place.y * height}`).join(' ')
 
+  // 같은 장소를 다시 지나가도 이름은 한 번만 쓴다. 현재 위치의 이름이 우선이다.
+  const labeled = new Set<string>(current ? [current.id] : [])
+  const passedLabels = passed.filter((place) => {
+    if (labeled.has(place.id)) return false
+    labeled.add(place.id)
+    return true
+  })
+  const showNextLabel = next !== null && !labeled.has(next.id)
+
   return (
     <div className="overlay map-screen" role="dialog" aria-modal="true" aria-label="여정 지도">
       <header className="overlay-header">
-        <button type="button" className="icon-button" aria-label="지도 닫기" onClick={onClose}>
+        <button type="button" className="icon-button" aria-label="지도 닫기" autoFocus onClick={onClose}>
           <Icon name="back" />
         </button>
         여정 지도
@@ -30,13 +39,13 @@ export default function MapScreen({ route, onClose }: { route: Route; onClose: (
         <text className="map-label" x="60" y="400">
           지중해
         </text>
-        <text className="map-label" x="870" y="680">
+        <text className="map-label" x="830" y="660" textAnchor="end">
           페르시아 만
         </text>
-        <text className="map-label" x="300" y="330">
+        <text className="map-label" x="360" y="470">
           유프라테스 강
         </text>
-        <text className="map-label" x="640" y="300">
+        <text className="map-label" x="690" y="300">
           티그리스 강
         </text>
 
@@ -51,26 +60,34 @@ export default function MapScreen({ route, onClose }: { route: Route; onClose: (
           />
         )}
         {passed.map((place, index) => (
-          <g key={`${place.id}-${index}`}>
-            <circle className="map-dot" cx={place.x * width} cy={place.y * height} r="9" />
-            <text className="map-place passed" x={place.x * width} y={place.y * height + 40}>
-              {label(place)}
-            </text>
-          </g>
+          <circle
+            key={`${place.id}-${index}`}
+            className="map-dot"
+            cx={place.x * width}
+            cy={place.y * height}
+            r="9"
+          />
+        ))}
+        {passedLabels.map((place) => (
+          <text key={place.id} className="map-place passed" x={place.x * width} y={place.y * height + 52}>
+            {label(place)}
+          </text>
         ))}
         {next && (
           <g>
             <circle className="map-dot next" cx={next.x * width} cy={next.y * height} r="9" />
-            <text className="map-place passed" x={next.x * width} y={next.y * height + 40}>
-              {label(next)}
-            </text>
+            {showNextLabel && (
+              <text className="map-place passed" x={next.x * width} y={next.y * height + 52}>
+                {label(next)}
+              </text>
+            )}
           </g>
         )}
         {current && (
           <g>
             <circle className="map-halo" cx={current.x * width} cy={current.y * height} r="26" />
             <circle className="map-dot" cx={current.x * width} cy={current.y * height} r="13" />
-            <text className="map-place" x={current.x * width} y={current.y * height - 36}>
+            <text className="map-place" x={current.x * width} y={current.y * height - 40}>
               {label(current)}
             </text>
           </g>

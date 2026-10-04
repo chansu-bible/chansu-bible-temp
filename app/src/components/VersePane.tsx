@@ -85,6 +85,9 @@ export default function VersePane({
             창세기 {nextChapter}장으로
           </button>
         )}
+
+        {/* 마지막 장면도 기준선까지 올라올 수 있도록 끝에 빈 공간을 둔다. */}
+        <div style={{ height: `calc(100% - ${lineOffset}px)` }} aria-hidden="true" />
       </div>
     </section>
   )

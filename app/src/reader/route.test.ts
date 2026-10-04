@@ -65,4 +65,14 @@ describe('buildRoute', () => {
     const chapters = [chapter(1, [scene('a', 'eden'), scene('b', 'somewhere')])]
     expect(buildRoute(chapters, places, 'b').visited).toEqual([eden])
   })
+
+  it('다음 장소가 이미 지나온 곳이어도 다음 장소로 보여준다', () => {
+    const chapters = [chapter(1, [scene('a', 'eden'), scene('b', 'nod'), scene('c', 'eden')])]
+    expect(buildRoute(chapters, places, 'b').next).toEqual(eden)
+  })
+
+  it('다음 장소를 찾을 때 좌표가 없는 장소는 건너뛴다', () => {
+    const chapters = [chapter(1, [scene('a', 'eden'), scene('b', 'somewhere'), scene('c', 'nod')])]
+    expect(buildRoute(chapters, places, 'a').next).toEqual(nod)
+  })
 })

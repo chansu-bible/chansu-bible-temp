@@ -17,7 +17,7 @@ export default function BackgroundSheet({ scene, onClose }: { scene: Scene; onCl
           <h2 id="sheet-title" className="sheet-title">
             {scene.title}
           </h2>
-          <button type="button" className="icon-button" aria-label="해설 닫기" onClick={onClose}>
+          <button type="button" className="icon-button" aria-label="해설 닫기" autoFocus onClick={onClose}>
             <Icon name="close" />
           </button>
         </div>
@@ -41,8 +41,8 @@ export default function BackgroundSheet({ scene, onClose }: { scene: Scene; onCl
             {background.terms.length > 0 && (
               <>
                 <h3>낱말 풀이</h3>
-                {background.terms.map((term) => (
-                  <div key={term.word} className="term">
+                {background.terms.map((term, index) => (
+                  <div key={`${index}-${term.word}`} className="term">
                     <b>{term.word}</b>
                     {term.meaning}
                   </div>
@@ -57,15 +57,15 @@ export default function BackgroundSheet({ scene, onClose }: { scene: Scene; onCl
         {history.length > 0 && (
           <>
             <h3>역사 배경</h3>
-            {history.map((note) => (
-              <div key={note.text} className="history-note">
+            {history.map((note, index) => (
+              <div key={index} className="history-note">
                 <span className="certainty">{note.certainty}</span>
                 <span>{note.text}</span>
                 <span className="history-basis">근거: {note.basis}</span>
                 {note.sources.length > 0 && (
                   <span className="history-sources">
                     {note.sources.map((url, index) => (
-                      <a key={url} href={url} target="_blank" rel="noreferrer">
+                      <a key={`${index}-${url}`} href={url} target="_blank" rel="noreferrer">
                         출처 {index + 1}
                       </a>
                     ))}

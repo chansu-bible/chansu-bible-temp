@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Bundle } from '../content/types.ts'
 import { loadPosition, savePosition, type Position } from '../reader/position.ts'
 import { buildRoute } from '../reader/route.ts'
@@ -25,6 +25,7 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
     ),
   )
   const [overlay, setOverlay] = useState<Overlay>('none')
+  const openerRef = useRef<HTMLElement | null>(null)
 
   const sceneIndex = Math.min(activeIndex, chapter.scenes.length - 1)
   const scene = chapter.scenes[sceneIndex]
@@ -32,6 +33,25 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   useEffect(() => {
     savePosition({ chapter: chapter.chapter, sceneId: scene.id })
   }, [chapter.chapter, scene.id])
+
+  function openOverlay(next: Exclude<Overlay, 'none'>) {
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setOverlay(next)
+  }
+
+  // 오버레이가 열려 있는 동안 Esc로 닫고, 닫히면 열었던 버튼으로 포커스를 돌려준다.
+  useEffect(() => {
+    if (overlay === 'none') {
+      openerRef.current?.focus()
+      openerRef.current = null
+      return
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOverlay('none')
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [overlay])
 
   function goToChapter(next: number) {
     setChapterNumber(next)
@@ -41,22 +61,24 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
 
   return (
     <div className="reader">
-      <ScenePane
-        scene={scene}
-        sceneNumber={sceneIndex + 1}
-        sceneCount={chapter.scenes.length}
-        onOpenMap={() => setOverlay('map')}
-        onOpenSheet={() => setOverlay('sheet')}
-      />
-      <VersePane
-        key={chapter.chapter}
-        chapter={chapter}
-        chapterNumbers={bundle.chapters.map((c) => c.chapter)}
-        restoreSceneId={restoreSceneId}
-        activeIndex={sceneIndex}
-        onActiveIndexChange={setActiveIndex}
-        onChapterChange={goToChapter}
-      />
+      <div className="reader-panes" inert={overlay !== 'none'}>
+        <ScenePane
+          scene={scene}
+          sceneNumber={sceneIndex + 1}
+          sceneCount={chapter.scenes.length}
+          onOpenMap={() => openOverlay('map')}
+          onOpenSheet={() => openOverlay('sheet')}
+        />
+        <VersePane
+          key={chapter.chapter}
+          chapter={chapter}
+          chapterNumbers={bundle.chapters.map((c) => c.chapter)}
+          restoreSceneId={restoreSceneId}
+          activeIndex={sceneIndex}
+          onActiveIndexChange={setActiveIndex}
+          onChapterChange={goToChapter}
+        />
+      </div>
       {overlay === 'map' && (
         <MapScreen route={buildRoute(bundle.chapters, bundle.places, scene.id)} onClose={() => setOverlay('none')} />
       )}
