@@ -2,28 +2,61 @@ import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
-import { appContentDir, imagesDir, placesFile, scenesDir, sourceFile } from '../paths.ts'
+import { appContentDir, imagesDir, placesFile, repoRoot, scenesDir, sourceFile } from '../paths.ts'
 import { BundleSchema, PlaceSchema, SceneFileSchema, SourceSchema, type Bundle, type SceneFile } from '../schema.ts'
 import { buildBundle } from './buildBundle.ts'
 
-async function readJson(file: string): Promise<unknown> {
-  return JSON.parse(await readFile(file, 'utf8'))
+function relativeName(file: string): string {
+  return path.relative(repoRoot, file).split(path.sep).join('/')
+}
+
+async function readJson<T>(file: string, parse: (value: unknown) => T): Promise<T> {
+  try {
+    return parse(JSON.parse(await readFile(file, 'utf8')))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`${relativeName(file)}: ${message}`)
+  }
 }
 
 async function readSceneFiles(): Promise<SceneFile[]> {
   if (!existsSync(scenesDir)) return []
   const names = (await readdir(scenesDir)).filter((name) => name.endsWith('.json')).sort()
-  return Promise.all(names.map(async (name) => SceneFileSchema.parse(await readJson(path.join(scenesDir, name)))))
+  return Promise.all(
+    names.map(async (name) => {
+      const sceneFile = await readJson(path.join(scenesDir, name), (value) => SceneFileSchema.parse(value))
+      const match = name.match(/^genesis-(\d+)\.json$/)
+      if (match && Number(match[1]) !== sceneFile.chapter) {
+        throw new Error(`${name}: 파일 이름과 chapter(${sceneFile.chapter})가 맞지 않습니다`)
+      }
+      return sceneFile
+    }),
+  )
+}
+
+function checkImages(sceneFiles: SceneFile[]): void {
+  for (const file of sceneFiles) {
+    for (const scene of file.scenes) {
+      if (scene.image && !existsSync(path.join(imagesDir, scene.image))) {
+        throw new Error(`${scene.id}: 그림 파일 ${scene.image}이 content/images에 없습니다`)
+      }
+    }
+  }
 }
 
 export async function writeBundle(): Promise<Bundle> {
-  const source = SourceSchema.parse(await readJson(sourceFile))
-  const places = z.array(PlaceSchema).parse(await readJson(placesFile))
-  const bundle = BundleSchema.parse(buildBundle(source, await readSceneFiles(), places))
+  const source = await readJson(sourceFile, (value) => SourceSchema.parse(value))
+  const places = await readJson(placesFile, (value) => z.array(PlaceSchema).parse(value))
+  const sceneFiles = await readSceneFiles()
+  const bundle = BundleSchema.parse(buildBundle(source, sceneFiles, places))
+  checkImages(sceneFiles)
 
   await rm(appContentDir, { recursive: true, force: true })
   await mkdir(appContentDir, { recursive: true })
   await writeFile(path.join(appContentDir, 'genesis.json'), JSON.stringify(bundle), 'utf8')
-  await cp(imagesDir, path.join(appContentDir, 'images'), { recursive: true })
+  await cp(imagesDir, path.join(appContentDir, 'images'), {
+    recursive: true,
+    filter: (src) => src === imagesDir || !path.basename(src).startsWith('.'),
+  })
   return bundle
 }

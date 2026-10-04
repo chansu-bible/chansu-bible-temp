@@ -30,8 +30,9 @@ export function parseWikisource(wikitext: string, chapterFrom: number, chapterTo
       continue
     }
     if (!current) continue
+    if (line === '') continue
     const verse = line.match(verseLine)
-    if (!verse) continue
+    if (!verse) throw new Error(`${current.chapter}장에서 알아볼 수 없는 줄이 있습니다: ${line}`)
     // 2장부터는 첫 절의 번호가 비어 있다: {{절|2|}}
     current.verses.push({ verse: verse[2] ? Number(verse[2]) : 1, text: verse[3].trim() })
   }

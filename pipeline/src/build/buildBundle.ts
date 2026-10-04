@@ -4,10 +4,21 @@ import { findCoverageProblems } from '../scenes/coverage.ts'
 export function buildBundle(source: Source, sceneFiles: SceneFile[], places: Place[]): Bundle {
   const placeIds = new Set(places.map((place) => place.id))
 
+  const seenChapters = new Set<number>()
+  for (const file of sceneFiles) {
+    if (seenChapters.has(file.chapter)) throw new Error(`${file.chapter}장의 장면 파일이 둘 이상입니다`)
+    seenChapters.add(file.chapter)
+    if (!source.chapters.some((sourceChapter) => sourceChapter.chapter === file.chapter)) {
+      throw new Error(`${file.chapter}장은 본문에 없습니다`)
+    }
+  }
+
   const chapters = source.chapters.map((sourceChapter) => {
     const { chapter, verses } = sourceChapter
     const sceneFile = sceneFiles.find((file) => file.chapter === chapter)
     if (!sceneFile) return { chapter, verses, scenes: [fallbackScene(chapter, verses.length)] }
+
+    checkSceneIds(sceneFile)
 
     const problems = findCoverageProblems(sceneFile.scenes, verses.length)
     if (problems.length > 0) {
@@ -52,4 +63,14 @@ function toBundleScene(scene: Scene): BundleScene {
     image: scene.image ? `content/images/${scene.image}` : null,
     reviewStatus: scene.review.status,
   }
+}
+
+function checkSceneIds(file: SceneFile): void {
+  file.scenes.forEach((scene, index) => {
+    if (scene.chapter !== file.chapter) {
+      throw new Error(`${scene.id}: chapter가 ${scene.chapter}인데 ${file.chapter}장 파일에 들어 있습니다`)
+    }
+    const expectedId = `genesis-${String(file.chapter).padStart(2, '0')}-${String(index + 1).padStart(2, '0')}`
+    if (scene.id !== expectedId) throw new Error(`${scene.id}: id가 ${expectedId}여야 합니다`)
+  })
 }

@@ -93,4 +93,31 @@ describe('buildBundle', () => {
     const file = { chapter: 1, scenes: [scene({ placeId: 'nowhere' })] }
     expect(() => buildBundle(source, [file], places)).toThrow('genesis-01-01: 장소 nowhere가 places.json에 없습니다')
   })
+
+  it('장면 파일이 있는 장도 본문은 원본 그대로 들어간다', () => {
+    const file = { chapter: 1, scenes: [scene({})] }
+    expect(buildBundle(source, [file], places).chapters[0].verses).toEqual(source.chapters[0].verses)
+  })
+
+  it('같은 장의 장면 파일이 둘 이상이면 오류를 낸다', () => {
+    const file = { chapter: 1, scenes: [scene({})] }
+    expect(() => buildBundle(source, [file, file], places)).toThrow('1장의 장면 파일이 둘 이상입니다')
+  })
+
+  it('본문에 없는 장의 장면 파일이면 오류를 낸다', () => {
+    const file = { chapter: 5, scenes: [scene({ chapter: 5, id: 'genesis-05-01' })] }
+    expect(() => buildBundle(source, [file], places)).toThrow('5장은 본문에 없습니다')
+  })
+
+  it('장면의 chapter가 파일의 chapter와 다르면 오류를 낸다', () => {
+    const file = { chapter: 1, scenes: [scene({ chapter: 2 })] }
+    expect(() => buildBundle(source, [file], places)).toThrow(
+      'genesis-01-01: chapter가 2인데 1장 파일에 들어 있습니다',
+    )
+  })
+
+  it('장면 id가 순서대로가 아니면 오류를 낸다', () => {
+    const file = { chapter: 1, scenes: [scene({ id: 'genesis-01-02' })] }
+    expect(() => buildBundle(source, [file], places)).toThrow('genesis-01-02: id가 genesis-01-01여야 합니다')
+  })
 })

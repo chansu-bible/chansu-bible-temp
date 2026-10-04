@@ -45,6 +45,11 @@ describe('parseWikisource', () => {
     const chapters = parseWikisource(wikitext, 2, 2)
     expect(chapters.map((c) => c.chapter)).toEqual([2])
   })
+
+  it('절도 장 제목도 아닌 줄이 있으면 오류를 낸다', () => {
+    const broken = ['== 1장 ==', '{{절|1|1}} 태초에', '{{절||2}} 땅이 혼돈하고', '이어지는 줄'].join('\n')
+    expect(() => parseWikisource(broken, 1, 1)).toThrow('1장에서 알아볼 수 없는 줄이 있습니다: 이어지는 줄')
+  })
 })
 
 describe('findSourceProblems', () => {

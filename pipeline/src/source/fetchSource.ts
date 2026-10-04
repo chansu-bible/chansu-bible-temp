@@ -11,7 +11,11 @@ export async function fetchSource(): Promise<Source> {
   const response = await fetch(url, { headers: { 'User-Agent': 'chansu-bible-pipeline/0.1' } })
   if (!response.ok) throw new Error(`본문을 가져오지 못했습니다 (HTTP ${response.status})`)
 
-  const chapters = parseWikisource(await response.text(), 1, 10)
+  const text = await response.text()
+  const chapters = parseWikisource(text, 1, 10)
+  if (chapters.length === 0) {
+    throw new Error(`본문 형식을 알아보지 못했습니다. 응답의 첫 줄: ${text.split(/\r?\n/)[0]}`)
+  }
   const problems = findSourceProblems(chapters, expectedVerseCounts)
   if (problems.length > 0) throw new Error(`본문 검증에 실패했습니다:\n${problems.join('\n')}`)
 
