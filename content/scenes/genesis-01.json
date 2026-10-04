@@ -9,7 +9,7 @@
       "title": "태초에",
       "commentary": "성경의 첫 문장이에요. 땅은 아직 모양이 없고 비어 있었으며, 어둠이 깊음 위에 있었다고 해요.",
       "background": {
-        "what": "하나님이 하늘과 땅을 창조하세요. 땅은 아직 비어 있고 어둠에 덮여 있어요.",
+        "what": "하나님이 하늘과 땅을 창조하세요. 땅은 아직 모양이 없이 비어 있고, 어둠이 깊음 위에 있어요.",
         "who": "하나님",
         "where": "아직 모양을 갖추기 전의 땅",
         "terms": [
@@ -20,7 +20,7 @@
         ]
       },
       "history": [],
-      "visual": { "description": "빛이 없는 어두운 물이 끝없이 펼쳐져 있고, 그 위로 바람결 같은 움직임이 지나간다. 사람이나 형상은 없다.", "characters": [] },
+      "visual": { "description": "빛이 없는 어두운 물이 끝없이 펼쳐져 있고 수면이 잔잔히 일렁인다. 사람이나 형상은 없다.", "characters": [] },
       "placeId": null,
       "image": null,
       "review": { "status": "draft", "text": null, "facts": null, "image": null, "attempts": 0 }
@@ -96,7 +96,7 @@
       "chapter": 1,
       "verseStart": 14,
       "verseEnd": 19,
-      "title": "해와 달과 별",
+      "title": "두 큰 광명과 별들",
       "commentary": "넷째 날이에요. 낮을 주관하는 큰 광명과 밤을 주관하는 작은 광명, 그리고 별들이 하늘에 놓였어요.",
       "background": {
         "what": "하나님이 두 큰 광명과 별들을 만들어 하늘의 궁창에 두시고, 낮과 밤을 주관하며 땅을 비추게 하세요.",
@@ -109,7 +109,7 @@
         ]
       },
       "history": [],
-      "visual": { "description": "한쪽 하늘에는 해가, 다른 쪽 하늘에는 달과 별들이 떠 있고 아래로 땅과 바다가 보인다.", "characters": [] },
+      "visual": { "description": "낮 하늘에는 큰 광명이, 밤 하늘에는 작은 광명과 별들이 떠 있고 아래로 땅과 바다가 보인다.", "characters": [] },
       "placeId": null,
       "image": null,
       "review": { "status": "draft", "text": null, "facts": null, "image": null, "attempts": 0 }
@@ -143,7 +143,7 @@
       "verseStart": 24,
       "verseEnd": 25,
       "title": "땅의 짐승들",
-      "commentary": "여섯째 날의 앞부분이에요. 땅의 짐승과 육축과 땅에 기는 것이 종류대로 만들어졌어요.",
+      "commentary": "땅의 짐승과 육축과 땅에 기는 것이 종류대로 만들어졌어요. 31절에 따르면 여섯째 날에 있었던 일이에요.",
       "background": {
         "what": "하나님이 땅의 짐승과 육축과 땅에 기는 모든 것을 종류대로 만드세요.",
         "who": "하나님",
