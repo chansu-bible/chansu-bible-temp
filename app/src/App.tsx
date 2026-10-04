@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import ReaderScreen from './components/ReaderScreen.tsx'
 import { loadBundle } from './content/loadBundle.ts'
 import type { Bundle } from './content/types.ts'
 
@@ -41,9 +42,5 @@ export default function App() {
     )
   }
 
-  return (
-    <p className="status">
-      {state.bundle.book} {state.bundle.chapters.length}장을 불러왔어요
-    </p>
-  )
+  return <ReaderScreen bundle={state.bundle} />
 }
