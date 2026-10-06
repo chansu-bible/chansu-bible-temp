@@ -1,0 +1,158 @@
+# 설정집 DB, LLM 파이프라인, 관리 도구 — 설계
+
+- 날짜: 2026-10-06
+- 상태: 승인됨 (관리 도구는 로컬 실행으로 결정)
+- 앞선 문서: `2026-10-04-scene-bible-reader-design.md` (읽기 화면과 콘텐츠 파이프라인의 기본 설계). 이 문서는 그 위에 세 가지를 더한다.
+
+## 1. 목표
+
+성경 그림을 **일관되고 검증된 정보**로 만들기 위해 세 덩어리를 만든다.
+
+1. **설정집 DB**: 인물·장소·시대·물건의 확정 정보. 항목마다 검수 상태가 있고, 그림과 시나리오는 **승인된 항목만** 참조한다.
+2. **LLM 파이프라인**: 설정집 추출 → 시나리오 작성 → 글 검수 → 사실 검수 → 인물 기준 이미지 → 그림 → 그림 검수. 작성과 검수는 다른 모델이 맡는다.
+3. **관리 도구**: 파이프라인 상태를 보고, 작업을 지시하고, 검수 대기 항목을 승인·수정하는 로컬 웹 화면.
+
+### 완료 기준
+
+- 1~10장의 인물·장소·시대·물건이 설정집에 들어 있고, 모두 사람이 승인했다.
+- 3~10장의 장면 글(제목, 해설, 낱말 풀이, 역사 배경, 그림 묘사)이 LLM으로 만들어지고 두 단계 검수를 거쳐 관리 도구에서 승인됐다.
+- 그림은 승인된 설정집의 인상착의와 시대 메모, 인물 기준 이미지를 참고해 만들어지고, 자동 그림 검수를 거친다.
+- 관리 도구에서 장·단계별 상태, 작업 실행과 로그, 검수 대기열, 설정집 편집·승인이 된다.
+
+## 2. 결정 사항
+
+| 항목 | 결정 | 이유 |
+|---|---|---|
+| 설정집 저장 | `content/story-bible/` 아래 JSON 파일 | git이 이력과 검수 기록을 남긴다. 서버와 DB가 필요 없다 |
+| 관리 도구 | 로컬 실행(`npm run admin`). 저장소 파일을 직접 고치고, 끝나면 git으로 올린다 | 로그인·호스팅 없이 지금 단계에 맞다. 비밀 키가 컴퓨터를 벗어나지 않는다. 동시 검수는 안 된다 |
+| 작성 모델 | `gpt-6.1-sol` (설정집 추출, 시나리오 작성) | 성능 대비 비용. `.env`로 바꿀 수 있다 |
+| 검수 모델 | `gpt-6-astra` (글 검수, 사실 검수, 그림 검수) | 작성과 다른 모델로 독립성을 확보한다. 사실 검수는 웹 검색 도구를 켠다 |
+| 구조화 출력 | Responses API의 `json_schema`(strict) + zod | 모든 LLM 출력은 스키마로 받고 코드가 다시 검증한다 |
+| 사실과 설정의 구분 | 설정집 항목은 `facts`(본문 근거, 절 인용)와 `design`(제작상 결정)을 나눠 적는다 | 성경은 인상착의를 거의 말하지 않는다. 지어낸 것을 사실처럼 두지 않기 위해서다 |
+| 승인 규칙 | 승인된 항목은 LLM이 바꿀 수 없다. 변경은 `proposals`로 제안만 하고 사람이 적용한다 | 검수 결과가 뒤집히지 않게 한다 |
+
+## 3. 설정집 DB
+
+파일: `content/story-bible/characters.json`, `places.json`, `eras.json`, `things.json`, `proposals.json`. 각 파일은 항목 배열이다. 절 인용은 `"장:절"` 또는 `"장:절-절"` 형식(창세기 기준)이다.
+
+공통 필드: `id`(영문 소문자, 숫자, 하이픈), `name`, `aliases`, `status`(`draft` | `approved` | `rejected`), `sources`(절 인용 목록).
+
+### 인물 `characters.json`
+
+```
+id, name, aliases, status,
+facts: {
+  firstAppearance: "1:26",
+  gender: "남" | "여" | "불명",
+  years: { born: 0 | null, died: 930 | null },     // 창조 원년 기준 햇수. 족보에서 계산한 값
+  relations: [{ type: "아들", to: "adam" }],
+  attire: [{ from: "2:25", description: "옷을 입지 않음" }, { from: "3:21", description: "가죽옷" }],
+  notes: "본문이 말하는 그 밖의 사실",
+  sources: ["1:26-27", "2:7", "5:5"]
+},
+design: {                                           // 제작상 결정. 본문 근거가 없으며 사람이 승인한다
+  build: "", face: "", hair: "짧은 검은 곱슬머리", skin: "", ageNotes: "에덴에서는 젊은 성인, 5장에서는 노년",
+  notes: ""
+},
+refs: ["adam-front.jpg"]                            // content/story-bible/refs/characters/ 아래 기준 이미지
+```
+
+### 장소 `places.json`
+
+```
+id, name, aliases, status,
+facts: { firstAppearance, description, sources },
+location: { lat: number | null, lng: number | null, certainty: "확실" | "추정" | "불명" },
+design: { landscape: "그림에 쓸 지형·식생 메모", notes }
+```
+
+지금 파일(`id, name, description, estimated, lat, lng`)은 이 형식으로 옮긴다. 앱 묶음의 장소 형식은 바꾸지 않는다(`estimated`는 `certainty !== "확실"`로 계산).
+
+### 시대 `eras.json`
+
+```
+id, name, status,
+range: { from: "1:1", to: "2:3" },
+years: { from: number | null, to: number | null },
+facts: { description, present: ["있는 것"], absent: ["아직 없는 것"], sources },
+design: { visualNotes: "그림에 쓸 시대 메모" }
+```
+
+처음 넣을 시대: 창조 주간(1:1~2:3), 에덴(2:4~3:24), 추방 후·홍수 전(4:1~6:8), 홍수(6:9~8:22), 홍수 후(9:1~10:32). 각 시대의 `present`/`absent`는 본문 근거로 적는다(예: 첫 성읍 4:17, 장막과 가축 4:20, 수금과 퉁소 4:21, 구리와 쇠 연장 4:22, 포도원 9:20).
+
+### 물건 `things.json`
+
+```
+id, name, aliases, status,
+facts: { description, details: ["길이 300규빗, 너비 50규빗, 높이 30규빗"], sources },
+design: { visualNotes }
+```
+
+### 변경 제안 `proposals.json`
+
+```
+id, createdAt, target: "characters/adam", field: "facts.attire", value: <any>, reason, sources, status: "open" | "applied" | "dismissed"
+```
+
+LLM이 승인된 항목을 고치고 싶을 때 여기에만 쓴다. 관리 도구에서 적용하거나 버린다.
+
+### 검증(코드)
+
+- id 형식과 중복, `relations.to`가 존재하는 인물인지, 절 인용 형식과 범위(1~10장, 절 수 이내)를 확인한다.
+- 장면의 `visual.characters`, `placeId`, `eraId`는 설정집에 있는 id여야 한다.
+- 그림을 그릴 때 참조하는 인물·장소·시대는 `approved`여야 한다. 아니면 그 장면은 그리지 않고 이유를 남긴다.
+
+## 4. LLM 파이프라인
+
+모든 LLM 호출은 `pipeline/src/llm/`의 한 모듈을 거친다. 모델 이름은 `.env`(`OPENAI_WRITER_MODEL`, `OPENAI_REVIEWER_MODEL`)로 바꾸고, 호출마다 모델·토큰 수·소요 시간을 `content/runs/`에 기록한다(비용 추정과 관리 도구 표시용).
+
+| 단계 | 입력 | 출력 | 모델 |
+|---|---|---|---|
+| `canon --chapter N` | 장 본문, 기존 설정집의 id·이름 목록 | 새 인물·장소·시대·물건 **초안**(facts에 절 인용 필수, design은 제안), 기존 항목에 대한 proposals | 작성 |
+| `scenario --chapter N` | 장 본문, 승인된 설정집, 표현 기준 | 장면 목록: 제목, 절 범위, 해설 문단, 낱말 풀이, 역사 배경(근거·확실성), 그림 묘사·구도, 등장인물 id, 장소 id, 시대 id. 상태 `draft` | 작성 |
+| `review-text --chapter N` | 장면, 장 본문, 설정집 | 판정과 지적 사항. 불합격이면 작성 모델이 지적 사항을 반영해 다시 쓰고(최대 2회), 그래도 안 되면 `flagged` | 검수 |
+| `review-facts --chapter N` | 역사 배경 항목 | 웹 검색으로 확인한 결과: 유지·수정·삭제, 출처 URL. 확인 못 한 항목은 삭제하고 기록 | 검수 + 웹 검색 |
+| `refs --character <id>` | 승인된 인물의 design, 화풍 참고 조각 | 기준 이미지(정면·측면) → 사람이 승인해야 그림에 쓰인다 | 그림 |
+| `images` | 장면 + 설정집(인상착의, 시대 메모) + 인물 기준 이미지 + 화풍 조각 | 장면 그림 (지금 명령을 확장) | 그림 |
+| `review-image --chapter N` | 그림, 장면 묘사, 설정집, 표현 기준 | 판정과 지적 사항. 불합격이면 묘사를 보강해 다시 그리기(최대 2회), 그래도 안 되면 `flagged` | 검수(이미지 입력) |
+
+### 검수 항목
+
+글 검수: 본문에 없는 사건이나 인물을 지어냈는가, 절 범위와 낱말 존재는 코드가 검사, 해설이 요약에 그치지 않고 특정 교파의 교리를 단정하지 않는가, 그림 묘사가 설정집(인상착의·시대의 있는 것/없는 것·옷차림)과 맞는가, 표현 기준(하나님은 사람 모습으로 그리지 않음, 노출·폭력 묘사 없음)을 지키는가.
+
+그림 검수: 묘사와 맞는가, 인물 수와 인상착의가 설정집과 맞는가, 시대착오(없는 물건·동물·식물·옷)가 있는가, 표현 기준, 글자·깨진 형상.
+
+### 기계적 안전장치(코드)
+
+절 범위 덮기, 장면 id 순서, 낱말이 본문에 있는지, 참조 id 존재와 승인 여부, 설정집 변경이 proposals로만 가는지.
+
+## 5. 관리 도구
+
+위치: `admin/` 워크스페이스. 서버(Node, Hono)와 화면(React + Vite)으로 이루어지고, `npm run admin`으로 둘을 함께 띄운다. 서버는 파이프라인 모듈을 직접 불러 쓰고 `content/`를 읽고 쓴다. 인증은 없다(로컬 전용, 127.0.0.1에만 묶는다).
+
+### 화면
+
+- **대시보드**: 장 × 단계 표. 장마다 장면 수, 글 상태(초안/검수 통과/확인 필요/승인), 사실 검수 여부, 그림 버전별 장수, 음성 유무, 열린 proposals 수. 설정집 항목 수(상태별).
+- **설정집**: 인물·장소·시대·물건 탭. 목록 → 상세·편집 폼. 승인/반려. 이 항목을 쓰는 장면 목록. 열린 proposals를 항목 옆에 보여 주고 적용/버리기.
+- **장면**: 장을 고르면 장면 목록. 장면 상세: 본문, 글(해설·낱말·역사 배경), 그림(버전별), 검수 결과와 지적 사항. 편집·승인, "다시 쓰기"(지적 메모를 넣어 `scenario --scene`), "다시 그리기"(`images --scene`).
+- **작업**: 단계 선택(canon, scenario, review-text, review-facts, refs, images, review-image, tts, source, build), 장·장면 옵션, 실행. 실시간 로그(SSE). 실행 이력과 호출 수·토큰·추정 비용. 한 번에 작업 하나만 돈다.
+- **검수 대기열**: `flagged` 장면, 초안 설정집 항목, 열린 proposals, 승인 대기 기준 이미지.
+- **저장소**: 바뀐 파일 목록(git status). 커밋·푸시는 터미널에서 한다(1단계).
+
+### 서버 API (요지)
+
+`GET /api/status`, `GET/PUT /api/canon/:kind`, `POST /api/canon/:kind/:id/approve|reject`, `GET /api/proposals`, `POST /api/proposals/:id/apply|dismiss`, `GET /api/scenes/:chapter`, `PUT /api/scenes/:chapter/:id`, `POST /api/scenes/:chapter/:id/approve`, `POST /api/jobs` `{stage, options}`, `GET /api/jobs`, `GET /api/jobs/:id/events`(SSE), `GET /api/git/status`. 모든 쓰기는 스키마 검증을 통과해야 저장된다.
+
+## 6. 진행 단계
+
+1. **설정집 DB + `canon` + 관리 도구 뼈대**: 스키마와 검증, 기존 places 이전, LLM 공용 모듈과 실행 기록, `canon` 단계, 관리 도구의 대시보드·설정집(편집·승인·proposals)·작업 실행·로그. 1~10장 설정집을 채우고 사람이 승인한다.
+2. **시나리오와 글 검수**: `scenario`, `review-text`, `review-facts`, 장면 검수 화면. 3~10장 글을 만들고 검수한다.
+3. **그림과 그림 검수**: `refs`, 설정집 기반 `images`, `review-image`, 기준 이미지 승인 화면. 3~10장 그림을 만든다.
+
+## 7. 위험
+
+- **인상착의는 본문에 없다**: `design`은 제작 결정임을 화면에 명시하고, 사람이 승인한 뒤에만 쓴다.
+- **족보의 나이 계산**: 5장과 11장의 수치로 계산하되, 계산 근거를 `notes`에 남긴다. 번역·사본에 따라 다른 수치가 있다는 점을 적는다.
+- **안전 필터**: 노출·폭력 장면(3장, 4장, 6~7장, 9장)에서 거부가 늘 수 있다. 묘사는 보이는 것만 적고, 거부되면 지적 사항으로 남겨 사람이 고친다.
+- **승인 병목**: 설정집과 장면 승인은 사람이 한다. 관리 도구의 대기열이 길어지지 않게 장 단위로 진행한다.
+- **동시 편집**: 로컬 도구는 한 사람이 쓴다. 파일 저장은 통째로 덮어쓰므로, 관리 도구를 켠 채 같은 파일을 편집기로 고치지 않는다.
