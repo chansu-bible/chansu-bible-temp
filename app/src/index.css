@@ -592,3 +592,15 @@ select {
   font-size: 12px;
   color: var(--ink-faint);
 }
+
+.explanation {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.explanation p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.7;
+}

@@ -9,7 +9,7 @@ function scene(id: string, placeId: string | null): Scene {
     verseEnd: 1,
     title: id,
     commentary: null,
-    background: null,
+    explanation: [],
     history: [],
     glossary: [],
     placeId,

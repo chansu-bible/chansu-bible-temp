@@ -2,7 +2,7 @@ import type { Scene } from '../content/types.ts'
 import Icon from './Icon.tsx'
 
 export default function BackgroundSheet({ scene, onClose }: { scene: Scene; onClose: () => void }) {
-  const { background, history } = scene
+  const { explanation, history } = scene
 
   return (
     <div className="overlay sheet-backdrop" onClick={onClose}>
@@ -22,23 +22,12 @@ export default function BackgroundSheet({ scene, onClose }: { scene: Scene; onCl
           </button>
         </div>
 
-        {background ? (
-          <>
-            <dl>
-              <div>
-                <dt>무슨 일</dt>
-                <dd>{background.what}</dd>
-              </div>
-              <div>
-                <dt>누가</dt>
-                <dd>{background.who}</dd>
-              </div>
-              <div>
-                <dt>어디서</dt>
-                <dd>{background.where}</dd>
-              </div>
-            </dl>
-          </>
+        {explanation.length > 0 ? (
+          <div className="explanation">
+            {explanation.map((paragraph, index) => (
+              <p key={index}>{paragraph}</p>
+            ))}
+          </div>
         ) : (
           <p className="empty">이 장면의 해설은 아직 준비 중이에요.</p>
         )}

@@ -4,8 +4,6 @@ export type Verse = { verse: number; text: string; audio: string | null }
 // 낱말 풀이. word는 그 절 본문에 그대로 나오는 표현이다.
 export type Gloss = { verse: number; word: string; meaning: string }
 
-export type Background = { what: string; who: string; where: string }
-
 export type HistoryNote = {
   text: string
   basis: string
@@ -21,7 +19,8 @@ export type Scene = {
   verseEnd: number
   title: string
   commentary: string | null
-  background: Background | null
+  // 장면 해설 문단들. 비어 있으면 아직 준비되지 않은 것이다.
+  explanation: string[]
   history: HistoryNote[]
   glossary: Gloss[]
   placeId: string | null

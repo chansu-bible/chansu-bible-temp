@@ -44,12 +44,6 @@ export const GlossSchema = z.object({
   meaning: z.string().min(1),
 })
 
-export const BackgroundSchema = z.object({
-  what: z.string(),
-  who: z.string(),
-  where: z.string(),
-})
-
 export const HistoryNoteSchema = z.object({
   text: z.string(),
   basis: z.string(),
@@ -71,7 +65,8 @@ export const SceneSchema = z.object({
   verseEnd: z.number().int().positive(),
   title: z.string(),
   commentary: z.string().nullable(),
-  background: BackgroundSchema,
+  // 장면 해설. 요약이 아니라 구절을 읽는 데 도움이 되는 설명 문단들이다.
+  explanation: z.array(z.string().min(1)),
   history: z.array(HistoryNoteSchema),
   glossary: z.array(GlossSchema),
   visual: z.object({
@@ -112,7 +107,7 @@ export const BundleSceneSchema = z.object({
   verseEnd: z.number().int().positive(),
   title: z.string(),
   commentary: z.string().nullable(),
-  background: BackgroundSchema.nullable(),
+  explanation: z.array(z.string()),
   history: z.array(HistoryNoteSchema),
   glossary: z.array(GlossSchema),
   placeId: z.string().nullable(),

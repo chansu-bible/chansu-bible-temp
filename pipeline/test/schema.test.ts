@@ -8,7 +8,7 @@ const scene = {
   verseEnd: 2,
   title: '태초에',
   commentary: '성경의 첫 문장이에요.',
-  background: { what: '무슨 일', who: '누가', where: '어디서' },
+  explanation: [],
   history: [],
   glossary: [],
   visual: { description: '어두운 물', characters: [] },
