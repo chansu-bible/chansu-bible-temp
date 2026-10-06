@@ -7,29 +7,11 @@
       "verseStart": 1,
       "verseEnd": 2,
       "title": "태초에",
-      "commentary": "성경의 첫 문장이에요. 땅은 아직 모양이 없고 비어 있었으며, 어둠이 깊음 위에 있었다고 해요.",
+      "commentary": null,
       "background": {
         "what": "하나님이 하늘과 땅을 창조하세요. 땅은 아직 모양이 없이 비어 있고, 어둠이 깊음 위에 있어요.",
         "who": "하나님",
-        "where": "아직 모양을 갖추기 전의 땅",
-        "terms": [
-          {
-            "word": "태초",
-            "meaning": "맨 처음, 모든 것이 시작된 때"
-          },
-          {
-            "word": "혼돈하고 공허하며",
-            "meaning": "모양이 잡히지 않고 비어 있다는 뜻"
-          },
-          {
-            "word": "흑암",
-            "meaning": "깊은 어둠"
-          },
-          {
-            "word": "깊음",
-            "meaning": "깊은 물"
-          }
-        ]
+        "where": "아직 모양을 갖추기 전의 땅"
       },
       "history": [],
       "visual": {
@@ -45,7 +27,49 @@
         "facts": null,
         "image": null,
         "attempts": 0
-      }
+      },
+      "glossary": [
+        {
+          "verse": 1,
+          "word": "태초",
+          "meaning": "맨 처음, 모든 것이 시작된 때."
+        },
+        {
+          "verse": 1,
+          "word": "창조",
+          "meaning": "없던 것을 처음으로 만듦."
+        },
+        {
+          "verse": 2,
+          "word": "혼돈하고 공허하며",
+          "meaning": "모양이 잡히지 않고 텅 비어 있는 상태."
+        },
+        {
+          "verse": 2,
+          "word": "흑암",
+          "meaning": "짙은 어둠."
+        },
+        {
+          "verse": 2,
+          "word": "깊음",
+          "meaning": "깊은 물, 큰 바다를 가리키는 옛말."
+        },
+        {
+          "verse": 2,
+          "word": "하나님의 신",
+          "meaning": "하나님의 영(靈). 여기서 '신'은 귀신이 아니라 영을 뜻하는 한자어."
+        },
+        {
+          "verse": 2,
+          "word": "수면",
+          "meaning": "물의 겉면."
+        },
+        {
+          "verse": 2,
+          "word": "운행",
+          "meaning": "움직이며 다님."
+        }
+      ]
     },
     {
       "id": "genesis-01-02",
@@ -53,21 +77,11 @@
       "verseStart": 3,
       "verseEnd": 5,
       "title": "빛이 있으라",
-      "commentary": "첫째 날이에요. 하나님이 말씀하시자 빛이 있었고, 빛과 어둠이 낮과 밤으로 나뉘었어요.",
+      "commentary": null,
       "background": {
         "what": "하나님이 빛이 있으라 하시자 빛이 있었어요. 빛과 어둠을 나누시고 빛은 낮, 어둠은 밤이라고 부르세요.",
         "who": "하나님",
-        "where": "어둠이 깊음 위에 있던 때",
-        "terms": [
-          {
-            "word": "가라사대",
-            "meaning": "'말씀하시기를'의 옛말"
-          },
-          {
-            "word": "칭하시니라",
-            "meaning": "이름을 붙이셨다는 뜻"
-          }
-        ]
+        "where": "어둠이 깊음 위에 있던 때"
       },
       "history": [],
       "visual": {
@@ -83,7 +97,29 @@
         "facts": null,
         "image": null,
         "attempts": 0
-      }
+      },
+      "glossary": [
+        {
+          "verse": 3,
+          "word": "가라사대",
+          "meaning": "'말씀하시기를'의 옛말. 윗사람의 말을 높여 이르는 표현."
+        },
+        {
+          "verse": 4,
+          "word": "어두움",
+          "meaning": "어둠의 옛 표기."
+        },
+        {
+          "verse": 5,
+          "word": "칭하시고",
+          "meaning": "이름을 붙이시고."
+        },
+        {
+          "verse": 5,
+          "word": "칭하시니라",
+          "meaning": "이름을 붙이셨다."
+        }
+      ]
     },
     {
       "id": "genesis-01-03",
@@ -91,17 +127,11 @@
       "verseStart": 6,
       "verseEnd": 8,
       "title": "하늘이 생기다",
-      "commentary": "둘째 날이에요. 물이 위와 아래로 나뉘었고, 하나님이 그 사이의 궁창을 하늘이라고 부르셨어요.",
+      "commentary": null,
       "background": {
         "what": "하나님이 물 가운데 궁창을 만들어 궁창 아래의 물과 위의 물을 나누시고, 궁창을 하늘이라고 부르세요.",
         "who": "하나님",
-        "where": "물과 물 사이",
-        "terms": [
-          {
-            "word": "궁창",
-            "meaning": "하늘을 가리키는 옛말. 위의 물과 아래의 물 사이에 펼쳐진 공간"
-          }
-        ]
+        "where": "물과 물 사이"
       },
       "history": [],
       "visual": {
@@ -117,7 +147,14 @@
         "facts": null,
         "image": null,
         "attempts": 0
-      }
+      },
+      "glossary": [
+        {
+          "verse": 6,
+          "word": "궁창",
+          "meaning": "하늘을 가리키는 옛말. 한자로 '높고 푸른 하늘'이라는 뜻."
+        }
+      ]
     },
     {
       "id": "genesis-01-04",
@@ -125,25 +162,11 @@
       "verseStart": 9,
       "verseEnd": 13,
       "title": "땅과 바다, 풀과 나무",
-      "commentary": "셋째 날이에요. 물이 한곳으로 모여 뭍이 드러났고, 땅이 풀과 채소와 열매 맺는 나무를 냈어요.",
+      "commentary": null,
       "background": {
         "what": "하나님이 물을 한곳에 모아 뭍이 드러나게 하시고 뭍을 땅, 모인 물을 바다라고 부르세요. 땅은 풀과 채소와 열매 맺는 나무를 내요.",
         "who": "하나님",
-        "where": "새로 드러난 땅과 바다",
-        "terms": [
-          {
-            "word": "천하",
-            "meaning": "하늘 아래"
-          },
-          {
-            "word": "뭍",
-            "meaning": "물에 잠기지 않은 땅, 육지"
-          },
-          {
-            "word": "과목",
-            "meaning": "열매를 맺는 나무"
-          }
-        ]
+        "where": "새로 드러난 땅과 바다"
       },
       "history": [],
       "visual": {
@@ -159,7 +182,34 @@
         "facts": null,
         "image": null,
         "attempts": 0
-      }
+      },
+      "glossary": [
+        {
+          "verse": 9,
+          "word": "천하",
+          "meaning": "하늘 아래, 온 세상."
+        },
+        {
+          "verse": 9,
+          "word": "뭍",
+          "meaning": "물에 잠기지 않은 땅, 육지."
+        },
+        {
+          "verse": 11,
+          "word": "채소",
+          "meaning": "여기서는 밭의 풀과 곡식까지 아우르는 말. 씨를 맺는 식물."
+        },
+        {
+          "verse": 11,
+          "word": "각기 종류대로",
+          "meaning": "저마다 제 종류를 따라."
+        },
+        {
+          "verse": 11,
+          "word": "과목",
+          "meaning": "열매를 맺는 나무."
+        }
+      ]
     },
     {
       "id": "genesis-01-05",
@@ -167,25 +217,11 @@
       "verseStart": 14,
       "verseEnd": 19,
       "title": "두 큰 광명과 별들",
-      "commentary": "넷째 날이에요. 낮을 주관하는 큰 광명과 밤을 주관하는 작은 광명, 그리고 별들이 하늘에 놓였어요.",
+      "commentary": null,
       "background": {
         "what": "하나님이 두 큰 광명과 별들을 만들어 하늘의 궁창에 두시고, 낮과 밤을 주관하며 땅을 비추게 하세요.",
         "who": "하나님",
-        "where": "하늘의 궁창",
-        "terms": [
-          {
-            "word": "광명",
-            "meaning": "빛을 내는 것"
-          },
-          {
-            "word": "징조와 사시와 일자와 연한",
-            "meaning": "표시와 계절과 날과 해"
-          },
-          {
-            "word": "주관하게",
-            "meaning": "맡아 다스리게"
-          }
-        ]
+        "where": "하늘의 궁창"
       },
       "history": [],
       "visual": {
@@ -201,7 +237,49 @@
         "facts": null,
         "image": null,
         "attempts": 0
-      }
+      },
+      "glossary": [
+        {
+          "verse": 14,
+          "word": "광명",
+          "meaning": "빛을 내는 것. 여기서는 해와 달과 별."
+        },
+        {
+          "verse": 14,
+          "word": "주야",
+          "meaning": "낮과 밤."
+        },
+        {
+          "verse": 14,
+          "word": "징조",
+          "meaning": "때를 알리는 표시."
+        },
+        {
+          "verse": 14,
+          "word": "사시",
+          "meaning": "네 계절, 또는 정해진 절기."
+        },
+        {
+          "verse": 14,
+          "word": "일자",
+          "meaning": "날."
+        },
+        {
+          "verse": 14,
+          "word": "연한",
+          "meaning": "해(年), 햇수."
+        },
+        {
+          "verse": 15,
+          "word": "비취라",
+          "meaning": "비추라. 옛 표기."
+        },
+        {
+          "verse": 16,
+          "word": "주관하게",
+          "meaning": "맡아 다스리게."
+        }
+      ]
     },
     {
       "id": "genesis-01-06",
@@ -209,25 +287,11 @@
       "verseStart": 20,
       "verseEnd": 23,
       "title": "물고기와 새",
-      "commentary": "다섯째 날이에요. 물에는 생물이, 하늘에는 새가 생겼고 하나님이 그들에게 복을 주셨어요.",
+      "commentary": null,
       "background": {
         "what": "하나님이 물에서 움직이는 생물과 날개 있는 새를 종류대로 창조하시고, 생육하고 번성하라고 복을 주세요.",
         "who": "하나님",
-        "where": "바다와 하늘",
-        "terms": [
-          {
-            "word": "번성",
-            "meaning": "수가 많아지고 널리 퍼지는 것"
-          },
-          {
-            "word": "생육",
-            "meaning": "낳아서 기르는 것"
-          },
-          {
-            "word": "충만하라",
-            "meaning": "가득 차라"
-          }
-        ]
+        "where": "바다와 하늘"
       },
       "history": [],
       "visual": {
@@ -243,7 +307,34 @@
         "facts": null,
         "image": null,
         "attempts": 0
-      }
+      },
+      "glossary": [
+        {
+          "verse": 20,
+          "word": "번성케",
+          "meaning": "번성하게. 수가 많아지게."
+        },
+        {
+          "verse": 20,
+          "word": "날으라",
+          "meaning": "날아라. 옛 표기."
+        },
+        {
+          "verse": 21,
+          "word": "큰 물고기",
+          "meaning": "히브리어 원문은 큰 바다 짐승을 두루 가리키는 말이다."
+        },
+        {
+          "verse": 22,
+          "word": "생육하고",
+          "meaning": "낳아 기르고."
+        },
+        {
+          "verse": 22,
+          "word": "충만하라",
+          "meaning": "가득 차라."
+        }
+      ]
     },
     {
       "id": "genesis-01-07",
@@ -251,21 +342,11 @@
       "verseStart": 24,
       "verseEnd": 25,
       "title": "땅의 짐승들",
-      "commentary": "땅의 짐승과 육축과 땅에 기는 것이 종류대로 만들어졌어요. 31절에 따르면 여섯째 날에 있었던 일이에요.",
+      "commentary": null,
       "background": {
         "what": "하나님이 땅의 짐승과 육축과 땅에 기는 모든 것을 종류대로 만드세요.",
         "who": "하나님",
-        "where": "땅",
-        "terms": [
-          {
-            "word": "육축",
-            "meaning": "집에서 기르는 짐승, 가축"
-          },
-          {
-            "word": "기는 것",
-            "meaning": "땅 위를 기어 다니는 동물"
-          }
-        ]
+        "where": "땅"
       },
       "history": [],
       "visual": {
@@ -281,7 +362,19 @@
         "facts": null,
         "image": null,
         "attempts": 0
-      }
+      },
+      "glossary": [
+        {
+          "verse": 24,
+          "word": "육축",
+          "meaning": "집에서 기르는 짐승, 가축."
+        },
+        {
+          "verse": 24,
+          "word": "기는 것",
+          "meaning": "땅 위를 기어 다니는 동물."
+        }
+      ]
     },
     {
       "id": "genesis-01-08",
@@ -289,25 +382,11 @@
       "verseStart": 26,
       "verseEnd": 31,
       "title": "사람을 창조하시다",
-      "commentary": "여섯째 날의 마지막이에요. 하나님이 자기 형상대로 사람을 남자와 여자로 창조하셨고, 지으신 모든 것을 보시니 심히 좋았다고 해요.",
+      "commentary": null,
       "background": {
         "what": "하나님이 자기 형상대로 사람을 남자와 여자로 창조하시고 복을 주세요. 생물을 다스리게 하시고, 씨 맺는 채소와 열매를 먹을거리로 주세요.",
         "who": "하나님, 처음 창조된 남자와 여자",
-        "where": "땅",
-        "terms": [
-          {
-            "word": "형상",
-            "meaning": "모습, 닮은 꼴"
-          },
-          {
-            "word": "식물",
-            "meaning": "여기서는 풀과 나무가 아니라 '먹을거리'라는 뜻"
-          },
-          {
-            "word": "심히",
-            "meaning": "매우"
-          }
-        ]
+        "where": "땅"
       },
       "history": [],
       "visual": {
@@ -323,7 +402,44 @@
         "facts": null,
         "image": null,
         "attempts": 0
-      }
+      },
+      "glossary": [
+        {
+          "verse": 26,
+          "word": "형상",
+          "meaning": "모습, 닮은 꼴."
+        },
+        {
+          "verse": 26,
+          "word": "모양",
+          "meaning": "생김새."
+        },
+        {
+          "verse": 26,
+          "word": "공중",
+          "meaning": "하늘, 허공."
+        },
+        {
+          "verse": 28,
+          "word": "정복하라",
+          "meaning": "차지하여 다스리라."
+        },
+        {
+          "verse": 29,
+          "word": "지면",
+          "meaning": "땅의 표면."
+        },
+        {
+          "verse": 29,
+          "word": "식물",
+          "meaning": "여기서는 풀과 나무가 아니라 '먹을거리'(食物)라는 뜻."
+        },
+        {
+          "verse": 31,
+          "word": "심히",
+          "meaning": "매우."
+        }
+      ]
     }
   ]
 }

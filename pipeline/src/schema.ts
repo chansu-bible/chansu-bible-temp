@@ -37,13 +37,17 @@ export const StyleSchema = z.object({
 })
 
 // 장면
-export const TermSchema = z.object({ word: z.string(), meaning: z.string() })
+// 낱말 풀이. word는 그 절 본문에 그대로 나오는 표현이어야 한다.
+export const GlossSchema = z.object({
+  verse: z.number().int().positive(),
+  word: z.string().min(1),
+  meaning: z.string().min(1),
+})
 
 export const BackgroundSchema = z.object({
   what: z.string(),
   who: z.string(),
   where: z.string(),
-  terms: z.array(TermSchema),
 })
 
 export const HistoryNoteSchema = z.object({
@@ -66,9 +70,10 @@ export const SceneSchema = z.object({
   verseStart: z.number().int().positive(),
   verseEnd: z.number().int().positive(),
   title: z.string(),
-  commentary: z.string(),
+  commentary: z.string().nullable(),
   background: BackgroundSchema,
   history: z.array(HistoryNoteSchema),
+  glossary: z.array(GlossSchema),
   visual: z.object({
     description: z.string(),
     characters: z.array(z.string()),
@@ -109,6 +114,7 @@ export const BundleSceneSchema = z.object({
   commentary: z.string().nullable(),
   background: BackgroundSchema.nullable(),
   history: z.array(HistoryNoteSchema),
+  glossary: z.array(GlossSchema),
   placeId: z.string().nullable(),
   // 그림 버전 id → 그림 경로. 그 버전에 그림이 없는 장면은 키가 없다.
   images: z.record(z.string(), z.string()),
@@ -134,6 +140,7 @@ export type Verse = z.infer<typeof VerseSchema>
 export type SourceChapter = z.infer<typeof SourceChapterSchema>
 export type Source = z.infer<typeof SourceSchema>
 export type Place = z.infer<typeof PlaceSchema>
+export type Gloss = z.infer<typeof GlossSchema>
 export type Style = z.infer<typeof StyleSchema>
 export type ImageVersion = z.infer<typeof ImageVersionSchema>
 export type Scene = z.infer<typeof SceneSchema>

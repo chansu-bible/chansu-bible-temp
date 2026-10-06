@@ -1,4 +1,4 @@
-import type { Bundle, BundleScene, ImageVersion, Place, Scene, SceneFile, Source } from '../schema.ts'
+import type { Bundle, BundleScene, ImageVersion, Place, Scene, SceneFile, Source, Verse } from '../schema.ts'
 import { findCoverageProblems } from '../scenes/coverage.ts'
 import { audioName } from '../tts/select.ts'
 
@@ -43,6 +43,7 @@ export function buildBundle(
       if (scene.placeId && !placeIds.has(scene.placeId)) {
         throw new Error(`${scene.id}: 장소 ${scene.placeId}가 places.json에 없습니다`)
       }
+      checkGlossary(scene, chapter, sourceChapter.verses)
     }
     return { chapter, verses, scenes: sceneFile.scenes.map((scene) => toBundleScene(scene, catalog)) }
   })
@@ -68,6 +69,7 @@ function fallbackScene(chapter: number, verseCount: number, catalog: ImageCatalo
     commentary: null,
     background: null,
     history: [],
+    glossary: [],
     placeId: null,
     images: imagesFor(id, catalog),
     reviewStatus: 'none',
@@ -93,9 +95,23 @@ function toBundleScene(scene: Scene, catalog: ImageCatalog): BundleScene {
     commentary: scene.commentary,
     background: scene.background,
     history: scene.history,
+    glossary: scene.glossary,
     placeId: scene.placeId,
     images: imagesFor(scene.id, catalog),
     reviewStatus: scene.review.status,
+  }
+}
+
+// 풀이한 낱말은 그 절 본문에 글자 그대로 있어야 한다. 앱이 본문에서 그 낱말을 찾아 표시하기 때문이다.
+function checkGlossary(scene: Scene, chapter: number, verses: Verse[]): void {
+  for (const gloss of scene.glossary) {
+    if (gloss.verse < scene.verseStart || gloss.verse > scene.verseEnd) {
+      throw new Error(`${scene.id}: 낱말 '${gloss.word}'의 절(${gloss.verse})이 장면 범위 밖입니다`)
+    }
+    const text = verses.find((verse) => verse.verse === gloss.verse)?.text ?? ''
+    if (!text.includes(gloss.word)) {
+      throw new Error(`${scene.id}: 낱말 '${gloss.word}'이 ${chapter}:${gloss.verse} 본문에 없습니다`)
+    }
   }
 }
 

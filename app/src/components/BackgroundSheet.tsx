@@ -38,20 +38,22 @@ export default function BackgroundSheet({ scene, onClose }: { scene: Scene; onCl
                 <dd>{background.where}</dd>
               </div>
             </dl>
-            {background.terms.length > 0 && (
-              <>
-                <h3>낱말 풀이</h3>
-                {background.terms.map((term, index) => (
-                  <div key={`${index}-${term.word}`} className="term">
-                    <b>{term.word}</b>
-                    {term.meaning}
-                  </div>
-                ))}
-              </>
-            )}
           </>
         ) : (
           <p className="empty">이 장면의 해설은 아직 준비 중이에요.</p>
+        )}
+
+        {scene.glossary.length > 0 && (
+          <>
+            <h3>낱말 풀이</h3>
+            {scene.glossary.map((gloss, index) => (
+              <div key={index} className="term">
+                <span className="term-verse">{gloss.verse}절</span>
+                <b>{gloss.word}</b>
+                {gloss.meaning}
+              </div>
+            ))}
+          </>
         )}
 
         {history.length > 0 && (

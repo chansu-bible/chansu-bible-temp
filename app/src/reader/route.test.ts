@@ -11,6 +11,7 @@ function scene(id: string, placeId: string | null): Scene {
     commentary: null,
     background: null,
     history: [],
+    glossary: [],
     placeId,
     images: {},
     reviewStatus: 'none',

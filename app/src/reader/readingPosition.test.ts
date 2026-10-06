@@ -11,6 +11,7 @@ function scene(id: string, verseStart: number, verseEnd: number): Scene {
     commentary: null,
     background: null,
     history: [],
+    glossary: [],
     placeId: null,
     images: {},
     reviewStatus: 'none',

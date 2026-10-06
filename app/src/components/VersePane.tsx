@@ -1,6 +1,8 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
-import type { Chapter } from '../content/types.ts'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { Chapter, Gloss } from '../content/types.ts'
 import { findActiveIndex } from '../reader/activeScene.ts'
+import { splitByGlosses } from '../reader/glossary.ts'
+import Icon from './Icon.tsx'
 import { findSceneIndex } from '../reader/readingPosition.ts'
 
 // 스크롤 영역의 위에서 이만큼 내려온 곳이 기준선이다.
@@ -18,6 +20,8 @@ type Props = {
 
 export default function VersePane({ chapter, chapterNumbers, verse, following, onVerseChange, onChapterChange }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  // 본문에서 누른 낱말의 풀이. 다른 낱말을 누르면 바뀌고, 닫기를 누르면 사라진다.
+  const [openGloss, setOpenGloss] = useState<Gloss | null>(null)
   const verseRefs = useRef(new Map<number, HTMLElement>())
   const nextChapter = chapterNumbers.find((number) => number > chapter.chapter)
   const blocks = chapter.scenes.map((scene) => ({
@@ -84,10 +88,26 @@ export default function VersePane({ chapter, chapterNumbers, verse, following, o
                 className={v.verse === verse ? 'verse current' : 'verse'}
               >
                 <span className="verse-number">{v.verse}</span>
-                {v.text}
+                {splitByGlosses(
+                  v.text,
+                  scene.glossary.filter((gloss) => gloss.verse === v.verse),
+                ).map((part, partIndex) =>
+                  part.gloss ? (
+                    <button
+                      key={partIndex}
+                      type="button"
+                      className="gloss"
+                      aria-label={`${part.text} 뜻 보기`}
+                      onClick={() => setOpenGloss(part.gloss ?? null)}
+                    >
+                      {part.text}
+                    </button>
+                  ) : (
+                    <span key={partIndex}>{part.text}</span>
+                  ),
+                )}
               </p>
             ))}
-            {scene.commentary && <p className="commentary">{scene.commentary}</p>}
           </section>
         ))}
 
@@ -100,6 +120,18 @@ export default function VersePane({ chapter, chapterNumbers, verse, following, o
         {/* 마지막 절도 기준선까지 올라올 수 있도록 끝에 빈 공간을 둔다. */}
         <div style={{ height: `calc(100% - ${lineOffset}px)` }} aria-hidden="true" />
       </div>
+
+      {openGloss && (
+        <div className="gloss-card" role="status">
+          <p className="gloss-body">
+            <b>{openGloss.word}</b>
+            {openGloss.meaning}
+          </p>
+          <button type="button" className="icon-button" aria-label="낱말 풀이 닫기" onClick={() => setOpenGloss(null)}>
+            <Icon name="close" />
+          </button>
+        </div>
+      )}
     </section>
   )
 }

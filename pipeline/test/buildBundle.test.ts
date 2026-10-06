@@ -34,8 +34,9 @@ function scene(overrides: Partial<Scene>): Scene {
     verseEnd: 3,
     title: '제목',
     commentary: '해설',
-    background: { what: '무슨 일', who: '누가', where: '어디서', terms: [] },
+    background: { what: '무슨 일', who: '누가', where: '어디서' },
     history: [],
+  glossary: [],
     visual: { description: '그림', characters: [] },
     placeId: null,
     image: null,
@@ -78,6 +79,7 @@ describe('buildBundle', () => {
         commentary: null,
         background: null,
         history: [],
+  glossary: [],
         placeId: null,
         images: {},
         reviewStatus: 'none',
@@ -112,6 +114,21 @@ describe('buildBundle', () => {
     expect(first.placeId).toBe('eden')
     expect(first).not.toHaveProperty('visual')
     expect(second.images).toEqual({ v2: 'content/images/v2/genesis-01-02.jpg' })
+  })
+
+  it('낱말 풀이는 그대로 묶음에 들어간다', () => {
+    const file = { chapter: 1, scenes: [scene({ glossary: [{ verse: 2, word: '나', meaning: '뜻' }] })] }
+    expect(buildBundle(source, [file], places).chapters[0].scenes[0].glossary).toEqual([{ verse: 2, word: '나', meaning: '뜻' }])
+  })
+
+  it('풀이한 낱말이 그 절 본문에 없으면 오류를 낸다', () => {
+    const file = { chapter: 1, scenes: [scene({ glossary: [{ verse: 2, word: '없는말', meaning: '뜻' }] })] }
+    expect(() => buildBundle(source, [file], places)).toThrow("genesis-01-01: 낱말 '없는말'이 1:2 본문에 없습니다")
+  })
+
+  it('풀이한 낱말의 절이 장면 범위 밖이면 오류를 낸다', () => {
+    const file = { chapter: 1, scenes: [scene({ verseEnd: 2, glossary: [{ verse: 3, word: '다', meaning: '뜻' }] }), scene({ id: 'genesis-01-02', verseStart: 3, verseEnd: 3 })] }
+    expect(() => buildBundle(source, [file], places)).toThrow("genesis-01-01: 낱말 '다'의 절(3)이 장면 범위 밖입니다")
   })
 
   it('절 범위가 맞지 않으면 오류를 낸다', () => {
