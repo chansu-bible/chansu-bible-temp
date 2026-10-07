@@ -51,7 +51,7 @@
       },
       "placeId": null,
       "eraId": "before-flood",
-      "image": null,
+      "image": "genesis-04-01.jpg",
       "review": {
         "status": "reviewed",
         "text": {
@@ -116,7 +116,7 @@
       },
       "placeId": null,
       "eraId": "before-flood",
-      "image": null,
+      "image": "genesis-04-02.jpg",
       "review": {
         "status": "reviewed",
         "text": {
@@ -181,7 +181,7 @@
       },
       "placeId": null,
       "eraId": "before-flood",
-      "image": null,
+      "image": "genesis-04-03.jpg",
       "review": {
         "status": "reviewed",
         "text": {
@@ -255,7 +255,7 @@
       },
       "placeId": "nod",
       "eraId": "before-flood",
-      "image": null,
+      "image": "genesis-04-04.jpg",
       "review": {
         "status": "reviewed",
         "text": {
@@ -317,10 +317,13 @@
       },
       "placeId": "nod",
       "eraId": "before-flood",
-      "image": null,
+      "image": "genesis-04-05.jpg",
       "review": {
-        "status": "draft",
-        "text": null,
+        "status": "reviewed",
+        "text": {
+          "verdict": "pass",
+          "issues": []
+        },
         "facts": null,
         "image": null,
         "attempts": 0
@@ -396,10 +399,13 @@
       },
       "placeId": null,
       "eraId": "before-flood",
-      "image": null,
+      "image": "genesis-04-06.jpg",
       "review": {
-        "status": "draft",
-        "text": null,
+        "status": "reviewed",
+        "text": {
+          "verdict": "pass",
+          "issues": []
+        },
         "facts": null,
         "image": null,
         "attempts": 0
@@ -450,10 +456,13 @@
       },
       "placeId": null,
       "eraId": "before-flood",
-      "image": null,
+      "image": "genesis-04-07.jpg",
       "review": {
-        "status": "draft",
-        "text": null,
+        "status": "reviewed",
+        "text": {
+          "verdict": "pass",
+          "issues": []
+        },
         "facts": null,
         "image": null,
         "attempts": 0
@@ -508,10 +517,13 @@
       },
       "placeId": null,
       "eraId": "before-flood",
-      "image": null,
+      "image": "genesis-04-08.jpg",
       "review": {
-        "status": "draft",
-        "text": null,
+        "status": "reviewed",
+        "text": {
+          "verdict": "pass",
+          "issues": []
+        },
         "facts": null,
         "image": null,
         "attempts": 0

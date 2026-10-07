@@ -59,10 +59,13 @@
       },
       "placeId": null,
       "eraId": "before-flood",
-      "image": null,
+      "image": "genesis-05-01.jpg",
       "review": {
-        "status": "draft",
-        "text": null,
+        "status": "reviewed",
+        "text": {
+          "verdict": "pass",
+          "issues": []
+        },
         "facts": null,
         "image": null,
         "attempts": 0
@@ -122,10 +125,13 @@
       },
       "placeId": null,
       "eraId": "before-flood",
-      "image": null,
+      "image": "genesis-05-02.jpg",
       "review": {
-        "status": "draft",
-        "text": null,
+        "status": "reviewed",
+        "text": {
+          "verdict": "pass",
+          "issues": []
+        },
         "facts": null,
         "image": null,
         "attempts": 0
@@ -174,10 +180,13 @@
       },
       "placeId": null,
       "eraId": "before-flood",
-      "image": null,
+      "image": "genesis-05-03.jpg",
       "review": {
-        "status": "draft",
-        "text": null,
+        "status": "reviewed",
+        "text": {
+          "verdict": "pass",
+          "issues": []
+        },
         "facts": null,
         "image": null,
         "attempts": 0
@@ -229,10 +238,13 @@
       },
       "placeId": null,
       "eraId": "before-flood",
-      "image": null,
+      "image": "genesis-05-04.jpg",
       "review": {
-        "status": "draft",
-        "text": null,
+        "status": "reviewed",
+        "text": {
+          "verdict": "pass",
+          "issues": []
+        },
         "facts": null,
         "image": null,
         "attempts": 0
@@ -292,10 +304,13 @@
       },
       "placeId": null,
       "eraId": "before-flood",
-      "image": null,
+      "image": "genesis-05-05.jpg",
       "review": {
-        "status": "draft",
-        "text": null,
+        "status": "reviewed",
+        "text": {
+          "verdict": "pass",
+          "issues": []
+        },
         "facts": null,
         "image": null,
         "attempts": 0

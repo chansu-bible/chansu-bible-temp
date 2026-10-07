@@ -112,7 +112,7 @@
       },
       "placeId": "eden",
       "eraId": "eden",
-      "image": null,
+      "image": "genesis-03-02.jpg",
       "review": {
         "status": "reviewed",
         "text": {
@@ -174,7 +174,7 @@
       },
       "placeId": "eden",
       "eraId": "eden",
-      "image": null,
+      "image": "genesis-03-03.jpg",
       "review": {
         "status": "reviewed",
         "text": {
@@ -236,7 +236,7 @@
       },
       "placeId": "eden",
       "eraId": "eden",
-      "image": null,
+      "image": "genesis-03-04.jpg",
       "review": {
         "status": "reviewed",
         "text": {
@@ -315,7 +315,7 @@
       },
       "placeId": "eden",
       "eraId": "eden",
-      "image": null,
+      "image": "genesis-03-05.jpg",
       "review": {
         "status": "reviewed",
         "text": {
@@ -367,7 +367,7 @@
         }
       ],
       "visual": {
-        "description": "손으로 그린 수채화. 동산의 나무들 사이에 가죽옷을 입은 아담과 하와가 작고 멀리 서 있다. 두 사람의 가죽옷은 몸통과 하체를 덮으며, 옷의 아래쪽은 수풀에 가려져 있다. 얼굴은 보이지 않고 뒷모습과 옷의 일부만 나무 사이로 드러난다. 동물과 동물의 사체, 피, 재봉 도구는 없다. 건물과 해와 달과 별은 보이지 않는다. 하나님을 나타내는 사람, 손, 얼굴, 빛나는 형체는 없다.",
+        "description": "동산의 나무들 사이로 두 사람의 뒷모습이 아주 작고 멀리 보인다. 두 사람은 어깨부터 무릎 아래까지 내려오는 거칠고 두꺼운 갈색 가죽 망토를 걸치고 있고, 망토의 윤곽만 나무 사이로 드러난다. 머리와 발은 수풀과 그늘에 가려져 보이지 않는다. 동물과 재봉 도구는 없다. 건물과 해와 달과 별은 보이지 않는다. 하나님을 나타내는 사람, 손, 얼굴, 빛나는 형체는 없다.",
         "characters": [
           "adam",
           "eve"
@@ -376,7 +376,7 @@
       },
       "placeId": "eden",
       "eraId": "eden",
-      "image": null,
+      "image": "genesis-03-06.jpg",
       "review": {
         "status": "reviewed",
         "text": {
@@ -456,7 +456,7 @@
       },
       "placeId": "eden",
       "eraId": "eden",
-      "image": null,
+      "image": "genesis-03-07.jpg",
       "review": {
         "status": "reviewed",
         "text": {
