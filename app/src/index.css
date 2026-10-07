@@ -160,6 +160,35 @@ select {
   color: var(--ink-faint);
 }
 
+/* 장소가 바뀌어 저절로 열린 지도: 스르르 나타났다가 머문 뒤 사라진다 */
+.map-screen.auto {
+  animation: map-in 0.3s ease-out;
+}
+
+.map-screen.leaving {
+  opacity: 0;
+  transition: opacity 0.4s ease-in;
+}
+
+.map-info-from {
+  color: var(--ink-soft);
+}
+
+@keyframes map-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-screen.auto {
+    animation: none;
+  }
+  .map-screen.leaving {
+    transition: none;
+  }
+}
+
 .sheet-backdrop {
   display: flex;
   align-items: flex-end;
@@ -605,80 +634,3 @@ select {
   line-height: 1.7;
 }
 
-/* 장면이 바뀌어 장소가 달라졌을 때 그림 위에 잠깐 뜨는 지도. 위의 버튼들보다 아래에 깔린다. */
-.place-flash {
-  position: absolute;
-  inset: 0;
-  animation: flash-in 0.4s ease-out;
-}
-
-.place-flash.leaving {
-  opacity: 0;
-  transition: opacity 0.4s ease-in;
-}
-
-.place-flash-map {
-  position: absolute;
-  inset: 0;
-  background: #e8e2d6;
-}
-
-.place-flash-close {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-.place-flash-label {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  margin: 0;
-  padding: 6px 14px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  max-width: calc(100% - 128px);
-  border-radius: 999px;
-  background: var(--surface);
-  box-shadow: 0 1px 6px rgb(0 0 0 / 0.25);
-  color: var(--ink);
-  font-family: var(--sans);
-  font-size: 14px;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
-.place-flash-kicker {
-  font-size: 11px;
-  color: var(--ink-faint);
-}
-
-.place-flash-from,
-.place-flash-arrow {
-  color: var(--ink-soft);
-}
-
-.place-flash .leaflet-control-attribution {
-  font-size: 9px;
-  background: rgb(255 255 255 / 0.6);
-}
-
-@keyframes flash-in {
-  from {
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .place-flash {
-    animation: none;
-  }
-  .place-flash.leaving {
-    transition: none;
-  }
-}

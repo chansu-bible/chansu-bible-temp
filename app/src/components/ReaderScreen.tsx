@@ -19,9 +19,9 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   const [overlay, setOverlay] = useState<Overlay>('none')
   const [imageVersionId, setImageVersionId] = useState(() => pickImageVersion(bundle, loadImageVersion()))
   const openerRef = useRef<HTMLElement | null>(null)
-  // 장면이 바뀌면서 장소가 달라지면 그림 위에 지도를 잠깐 띄운다.
-  const [placeFlash, setPlaceFlash] = useState<PlaceChange | null>(null)
-  // 직전 장면의 장소 id. undefined는 아직 첫 장면도 보지 않은 상태라, 처음 열 때는 지도를 띄우지 않는다.
+  // 장면이 바뀌면서 장소가 달라지면 여정 지도를 저절로 열어 새 장소로 옮긴 뒤 닫는다. 그때의 변화를 든다.
+  const [autoMap, setAutoMap] = useState<PlaceChange | null>(null)
+  // 직전 장면의 장소 id. undefined는 아직 첫 장면도 보지 않은 상태라, 처음 열 때는 지도를 열지 않는다.
   const previousPlaceRef = useRef<string | null | undefined>(undefined)
 
   const chapter = bundle.chapters.find((c) => c.chapter === position.chapter) ?? bundle.chapters[0]
@@ -43,17 +43,32 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
     savePosition(position)
   }, [position])
 
+  // 다른 오버레이(해설 시트)를 보고 있을 때는 끼어들지 않는다.
   useEffect(() => {
     const previous = previousPlaceRef.current
     previousPlaceRef.current = scene.placeId
     if (previous === undefined) return
     const change = placeChange(bundle.places, previous, scene.placeId)
-    if (change) setPlaceFlash(change)
-  }, [scene.id, scene.placeId, bundle.places])
+    if (!change || (overlay !== 'none' && overlay !== 'map')) return
+    if (overlay === 'none') {
+      openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    }
+    setAutoMap(change)
+    setOverlay('map')
+  }, [scene.id, scene.placeId, bundle.places, overlay])
 
-  function openOverlay(next: Exclude<Overlay, 'none'>) {
-    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  // auto가 있으면 장소가 바뀌어 저절로 연 지도다. 버튼으로 열면 null이다.
+  function openOverlay(next: Exclude<Overlay, 'none'>, auto: PlaceChange | null = null) {
+    if (overlay === 'none') {
+      openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    }
+    setAutoMap(next === 'map' ? auto : null)
     setOverlay(next)
+  }
+
+  function closeOverlay() {
+    setAutoMap(null)
+    setOverlay('none')
   }
 
   // 오버레이가 열려 있는 동안 Esc로 닫고, 닫히면 열었던 버튼으로 포커스를 돌려준다.
@@ -64,7 +79,7 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
       return
     }
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setOverlay('none')
+      if (event.key === 'Escape') closeOverlay()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
@@ -103,8 +118,6 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           onTogglePlay={togglePlay}
           onOpenMap={() => openOverlay('map')}
           onOpenSheet={() => openOverlay('sheet')}
-          placeChange={placeFlash}
-          onPlaceChangeDone={() => setPlaceFlash(null)}
         />
         <VersePane
           key={chapter.chapter}
@@ -116,8 +129,8 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           onChapterChange={goToChapter}
         />
       </div>
-      {overlay === 'map' && <MapScreen route={route} onClose={() => setOverlay('none')} />}
-      {overlay === 'sheet' && <BackgroundSheet scene={scene} onClose={() => setOverlay('none')} />}
+      {overlay === 'map' && <MapScreen route={route} auto={autoMap} onClose={closeOverlay} />}
+      {overlay === 'sheet' && <BackgroundSheet scene={scene} onClose={closeOverlay} />}
     </div>
   )
 }
