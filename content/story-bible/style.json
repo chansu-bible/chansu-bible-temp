@@ -3,9 +3,21 @@
   "promptPrefix": "Hand-painted transparent watercolor on rough cold-press paper, painted quickly on location with one large round brush. Broad uneven washes, pigment pooling and blooms where wet paint met wet paper, dry-brush streaks, a mix of hard and soft edges. Faint graphite underdrawing shows through in places. Limited palette of four pigments: ultramarine, burnt sienna, raw sienna, sap green. Details are only suggested: foliage, waves and fur are simplified into a few broad shapes, not many small repeated marks. Some white paper is left unpainted. Not uniformly sharp, no smooth digital gradients. Square format.",
   "promptRules": "Rules: Paint only what the scene describes. Do not add people, animals, land, shores, plants, buildings, sun, moon or stars unless the scene mentions them, and leave out everything the scene says is absent. God is never shown as a figure or a face. When the scene mentions people, keep them small and distant, modestly covered by foliage or shadow. No violence or gore. No text, letters, captions, borders, frames or watermarks.",
   "references": [
-    "sargent-olive-trees-canopy.jpg",
-    "sargent-olive-trees-grass.jpg",
-    "sargent-olive-trees-sky.jpg"
+    {
+      "file": "sargent-olive-trees-canopy.jpg",
+      "label": "나뭇잎과 줄기의 붓질",
+      "source": "John Singer Sargent, Olive Trees, Corfu (1909). Art Institute of Chicago, Olivia Shaler Swan Memorial Collection. 퍼블릭 도메인. https://www.artic.edu/artworks/14792"
+    },
+    {
+      "file": "sargent-olive-trees-grass.jpg",
+      "label": "풀밭의 번짐과 점",
+      "source": "John Singer Sargent, Olive Trees, Corfu (1909). Art Institute of Chicago, Olivia Shaler Swan Memorial Collection. 퍼블릭 도메인. https://www.artic.edu/artworks/14792"
+    },
+    {
+      "file": "sargent-olive-trees-sky.jpg",
+      "label": "하늘의 번짐과 종이결",
+      "source": "John Singer Sargent, Olive Trees, Corfu (1909). Art Institute of Chicago, Olivia Shaler Swan Memorial Collection. 퍼블릭 도메인. https://www.artic.edu/artworks/14792"
+    }
   ],
   "referenceInstruction": "The attached images are close-up details of one hand-painted watercolor. They are a style reference only: paint as if by the same hand, matching its loose brushwork, the way the paint sits on the paper, and how much it leaves unfinished. Take the subject, the composition, the lighting and the colors from the scene described below, not from the reference details."
 }

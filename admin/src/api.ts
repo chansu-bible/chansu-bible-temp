@@ -3,14 +3,19 @@ import type {
   CanonEntryMap,
   CanonKind,
   GitStatus,
+  ImageVersion,
   Job,
   JobOptions,
   JobStatus,
   Proposal,
+  PromptResponse,
   RunsResponse,
+  Scene,
   ScenesResponse,
   Stage,
   StatusResponse,
+  Style,
+  StyleRefResponse,
   UsageResponse,
 } from './types.ts'
 
@@ -20,9 +25,11 @@ export const OFFLINE_MESSAGE =
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
   try {
+    // FormData는 브라우저가 multipart 경계를 붙인 Content-Type을 직접 정한다.
+    const json = init?.body && !(init.body instanceof FormData)
     res = await fetch(path, {
       ...init,
-      headers: init?.body ? { 'Content-Type': 'application/json', ...init.headers } : init?.headers,
+      headers: json ? { 'Content-Type': 'application/json', ...init.headers } : init?.headers,
     })
   } catch {
     throw new Error(OFFLINE_MESSAGE)
@@ -72,6 +79,26 @@ export const api = {
     send<unknown>('POST', `/api/proposals/${encodeURIComponent(id)}/${action}`),
 
   scenes: (chapter: number) => request<ScenesResponse>(`/api/scenes/${chapter}`),
+  scenePrompt: (chapter: number, id: string) =>
+    request<PromptResponse>(`/api/scenes/${chapter}/${encodeURIComponent(id)}/prompt`),
+  sceneSave: (chapter: number, scene: Scene) =>
+    send<Scene>('PUT', `/api/scenes/${chapter}/${encodeURIComponent(scene.id)}`, scene),
+
+  style: () => request<Style>('/api/style'),
+  styleSave: (style: Style) => send<Style>('PUT', '/api/style', style),
+  styleUpload: (file: File, label: string, source: string) => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('label', label)
+    form.append('source', source)
+    return request<StyleRefResponse>('/api/style/refs', { method: 'POST', body: form })
+  },
+  styleImport: (body: { url: string; label?: string; source?: string }) =>
+    send<StyleRefResponse>('POST', '/api/style/refs/import', body),
+  styleDeleteRef: (file: string) => send<Style>('DELETE', `/api/style/refs/${encodeURIComponent(file)}`),
+
+  imageVersions: () => request<ImageVersion[]>('/api/images/versions'),
+  imageVersionCreate: (version: ImageVersion) => send<ImageVersion[]>('POST', '/api/images/versions', version),
 
   jobs: () => request<Job[]>('/api/jobs'),
   job: (id: string) => request<Job>(`/api/jobs/${encodeURIComponent(id)}`),
@@ -79,6 +106,15 @@ export const api = {
 
   runs: (days: number) => request<RunsResponse>(`/api/runs?days=${days}`),
   git: () => request<GitStatus>('/api/git/status'),
+}
+
+// 그림 주소. <img src>에 바로 넣는다.
+export function refUrl(file: string): string {
+  return `/api/style/refs/${encodeURIComponent(file)}`
+}
+
+export function imageUrl(version: string, file: string): string {
+  return `/api/images/${encodeURIComponent(version)}/${encodeURIComponent(file)}`
 }
 
 // 작업 로그 SSE. 돌려준 함수를 부르면 연결을 닫는다.

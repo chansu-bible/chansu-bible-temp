@@ -61,3 +61,12 @@ export function errorMessage(error: unknown, prefix = '항목이 형식에 맞�
   }
   return error instanceof Error ? error.message : String(error)
 }
+
+// 요청 본문을 JSON으로 읽는다. JSON이 아니면 400.
+export async function readJsonBody(request: Request): Promise<unknown> {
+  try {
+    return await request.json()
+  } catch {
+    throw new HttpError(400, '본문이 JSON이 아닙니다')
+  }
+}

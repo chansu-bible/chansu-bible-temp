@@ -103,12 +103,25 @@ export const ProposalSchema = z.object({
 
 export const CanonKindSchema = z.enum(['characters', 'places', 'eras', 'things'])
 
+// 화풍 참고 이미지 파일 이름 규칙. 폴더 구분자가 들어갈 수 없어서 refs 폴더 밖을 가리킬 수 없다.
+export const REFERENCE_FILE_PATTERN = /^[a-z0-9][a-z0-9._-]{0,79}\.(jpg|jpeg|png|webp)$/
+// 그림 버전 id 규칙. content/images/<id>/ 폴더 이름이 된다.
+export const IMAGE_VERSION_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/
+// 참고 이미지 올리기·가져오기 크기 한도
+export const MAX_REFERENCE_BYTES = 15 * 1024 * 1024
+
+// 화풍 참고 이미지. file은 content/story-bible/refs/ 아래의 파일 이름, label은 어느 부분인지, source는 출처와 권리다.
+export const StyleReferenceSchema = z.object({
+  file: z.string().regex(REFERENCE_FILE_PATTERN),
+  label: z.string(),
+  source: z.string(),
+})
+
 export const StyleSchema = z.object({
   description: z.string(),
   promptPrefix: z.string().min(1),
   promptRules: z.string().min(1),
-  // 화풍 참고 이미지. content/story-bible/refs/ 아래의 파일 이름이다.
-  references: z.array(z.string()).default([]),
+  references: z.array(StyleReferenceSchema).default([]),
   referenceInstruction: z.string().default(''),
 })
 
@@ -169,8 +182,8 @@ export const SceneFileSchema = z.object({
 
 // 그림 버전. content/images/<id>/ 폴더 하나가 한 버전이다.
 export const ImageVersionSchema = z.object({
-  id: z.string().regex(/^[a-z0-9-]+$/),
-  label: z.string(),
+  id: z.string().regex(IMAGE_VERSION_ID_PATTERN),
+  label: z.string().min(1),
   note: z.string(),
 })
 
@@ -235,6 +248,7 @@ export type CanonKind = z.infer<typeof CanonKindSchema>
 export type Canon = { characters: Character[]; places: Place[]; eras: Era[]; things: Thing[]; proposals: Proposal[] }
 export type BundlePlace = z.infer<typeof BundlePlaceSchema>
 export type Gloss = z.infer<typeof GlossSchema>
+export type StyleReference = z.infer<typeof StyleReferenceSchema>
 export type Style = z.infer<typeof StyleSchema>
 export type ImageVersion = z.infer<typeof ImageVersionSchema>
 export type Scene = z.infer<typeof SceneSchema>

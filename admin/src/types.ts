@@ -99,6 +99,16 @@ export type Scene = {
 
 export type ImageVersion = { id: string; label: string; note: string }
 
+// 화풍. 참고 파일 이름은 폴더 구분자 없이 영문 소문자·숫자·점·밑줄·하이픈(.jpg·.png·.webp).
+export type StyleReference = { file: string; label: string; source: string }
+export type Style = {
+  description: string
+  promptPrefix: string
+  promptRules: string
+  references: StyleReference[]
+  referenceInstruction: string
+}
+
 // 관리 서버 응답
 export type StateCounts = { draft: number; approved: number; rejected: number }
 
@@ -120,7 +130,16 @@ export type StatusResponse = {
 
 export type UsageResponse = { scenes: { chapter: number; id: string; title: string }[] }
 
-export type ScenesResponse = { chapter: number; verses: Verse[]; scenes: Scene[] | null }
+export type ScenesResponse = {
+  chapter: number
+  verses: Verse[]
+  scenes: Scene[] | null
+  imageVersions: ImageVersion[]
+  images: Record<string, Record<string, string>> // 장면 id → 버전 id → 파일 이름(있을 때만)
+}
+
+export type PromptResponse = { prompt: string; references: string[] }
+export type StyleRefResponse = { style: Style; added: string }
 
 export type Stage = 'source' | 'canon' | 'images' | 'tts' | 'build'
 export const STAGES: Stage[] = ['source', 'canon', 'images', 'tts', 'build']

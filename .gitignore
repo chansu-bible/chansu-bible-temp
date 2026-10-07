@@ -6,3 +6,6 @@ dist/
 app/public/content/
 # LLM 실행 기록 (관리 도구가 읽는다. 커밋하지 않는다)
 content/runs/*.jsonl
+
+# tsc -b 산출물
+*.tsbuildinfo

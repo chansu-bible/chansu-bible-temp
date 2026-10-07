@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { parseRoute, type PageName, type Route } from './route.ts'
 import Canon from './pages/Canon.tsx'
 import Dashboard from './pages/Dashboard.tsx'
+import Images from './pages/Images.tsx'
 import Jobs from './pages/Jobs.tsx'
 import Queue from './pages/Queue.tsx'
 import Repo from './pages/Repo.tsx'
@@ -11,6 +12,7 @@ const NAV: { page: PageName; href: string; label: string }[] = [
   { page: 'dashboard', href: '#/', label: '대시보드' },
   { page: 'canon', href: '#/canon/characters', label: '설정집' },
   { page: 'scenes', href: '#/scenes/1', label: '장면' },
+  { page: 'images', href: '#/images', label: '그림' },
   { page: 'jobs', href: '#/jobs', label: '작업' },
   { page: 'queue', href: '#/queue', label: '검수 대기열' },
   { page: 'repo', href: '#/repo', label: '저장소' },
@@ -61,6 +63,8 @@ function Page({ route }: { route: Route }) {
       return <Canon key={route.kind} kind={route.kind} selectedId={route.id} />
     case 'scenes':
       return <Scenes chapter={route.chapter} sceneId={route.sceneId} />
+    case 'images':
+      return <Images />
     case 'jobs':
       return <Jobs />
     case 'queue':

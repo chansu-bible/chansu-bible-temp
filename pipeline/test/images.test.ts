@@ -40,7 +40,7 @@ describe('buildImagePrompt', () => {
 
 describe('buildImagePrompt: 참고 이미지와 구도', () => {
   it('참고 이미지가 있으면 참고 지시문을 맨 앞에 붙인다', () => {
-    const withRefs = { ...style, references: ['brush.jpg'] }
+    const withRefs = { ...style, references: [{ file: 'brush.jpg', label: '붓질', source: '' }] }
     expect(buildImagePrompt(withRefs, scene('genesis-01-01', 'draft'))).toBe(
       [
         'Images are style references.',

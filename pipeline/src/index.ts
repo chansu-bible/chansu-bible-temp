@@ -7,7 +7,18 @@ export { writeBundle } from './build/writeBundle.ts'
 export { buildBundle, type ImageCatalog } from './build/buildBundle.ts'
 export { generateImages, type ImagesOptions, type ImagesResult } from './images/generateImages.ts'
 export { createOpenAiDraw } from './images/openaiDraw.ts'
-export { readImageCatalog, readImageVersions, activeImageVersion } from './images/versions.ts'
+export {
+  readImageCatalog,
+  readImageVersions,
+  activeImageVersion,
+  writeImageVersions,
+  addImageVersion,
+  versionDir,
+} from './images/versions.ts'
+export { readStyle, writeStyle, referencePaths, mimeType } from './images/style.ts'
+export { buildImagePrompt } from './images/prompt.ts'
+export { detectImageExtension } from './images/format.ts'
+export { readSceneFile, writeSceneFile } from './scenes/files.ts'
 export { generateSpeech, type SpeechOptions, type SpeechResult } from './tts/generateSpeech.ts'
 export { createOpenAiSpeak } from './tts/openaiSpeak.ts'
 export { readCanon, writeCanonKind, writeProposals, canonItemSchemas, canonFilePath, type CanonItem } from './canon/files.ts'

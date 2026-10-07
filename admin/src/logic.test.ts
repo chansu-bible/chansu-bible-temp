@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { checkForm, emptyEntry, entryToForm, formToEntry, firstCitation } from './canonForm.ts'
+import { splitIds } from './ids.ts'
 import { buildJobOptions, describeOptions, EMPTY_JOB_FORM } from './jobForm.ts'
 import { parseRoute, routeHref } from './route.ts'
 import type { Character, Era, Place, Thing } from './types.ts'
@@ -142,6 +143,7 @@ describe('route', () => {
     expect(parseRoute('#/scenes/3/s3-1')).toEqual({ page: 'scenes', chapter: 3, sceneId: 's3-1' })
     expect(parseRoute('#/scenes/x')).toEqual({ page: 'scenes', chapter: 1, sceneId: null })
     expect(parseRoute('#/jobs')).toEqual({ page: 'jobs' })
+    expect(parseRoute('#/images')).toEqual({ page: 'images' })
     expect(parseRoute('#/nothing')).toEqual({ page: 'dashboard' })
   })
 
@@ -150,7 +152,17 @@ describe('route', () => {
       { page: 'canon', kind: 'characters', id: 'adam' },
       { page: 'scenes', chapter: 2, sceneId: null },
       { page: 'queue' },
+      { page: 'images' },
     ] as const
     for (const r of routes) expect(parseRoute(routeHref(r))).toEqual(r)
+    expect(routeHref({ page: 'images' })).toBe('#/images')
+  })
+})
+
+describe('ids', () => {
+  it('쉼표·공백·줄바꿈으로 나누고 빈 것은 버린다', () => {
+    expect(splitIds('adam, eve\nseth  cain,,')).toEqual(['adam', 'eve', 'seth', 'cain'])
+    expect(splitIds(' , \n ')).toEqual([])
+    expect(splitIds('')).toEqual([])
   })
 })

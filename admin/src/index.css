@@ -852,6 +852,158 @@ textarea:focus-visible {
   margin: 2px 0 0;
 }
 
+/* 그림 지시 편집(장면 카드 안에서 한 줄을 다 쓴다) */
+.scene-body .span-all {
+  grid-column: 1 / -1;
+}
+
+.visual-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.prompt-view {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.prompt {
+  align-self: stretch;
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 버전별 썸네일 한 줄 */
+.thumb-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+.thumb {
+  margin: 0;
+  width: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.thumb img,
+.thumb-empty {
+  display: block;
+  width: 120px;
+  height: 120px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--paper);
+}
+
+.thumb-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+.thumb figcaption {
+  font-size: 12px;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 그림 화면: 화풍 참고 이미지 */
+.ref-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ref-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.ref-card img {
+  display: block;
+  width: 100%;
+  max-width: 160px;
+  aspect-ratio: 1;
+  height: auto;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--paper);
+}
+
+.ref-card code {
+  overflow-wrap: anywhere;
+  color: var(--ink-soft);
+}
+
+.ref-card .btn {
+  align-self: flex-start;
+}
+
+/* 올리기·가져오기·새 버전 폼: 넓으면 한 줄, 좁으면 접힌다 */
+.uploader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+
+.uploader h3 {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.uploader .field {
+  flex: 1 1 180px;
+}
+
+.uploader input[type='file'] {
+  max-width: 100%;
+  font-size: 13px;
+}
+
+.tag-current {
+  margin-left: 6px;
+  background: var(--st-approved-soft);
+  color: var(--st-approved);
+}
+
 @media (max-width: 1100px) {
   .split,
   .split-wide {
@@ -880,5 +1032,13 @@ textarea:focus-visible {
   .form-grid,
   .proposal-compare {
     grid-template-columns: 1fr;
+  }
+
+  .ref-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+
+  .uploader .field {
+    flex-basis: 100%;
   }
 }

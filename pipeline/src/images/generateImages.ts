@@ -1,11 +1,10 @@
-import { existsSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { refsDir, sceneFilePath, styleFile } from '../paths.ts'
-import { SceneFileSchema, StyleSchema } from '../schema.ts'
+import { readSceneFile, writeSceneFile } from '../scenes/files.ts'
 import { detectImageExtension } from './format.ts'
 import { buildImagePrompt } from './prompt.ts'
 import { selectScenesToDraw } from './select.ts'
+import { readStyle, referencePaths } from './style.ts'
 import { activeImageVersion, versionDir } from './versions.ts'
 
 // references: 화풍 참고 이미지 파일 경로
@@ -27,20 +26,17 @@ export async function generateImages(
   draw: DrawImage,
   log: (line: string) => void,
 ): Promise<ImagesResult> {
-  const file = sceneFilePath(options.chapter)
-  if (!existsSync(file)) throw new Error(`${options.chapter}장의 장면 파일이 없습니다`)
+  const sceneFile = await readSceneFile(options.chapter)
+  if (!sceneFile) throw new Error(`${options.chapter}장의 장면 파일이 없습니다`)
 
-  const sceneFile = SceneFileSchema.parse(JSON.parse(await readFile(file, 'utf8')))
-  const style = StyleSchema.parse(JSON.parse(await readFile(styleFile, 'utf8')))
+  // 참고 이미지 파일이 없으면 여기서 오류가 난다.
+  const style = await readStyle()
   for (const id of options.sceneIds ?? []) {
     if (!sceneFile.scenes.some((scene) => scene.id === id)) {
       throw new Error(`${id} 장면이 ${options.chapter}장에 없습니다`)
     }
   }
-  const references = style.references.map((name) => path.join(refsDir, name))
-  for (const file of references) {
-    if (!existsSync(file)) throw new Error(`화풍 참고 이미지가 없습니다: ${path.basename(file)}`)
-  }
+  const references = referencePaths(style)
   const selected = selectScenesToDraw(sceneFile.scenes, options)
   const result: ImagesResult = { selected: selected.length, drawn: [], failed: [] }
 
@@ -61,7 +57,7 @@ export async function generateImages(
       await writeFile(path.join(outDir, name), bytes)
       scene.image = name
       // 중간에 멈춰도 이어서 할 수 있게 장면마다 바로 저장한다.
-      await writeFile(file, `${JSON.stringify(sceneFile, null, 2)}\n`, 'utf8')
+      await writeSceneFile(sceneFile)
       result.drawn.push(scene.id)
     } catch (error) {
       result.failed.push({ id: scene.id, reason: error instanceof Error ? error.message : String(error) })

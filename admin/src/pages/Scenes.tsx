@@ -2,19 +2,27 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.ts'
 import { SelectField } from '../components/Fields.tsx'
 import { Empty, ErrorBox, Loading } from '../components/Notice.tsx'
+import SceneVisualEditor from '../components/SceneVisualEditor.tsx'
 import StatusBadge from '../components/StatusBadge.tsx'
-import { navigate, routeHref } from '../route.ts'
-import type { Scene, Verdict, Verse } from '../types.ts'
+import { navigate } from '../route.ts'
+import type { ImageVersion, Scene, Verdict, Verse } from '../types.ts'
 import { useLoad } from '../useLoad.ts'
 
 const FALLBACK_CHAPTERS = Array.from({ length: 10 }, (_, i) => i + 1)
 
-// 장면 화면(읽기 전용). 편집은 2단계에서 한다.
+// 장면 화면. 본문·해설은 읽기 전용이고, 그림 지시는 고쳐 저장할 수 있다.
 export default function Scenes({ chapter, sceneId }: { chapter: number; sceneId: string | null }) {
   const status = useLoad(api.status, 'status')
   const data = useLoad(() => api.scenes(chapter), String(chapter))
   const chapters = status.data?.chapters.map((c) => c.chapter) ?? FALLBACK_CHAPTERS
   const options = chapters.includes(chapter) ? chapters : [...chapters, chapter].sort((a, b) => a - b)
+
+  // 저장한 장면을 목록에 바로 반영한다.
+  function replaceScene(saved: Scene) {
+    const current = data.data
+    if (!current?.scenes) return
+    data.setData({ ...current, scenes: current.scenes.map((s) => (s.id === saved.id ? saved : s)) })
+  }
 
   return (
     <div className="page">
@@ -33,7 +41,7 @@ export default function Scenes({ chapter, sceneId }: { chapter: number; sceneId:
         </div>
       </header>
 
-      <p className="muted">읽기 전용이에요. 장면 편집과 다시 쓰기·다시 그리기는 2단계에서 붙여요.</p>
+      <p className="muted">본문과 해설은 읽기 전용이에요. 그림 지시는 고쳐 저장하고, 장면 하나만 다시 그릴 수 있어요.</p>
 
       {data.error && <ErrorBox message={data.error} onRetry={data.reload} />}
       {!data.data && !data.error && <Loading />}
@@ -45,7 +53,15 @@ export default function Scenes({ chapter, sceneId }: { chapter: number; sceneId:
         ) : (
           <div className="scene-list">
             {data.data.scenes.map((s) => (
-              <SceneCard key={s.id} scene={s} verses={data.data?.verses ?? []} focused={s.id === sceneId} />
+              <SceneCard
+                key={s.id}
+                scene={s}
+                verses={data.data?.verses ?? []}
+                focused={s.id === sceneId}
+                images={data.data?.images[s.id] ?? {}}
+                imageVersions={data.data?.imageVersions ?? []}
+                onSaved={replaceScene}
+              />
             ))}
           </div>
         ))}
@@ -53,7 +69,21 @@ export default function Scenes({ chapter, sceneId }: { chapter: number; sceneId:
   )
 }
 
-function SceneCard({ scene, verses, focused }: { scene: Scene; verses: Verse[]; focused: boolean }) {
+function SceneCard({
+  scene,
+  verses,
+  focused,
+  images,
+  imageVersions,
+  onSaved,
+}: {
+  scene: Scene
+  verses: Verse[]
+  focused: boolean
+  images: Record<string, string>
+  imageVersions: ImageVersion[]
+  onSaved: (scene: Scene) => void
+}) {
   const [open, setOpen] = useState(focused)
   const ref = useRef<HTMLElement>(null)
   const bodyId = `scene-body-${scene.id}`
@@ -155,33 +185,13 @@ function SceneCard({ scene, verses, focused }: { scene: Scene; verses: Verse[]; 
             )}
           </section>
 
-          <section>
-            <h3>그림 지시</h3>
-            <p>{scene.visual.description || <span className="muted">없음</span>}</p>
-            {scene.visual.shot && <p className="muted">구도: {scene.visual.shot}</p>}
-            <p className="muted">
-              인물:{' '}
-              {scene.visual.characters.length
-                ? scene.visual.characters.map((c, i) => (
-                    <span key={c}>
-                      {i > 0 && ', '}
-                      <a href={routeHref({ page: 'canon', kind: 'characters', id: c })}>{c}</a>
-                    </span>
-                  ))
-                : '없음'}
-              {' · '}장소:{' '}
-              {scene.placeId ? (
-                <a href={routeHref({ page: 'canon', kind: 'places', id: scene.placeId })}>{scene.placeId}</a>
-              ) : (
-                '없음'
-              )}
-            </p>
-            {scene.image && (
-              <p className="muted">
-                그림 파일: <code>{scene.image}</code>
-              </p>
-            )}
-          </section>
+          <SceneVisualEditor
+            scene={scene}
+            chapter={scene.chapter}
+            images={images}
+            imageVersions={imageVersions}
+            onSaved={onSaved}
+          />
 
           <section>
             <h3>검수</h3>

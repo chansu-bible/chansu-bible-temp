@@ -112,7 +112,7 @@ chansu-bible-temp/
 | `style.json` | 그림체 설명, 이미지 프롬프트 앞에 붙는 그림체 문구와 뒤에 붙는 표현 기준 문구, 화풍 참고 이미지 목록과 참고 지시문 |
 | `characters.json` | 인물별 `id`, 이름, 나이대, 외형, 복장, 첫 등장 절, 기준 이미지 경로 |
 | `places.json` | 장소별 `id`, 이름, 설명, 추정 여부, 위도·경도(`lat`, `lng`) |
-| `refs/` | 화풍 참고 이미지와 그 출처(`SOURCES.md`), 인물 기준 이미지 |
+| `refs/` | 화풍 참고 이미지(출처는 `style.json`의 `references[].source`), 인물 기준 이미지 |
 
 ### 장면 — `content/scenes/genesis-NN.json`
 

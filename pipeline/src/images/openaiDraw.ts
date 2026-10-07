@@ -2,6 +2,7 @@ import { createReadStream } from 'node:fs'
 import path from 'node:path'
 import OpenAI, { toFile } from 'openai'
 import type { DrawImage } from './generateImages.ts'
+import { mimeType } from './style.ts'
 
 type Quality = 'low' | 'medium' | 'high' | 'auto'
 
@@ -21,7 +22,7 @@ export function createOpenAiDraw(): DrawImage {
         ? await client.images.edit({
             ...common,
             image: await Promise.all(
-              references.map((file) => toFile(createReadStream(file), path.basename(file), { type: 'image/jpeg' })),
+              references.map((file) => toFile(createReadStream(file), path.basename(file), { type: mimeType(file) })),
             ),
           })
         : await client.images.generate(common)

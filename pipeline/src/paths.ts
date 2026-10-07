@@ -9,10 +9,10 @@ export const styleFile = path.join(storyBibleDir, 'style.json')
 export const refsDir = path.join(storyBibleDir, 'refs')
 export const envFile = path.join(repoRoot, '.env')
 
-export function sceneFilePath(chapter: number): string {
-  return path.join(scenesDir, `genesis-${String(chapter).padStart(2, '0')}.json`)
-}
 export const scenesDir = path.join(contentDir, 'scenes')
+export function sceneFilePath(chapter: number, dir: string = scenesDir): string {
+  return path.join(dir, `genesis-${String(chapter).padStart(2, '0')}.json`)
+}
 export const imagesDir = path.join(contentDir, 'images')
 export const imageVersionsFile = path.join(imagesDir, 'versions.json')
 export const audioDir = path.join(contentDir, 'audio')

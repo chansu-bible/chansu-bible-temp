@@ -1,4 +1,5 @@
 // 작업 실행 폼 → JobOptions. 단계마다 쓰는 옵션만 보낸다(계획 문서의 "공통 계약").
+import { splitIds } from './ids.ts'
 import type { JobOptions, Stage } from './types.ts'
 
 export type OptionKey = keyof JobOptions
@@ -39,7 +40,7 @@ export function buildJobOptions(stage: Stage, form: JobForm): BuildResult {
     options.chapter = n
   }
   if (keys.includes('scenes')) {
-    const ids = form.scenes.split(/[\s,]+/).filter(Boolean)
+    const ids = splitIds(form.scenes)
     if (ids.length) options.scenes = ids
   }
   if (keys.includes('limit') && form.limit.trim()) {

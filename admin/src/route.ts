@@ -1,10 +1,11 @@
-// 해시 라우팅. #/, #/canon/characters[/id], #/scenes/1[/sceneId], #/jobs, #/queue, #/repo
+// 해시 라우팅. #/, #/canon/characters[/id], #/scenes/1[/sceneId], #/images, #/jobs, #/queue, #/repo
 import { CANON_KINDS, type CanonKind } from './types.ts'
 
 export type Route =
   | { page: 'dashboard' }
   | { page: 'canon'; kind: CanonKind; id: string | null }
   | { page: 'scenes'; chapter: number; sceneId: string | null }
+  | { page: 'images' }
   | { page: 'jobs' }
   | { page: 'queue' }
   | { page: 'repo' }
@@ -29,6 +30,7 @@ export function parseRoute(hash: string): Route {
       const chapter = Number.isInteger(n) && n > 0 ? n : 1
       return { page: 'scenes', chapter, sceneId: chapter === n && b ? b : null }
     }
+    case 'images':
     case 'jobs':
     case 'queue':
     case 'repo':
