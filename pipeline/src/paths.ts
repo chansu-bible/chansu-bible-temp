@@ -16,4 +16,6 @@ export const scenesDir = path.join(contentDir, 'scenes')
 export const imagesDir = path.join(contentDir, 'images')
 export const imageVersionsFile = path.join(imagesDir, 'versions.json')
 export const audioDir = path.join(contentDir, 'audio')
+// LLM 실행 기록. 날짜별 YYYY-MM-DD.jsonl, 한 줄이 한 호출이다. 커밋하지 않는다.
+export const runsDir = path.join(contentDir, 'runs')
 export const appContentDir = path.join(repoRoot, 'app', 'public', 'content')

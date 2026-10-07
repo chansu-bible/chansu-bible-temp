@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { writeBundle } from './build/writeBundle.ts'
+import { runCanon } from './canon/runCanon.ts'
 import { generateImages } from './images/generateImages.ts'
 import { createOpenAiDraw } from './images/openaiDraw.ts'
 import { envFile } from './paths.ts'
@@ -29,6 +30,11 @@ const commands: Record<string, (flags: Flags) => Promise<void>> = {
     const source = await fetchSource()
     const verseCount = source.chapters.reduce((sum, chapter) => sum + chapter.verses.length, 0)
     console.log(`본문 저장 완료: ${source.chapters.length}장 ${verseCount}절`)
+  },
+  async canon(flags) {
+    const chapter = positiveInteger(flags.chapter, 'chapter')
+    if (chapter === undefined) throw new Error('--chapter <장 번호>가 필요합니다')
+    await runCanon(chapter, { dryRun: flags['dry-run'] }, console.log)
   },
   async images(flags) {
     const chapter = positiveInteger(flags.chapter, 'chapter')
