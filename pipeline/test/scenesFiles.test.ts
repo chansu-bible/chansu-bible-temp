@@ -19,6 +19,7 @@ function scene(id: string, chapter = 1): Scene {
     glossary: [],
     visual: { description: '어두운 물', characters: [] },
     placeId: null,
+    eraId: null,
     image: null,
     review: { status: 'draft', text: null, facts: null, image: null, attempts: 0 },
   }

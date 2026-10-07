@@ -26,6 +26,22 @@ export { validateCanon, GENESIS_VERSE_COUNTS } from './canon/validate.ts'
 export { runCanon, type CanonRunOptions, type CanonRunResult } from './canon/runCanon.ts'
 export { mergeCanon, CanonOutputSchema, type CanonOutput, type CanonRef, type MergeResult } from './canon/merge.ts'
 export { buildCanonPrompt, type CanonPrompt } from './canon/prompt.ts'
+export { approvedCanon } from './canon/approved.ts'
+export {
+  ScenarioSceneSchema,
+  ScenarioOutputSchema,
+  ReviseOutputSchema,
+  TextVerdictSchema,
+  type ScenarioScene,
+  type ScenarioOutput,
+  type ReviseOutput,
+  type TextVerdict,
+} from './scenario/output.ts'
+export { buildScenarioPrompt, buildRevisePrompt, type ScenarioPrompt } from './scenario/prompt.ts'
+export { assembleScenes, assembleRevision, type AssembleResult } from './scenario/assemble.ts'
+export { runScenario, type ScenarioRunOptions, type ScenarioRunResult } from './scenario/runScenario.ts'
+export { buildReviewTextPrompt } from './review/prompt.ts'
+export { runReviewText, type ReviewTextOptions, type ReviewTextResult } from './review/reviewText.ts'
 export { createLlm, type Llm, type LlmOptions, type ParseRequest } from './llm/client.ts'
 export { writerModel, reviewerModel, estimateUsd, MODEL_PRICES } from './llm/models.ts'
 export { readRuns, summarizeRuns, appendRun, RunSchema, type Run, type RunTotals } from './llm/runs.ts'

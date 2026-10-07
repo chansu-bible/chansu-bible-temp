@@ -7,6 +7,8 @@ export type OptionKey = keyof JobOptions
 export const STAGE_OPTIONS: Record<Stage, OptionKey[]> = {
   source: [],
   canon: ['chapter', 'dryRun'],
+  scenario: ['chapter', 'force', 'dryRun'],
+  'review-text': ['chapter', 'scenes', 'dryRun'],
   images: ['chapter', 'scenes', 'force', 'allowDraft', 'dryRun', 'limit'],
   tts: ['chapter', 'force', 'limit', 'dryRun'],
   build: [],

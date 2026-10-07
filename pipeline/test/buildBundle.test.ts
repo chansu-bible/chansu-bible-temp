@@ -49,6 +49,7 @@ function scene(overrides: Partial<Scene>): Scene {
   glossary: [],
     visual: { description: '그림', characters: [] },
     placeId: null,
+    eraId: null,
     image: null,
     review: { status: 'draft', text: null, facts: null, image: null, attempts: 0 },
     ...overrides,

@@ -5,6 +5,8 @@ import {
   generateImages,
   generateSpeech,
   runCanon,
+  runReviewText,
+  runScenario,
   writeBundle,
 } from 'pipeline'
 import { STAGES, type JobOptions, type Runner, type Stage } from './jobs.ts'
@@ -20,12 +22,14 @@ export class JobRequestError extends Error {
 const stageOptions: Record<Stage, readonly (keyof JobOptions)[]> = {
   source: [],
   canon: ['chapter', 'dryRun'],
+  scenario: ['chapter', 'force', 'dryRun'],
+  'review-text': ['chapter', 'scenes', 'dryRun'],
   images: ['chapter', 'scenes', 'force', 'allowDraft', 'dryRun', 'limit'],
   tts: ['chapter', 'force', 'limit', 'dryRun'],
   build: [],
 }
 
-const needsChapter: readonly Stage[] = ['canon', 'images', 'tts']
+const needsChapter: readonly Stage[] = ['canon', 'scenario', 'review-text', 'images', 'tts']
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -100,6 +104,17 @@ export function createRunner(stage: Stage, options: JobOptions): Runner {
     case 'canon':
       return async (log) => {
         await runCanon(chapter, { dryRun }, log)
+      }
+
+    case 'scenario':
+      return async (log) => {
+        await runScenario(chapter, { dryRun, force: options.force ?? false }, log)
+      }
+
+    case 'review-text':
+      return async (log) => {
+        const result = await runReviewText(chapter, { dryRun, sceneIds: options.scenes }, log)
+        if (result.flagged.length > 0) log(`확인 필요: ${result.flagged.join(', ')}`)
       }
 
     case 'images':

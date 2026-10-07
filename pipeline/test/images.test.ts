@@ -25,6 +25,7 @@ function scene(id: string, status: Scene['review']['status'], image: string | nu
   glossary: [],
     visual: { description: '어두운 물 위로 빛이 퍼진다.', characters: [] },
     placeId: null,
+    eraId: null,
     image,
     review: { status, text: null, facts: null, image: null, attempts: 0 },
   }

@@ -17,6 +17,7 @@ export function scene(id: string, chapter: number, overrides: Partial<Scene> = {
     glossary: [],
     visual: { description: '', characters: [] },
     placeId: null,
+    eraId: null,
     image: null,
     review: { status: 'draft', text: null, facts: null, image: null, attempts: 0 },
     ...overrides,

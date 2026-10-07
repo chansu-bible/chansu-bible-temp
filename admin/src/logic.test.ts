@@ -122,6 +122,18 @@ describe('jobForm', () => {
     })
   })
 
+  it('scenario와 review-text의 옵션', () => {
+    const form = { chapter: '3', scenes: 'genesis-03-01 genesis-03-02', force: true, allowDraft: true, dryRun: true, limit: '2' }
+    expect(buildJobOptions('scenario', form)).toEqual({ ok: true, options: { chapter: 3, force: true, dryRun: true } })
+    expect(buildJobOptions('review-text', form)).toEqual({
+      ok: true,
+      options: { chapter: 3, scenes: ['genesis-03-01', 'genesis-03-02'], dryRun: true },
+    })
+    expect(buildJobOptions('review-text', { ...form, scenes: '' })).toEqual({ ok: true, options: { chapter: 3, dryRun: true } })
+    expect(buildJobOptions('scenario', { ...EMPTY_JOB_FORM, chapter: '' }).ok).toBe(false)
+    expect(buildJobOptions('review-text', { ...EMPTY_JOB_FORM, chapter: '' }).ok).toBe(false)
+  })
+
   it('장 번호가 필요한 단계에서 빠지면 오류', () => {
     expect(buildJobOptions('canon', { ...EMPTY_JOB_FORM, chapter: '' }).ok).toBe(false)
     expect(buildJobOptions('images', { ...EMPTY_JOB_FORM, limit: '0' }).ok).toBe(false)

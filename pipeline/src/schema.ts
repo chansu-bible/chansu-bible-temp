@@ -165,6 +165,8 @@ export const SceneSchema = z.object({
     shot: z.string().optional(),
   }),
   placeId: z.string().nullable(),
+  // 설정집 시대 id. 이 필드가 생기기 전에 쓴 장면 파일에는 없으므로 없으면 null로 읽는다.
+  eraId: z.string().nullable().default(null),
   image: z.string().nullable(),
   review: z.object({
     status: ReviewStatusSchema,

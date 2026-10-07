@@ -28,6 +28,8 @@ export const STATUS_LABEL: Record<AnyStatus, string> = {
 export const STAGE_LABEL: Record<Stage, string> = {
   source: 'source · 본문 받기',
   canon: 'canon · 설정집 초안',
+  scenario: 'scenario · 장면 쓰기',
+  'review-text': 'review-text · 글 검수',
   images: 'images · 그림',
   tts: 'tts · 음성',
   build: 'build · 묶음 생성',

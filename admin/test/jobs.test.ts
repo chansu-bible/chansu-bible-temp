@@ -133,6 +133,23 @@ describe('parseJobRequest', () => {
     expect(parseJobRequest({ stage: 'source' })).toEqual({ stage: 'source', options: {} })
   })
 
+  it('scenario는 chapter·force·dryRun, review-text는 chapter·scenes·dryRun만 쓴다', () => {
+    const options = { chapter: 3, scenes: ['genesis-03-01'], force: true, allowDraft: true, dryRun: true, limit: 2 }
+    expect(parseJobRequest({ stage: 'scenario', options })).toEqual({
+      stage: 'scenario',
+      options: { chapter: 3, force: true, dryRun: true },
+    })
+    expect(parseJobRequest({ stage: 'review-text', options })).toEqual({
+      stage: 'review-text',
+      options: { chapter: 3, scenes: ['genesis-03-01'], dryRun: true },
+    })
+    expect(() => parseJobRequest({ stage: 'scenario', options: {} })).toThrow(/장 번호/)
+    expect(() => parseJobRequest({ stage: 'review-text', options: { dryRun: true } })).toThrow(/장 번호/)
+    expect(() => parseJobRequest({ stage: 'review-text', options: { chapter: 3, scenes: 'genesis-03-01' } })).toThrow(
+      /scenes/,
+    )
+  })
+
   it('장 번호가 필요한 단계에 없으면 오류', () => {
     expect(() => parseJobRequest({ stage: 'canon', options: {} })).toThrow(JobRequestError)
     expect(() => parseJobRequest({ stage: 'tts', options: { chapter: 0 } })).toThrow(/장 번호/)

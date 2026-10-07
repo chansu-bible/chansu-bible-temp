@@ -87,6 +87,7 @@ export type Scene = {
   glossary: Gloss[]
   visual: { description: string; characters: string[]; shot?: string }
   placeId: string | null
+  eraId: string | null
   image: string | null
   review: {
     status: SceneReviewStatus
@@ -141,8 +142,8 @@ export type ScenesResponse = {
 export type PromptResponse = { prompt: string; references: string[] }
 export type StyleRefResponse = { style: Style; added: string }
 
-export type Stage = 'source' | 'canon' | 'images' | 'tts' | 'build'
-export const STAGES: Stage[] = ['source', 'canon', 'images', 'tts', 'build']
+export type Stage = 'source' | 'canon' | 'scenario' | 'review-text' | 'images' | 'tts' | 'build'
+export const STAGES: Stage[] = ['source', 'canon', 'scenario', 'review-text', 'images', 'tts', 'build']
 
 export type JobOptions = {
   chapter?: number

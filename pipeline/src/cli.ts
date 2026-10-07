@@ -5,6 +5,8 @@ import { runCanon } from './canon/runCanon.ts'
 import { generateImages } from './images/generateImages.ts'
 import { createOpenAiDraw } from './images/openaiDraw.ts'
 import { envFile } from './paths.ts'
+import { runReviewText } from './review/reviewText.ts'
+import { runScenario } from './scenario/runScenario.ts'
 import { fetchSource } from './source/fetchSource.ts'
 import { generateSpeech } from './tts/generateSpeech.ts'
 import { createOpenAiSpeak } from './tts/openaiSpeak.ts'
@@ -35,6 +37,17 @@ const commands: Record<string, (flags: Flags) => Promise<void>> = {
     const chapter = positiveInteger(flags.chapter, 'chapter')
     if (chapter === undefined) throw new Error('--chapter <장 번호>가 필요합니다')
     await runCanon(chapter, { dryRun: flags['dry-run'] }, console.log)
+  },
+  async scenario(flags) {
+    const chapter = positiveInteger(flags.chapter, 'chapter')
+    if (chapter === undefined) throw new Error('--chapter <장 번호>가 필요합니다')
+    await runScenario(chapter, { dryRun: flags['dry-run'], force: flags.force }, console.log)
+  },
+  async 'review-text'(flags) {
+    const chapter = positiveInteger(flags.chapter, 'chapter')
+    if (chapter === undefined) throw new Error('--chapter <장 번호>가 필요합니다')
+    const result = await runReviewText(chapter, { dryRun: flags['dry-run'], sceneIds: flags.scene }, console.log)
+    if (result.flagged.length > 0) console.log(`확인 필요: ${result.flagged.join(', ')}`)
   },
   async images(flags) {
     const chapter = positiveInteger(flags.chapter, 'chapter')

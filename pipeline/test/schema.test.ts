@@ -29,6 +29,13 @@ describe('SceneFileSchema', () => {
     expect(file.scenes[0].id).toBe('genesis-01-01')
   })
 
+  it('eraId가 없으면 null로 읽는다', () => {
+    const file = SceneFileSchema.parse({ chapter: 1, scenes: [scene] })
+    expect(file.scenes[0].eraId).toBeNull()
+    const withEra = SceneFileSchema.parse({ chapter: 1, scenes: [{ ...scene, eraId: 'creation-week' }] })
+    expect(withEra.scenes[0].eraId).toBe('creation-week')
+  })
+
   it('알 수 없는 검수 상태를 거부한다', () => {
     const bad = { ...scene, review: { ...scene.review, status: 'done' } }
     expect(() => SceneFileSchema.parse({ chapter: 1, scenes: [bad] })).toThrow()
