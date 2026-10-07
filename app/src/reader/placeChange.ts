@@ -22,6 +22,7 @@ export function placeChange(places: Place[], previousId: string | null, nextId: 
 }
 
 // 움직임 줄이기 설정이면 날아가지 않고 바로 옮기며, 나타나고 사라지는 효과도 없앤다.
+// 전체 약 2.8초. 처음 4.7초로 했더니 길다고 해서 줄였다(2026-10-07).
 export function flashTiming(reducedMotion: boolean): FlashTiming {
-  return reducedMotion ? { lead: 0, fly: 0, hold: 2600, fade: 0 } : { lead: 500, fly: 1600, hold: 2200, fade: 400 }
+  return reducedMotion ? { lead: 0, fly: 0, hold: 1600, fade: 0 } : { lead: 300, fly: 1200, hold: 1000, fade: 300 }
 }
