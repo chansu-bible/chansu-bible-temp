@@ -43,6 +43,8 @@ export type Chapter = { chapter: number; verses: Verse[]; scenes: Scene[] }
 export type ImageVersion = { id: string; label: string; note: string }
 
 export type Bundle = {
+  // 묶음 형식 버전. 이 앱은 1만 읽는다. 형식은 docs/content-bundle.md에 있다.
+  schemaVersion: number
   book: string
   translation: string
   places: Place[]
