@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Bundle } from '../content/types.ts'
 import { loadImageVersion, nextImageVersion, pickImageVersion, saveImageVersion } from '../reader/imageVersion.ts'
+import { placeChange, type PlaceChange } from '../reader/placeChange.ts'
 import { loadPosition, savePosition } from '../reader/position.ts'
 import { findSceneIndex, initialPosition, nextPosition, startOfChapter, verseAt } from '../reader/readingPosition.ts'
 import { buildRoute } from '../reader/route.ts'
@@ -18,6 +19,10 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   const [overlay, setOverlay] = useState<Overlay>('none')
   const [imageVersionId, setImageVersionId] = useState(() => pickImageVersion(bundle, loadImageVersion()))
   const openerRef = useRef<HTMLElement | null>(null)
+  // 장면이 바뀌면서 장소가 달라지면 그림 위에 지도를 잠깐 띄운다.
+  const [placeFlash, setPlaceFlash] = useState<PlaceChange | null>(null)
+  // 직전 장면의 장소 id. undefined는 아직 첫 장면도 보지 않은 상태라, 처음 열 때는 지도를 띄우지 않는다.
+  const previousPlaceRef = useRef<string | null | undefined>(undefined)
 
   const chapter = bundle.chapters.find((c) => c.chapter === position.chapter) ?? bundle.chapters[0]
   const sceneIndex = findSceneIndex(chapter.scenes, position.verse)
@@ -37,6 +42,14 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   useEffect(() => {
     savePosition(position)
   }, [position])
+
+  useEffect(() => {
+    const previous = previousPlaceRef.current
+    previousPlaceRef.current = scene.placeId
+    if (previous === undefined) return
+    const change = placeChange(bundle.places, previous, scene.placeId)
+    if (change) setPlaceFlash(change)
+  }, [scene.id, scene.placeId, bundle.places])
 
   function openOverlay(next: Exclude<Overlay, 'none'>) {
     openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -90,6 +103,8 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           onTogglePlay={togglePlay}
           onOpenMap={() => openOverlay('map')}
           onOpenSheet={() => openOverlay('sheet')}
+          placeChange={placeFlash}
+          onPlaceChangeDone={() => setPlaceFlash(null)}
         />
         <VersePane
           key={chapter.chapter}

@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { ImageVersion, ReviewStatus, Scene, Verse } from '../content/types.ts'
+import type { PlaceChange } from '../reader/placeChange.ts'
 import { loadSubtitles, saveSubtitles } from '../reader/subtitles.ts'
 import Icon from './Icon.tsx'
+import PlaceFlash from './PlaceFlash.tsx'
 
 const badgeText: Partial<Record<ReviewStatus, string>> = { draft: '검수 전', flagged: '확인 필요' }
 
@@ -22,6 +24,9 @@ type Props = {
   onTogglePlay: () => void
   onOpenMap: () => void
   onOpenSheet: () => void
+  // 장면이 바뀌면서 장소가 달라졌을 때 그림 위에 잠깐 띄우는 지도. 다 보여 주면 onPlaceChangeDone을 부른다.
+  placeChange: PlaceChange | null
+  onPlaceChangeDone: () => void
 }
 
 export default function ScenePane({
@@ -36,6 +41,8 @@ export default function ScenePane({
   onTogglePlay,
   onOpenMap,
   onOpenSheet,
+  placeChange,
+  onPlaceChangeDone,
 }: Props) {
   const [shown, setShown] = useState(scene)
   const [previous, setPrevious] = useState<Scene | null>(null)
@@ -60,6 +67,8 @@ export default function ScenePane({
     <section className="scene-pane" aria-label="장면 그림">
       {previous && <SceneLayer key={previous.id} scene={previous} version={imageVersion} />}
       <SceneLayer key={shown.id} scene={shown} version={imageVersion} entering={previous !== null} />
+
+      {placeChange && <PlaceFlash key={placeChange.to.id} change={placeChange} onDone={onPlaceChangeDone} />}
 
       <div className="scene-buttons">
         <button type="button" className="round-button" aria-label="여정 지도 보기" onClick={onOpenMap}>

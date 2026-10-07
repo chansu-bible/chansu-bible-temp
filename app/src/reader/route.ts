@@ -4,7 +4,7 @@ export type MappedPlace = Place & { lat: number; lng: number }
 
 export type Route = { visited: MappedPlace[]; current: MappedPlace | null; next: MappedPlace | null }
 
-function isMapped(place: Place): place is MappedPlace {
+export function isMapped(place: Place): place is MappedPlace {
   return place.lat !== null && place.lng !== null
 }
 
