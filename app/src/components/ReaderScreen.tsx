@@ -21,7 +21,8 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   const openerRef = useRef<HTMLElement | null>(null)
   // 장면이 바뀌면서 장소가 달라지면 여정 지도를 저절로 열어 새 장소로 옮긴 뒤 닫는다. 그때의 변화를 든다.
   const [autoMap, setAutoMap] = useState<PlaceChange | null>(null)
-  // 직전 장면의 장소 id. undefined는 아직 첫 장면도 보지 않은 상태라, 처음 열 때는 지도를 열지 않는다.
+  // 마지막으로 장소가 있던 장면의 장소 id. 장소가 없는 장면을 지나도 유지해서, 에덴 → (장소 없음) → 놋이면 에덴에서 놋으로 날아간다.
+  // undefined는 아직 첫 장면도 보지 않은 상태라, 처음 열 때는 지도를 열지 않는다.
   const previousPlaceRef = useRef<string | null | undefined>(undefined)
 
   const chapter = bundle.chapters.find((c) => c.chapter === position.chapter) ?? bundle.chapters[0]
@@ -46,16 +47,18 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   // 다른 오버레이(해설 시트)를 보고 있을 때는 끼어들지 않는다.
   useEffect(() => {
     const previous = previousPlaceRef.current
-    previousPlaceRef.current = scene.placeId
+    if (scene.placeId !== null || previous === undefined) previousPlaceRef.current = scene.placeId
     if (previous === undefined) return
     const change = placeChange(bundle.places, previous, scene.placeId)
     if (!change || (overlay !== 'none' && overlay !== 'map')) return
     if (overlay === 'none') {
       openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     }
-    setAutoMap(change)
+    // 출발 장소는 여정에서 바로 앞의 장소다. 장을 건너뛰어 왔거나 장소 없는 장면에서 열어도 여정을 따라 날아간다.
+    const from = route.visited.length >= 2 ? route.visited[route.visited.length - 2]! : change.from
+    setAutoMap({ ...change, from })
     setOverlay('map')
-  }, [scene.id, scene.placeId, bundle.places, overlay])
+  }, [scene.id, scene.placeId, bundle.places, overlay, route])
 
   // auto가 있으면 장소가 바뀌어 저절로 연 지도다. 버튼으로 열면 null이다.
   function openOverlay(next: Exclude<Overlay, 'none'>, auto: PlaceChange | null = null) {
