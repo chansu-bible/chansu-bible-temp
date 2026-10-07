@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Chapter, Gloss } from '../content/types.ts'
+import type { Chapter, Character, Gloss, Place } from '../content/types.ts'
 import { findActiveIndex } from '../reader/activeScene.ts'
-import { splitByGlosses } from '../reader/glossary.ts'
+import { splitVerse, type Entity } from '../reader/names.ts'
 import Icon from './Icon.tsx'
 import { findSceneIndex } from '../reader/readingPosition.ts'
 
@@ -16,9 +16,27 @@ type Props = {
   following: boolean
   onVerseChange: (verse: number) => void
   onChapterChange: (chapter: number) => void
+  // 본문의 인물·장소 이름을 이을 때 쓴다.
+  characters: Character[]
+  places: Place[]
+  onOpenEntity: (entity: Entity) => void
+  onOpenContents: () => void
+  onOpenSettings: () => void
 }
 
-export default function VersePane({ chapter, chapterNumbers, verse, following, onVerseChange, onChapterChange }: Props) {
+export default function VersePane({
+  chapter,
+  chapterNumbers,
+  verse,
+  following,
+  onVerseChange,
+  onChapterChange,
+  characters,
+  places,
+  onOpenEntity,
+  onOpenContents,
+  onOpenSettings,
+}: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   // 본문에서 누른 낱말의 풀이. 다른 낱말을 누르면 바뀌고, 닫기를 누르면 사라진다.
   const [openGloss, setOpenGloss] = useState<Gloss | null>(null)
@@ -73,6 +91,14 @@ export default function VersePane({ chapter, chapterNumbers, verse, following, o
             ))}
           </select>
         </label>
+        <span className="verse-header-buttons">
+          <button type="button" className="icon-button" aria-label="목차" onClick={onOpenContents}>
+            <Icon name="list" />
+          </button>
+          <button type="button" className="icon-button" aria-label="읽기 설정" onClick={onOpenSettings}>
+            <Icon name="gear" />
+          </button>
+        </span>
       </header>
 
       <div className="verse-scroll" ref={scrollRef} onScroll={handleScroll}>
@@ -88,24 +114,42 @@ export default function VersePane({ chapter, chapterNumbers, verse, following, o
                 className={v.verse === verse ? 'verse current' : 'verse'}
               >
                 <span className="verse-number">{v.verse}</span>
-                {splitByGlosses(
+                {splitVerse(
                   v.text,
                   scene.glossary.filter((gloss) => gloss.verse === v.verse),
-                ).map((part, partIndex) =>
-                  part.gloss ? (
-                    <button
-                      key={partIndex}
-                      type="button"
-                      className="gloss"
-                      aria-label={`${part.text} 뜻 보기`}
-                      onClick={() => setOpenGloss(part.gloss ?? null)}
-                    >
-                      {part.text}
-                    </button>
-                  ) : (
-                    <span key={partIndex}>{part.text}</span>
-                  ),
-                )}
+                  chapter.chapter,
+                  characters,
+                  places,
+                ).map((part, partIndex) => {
+                  const { gloss, entity } = part
+                  if (gloss) {
+                    return (
+                      <button
+                        key={partIndex}
+                        type="button"
+                        className="gloss"
+                        aria-label={`${part.text} 뜻 보기`}
+                        onClick={() => setOpenGloss(gloss)}
+                      >
+                        {part.text}
+                      </button>
+                    )
+                  }
+                  if (entity) {
+                    return (
+                      <button
+                        key={partIndex}
+                        type="button"
+                        className="name-link"
+                        aria-label={`${part.text} ${entity.kind === 'place' ? '장소' : '인물'} 카드 보기`}
+                        onClick={() => onOpenEntity(entity)}
+                      >
+                        {part.text}
+                      </button>
+                    )
+                  }
+                  return <span key={partIndex}>{part.text}</span>
+                })}
               </p>
             ))}
           </section>

@@ -13,6 +13,7 @@ function scene(id: string, verseStart: number, verseEnd: number): Scene {
     history: [],
     glossary: [],
     placeId: null,
+    characters: [],
     images: {},
     reviewStatus: 'none',
   }

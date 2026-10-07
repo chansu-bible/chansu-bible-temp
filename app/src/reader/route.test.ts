@@ -13,6 +13,7 @@ function scene(id: string, placeId: string | null): Scene {
     history: [],
     glossary: [],
     placeId,
+    characters: [],
     images: {},
     reviewStatus: 'none',
   }

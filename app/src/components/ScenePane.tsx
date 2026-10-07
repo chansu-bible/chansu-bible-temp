@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { ImageVersion, ReviewStatus, Scene, Verse } from '../content/types.ts'
-import { loadSubtitles, saveSubtitles } from '../reader/subtitles.ts'
+import { hueOf } from '../reader/hue.ts'
 import Icon from './Icon.tsx'
 
 const badgeText: Partial<Record<ReviewStatus, string>> = { draft: '검수 전', flagged: '확인 필요' }
@@ -22,6 +22,9 @@ type Props = {
   onTogglePlay: () => void
   onOpenMap: () => void
   onOpenSheet: () => void
+  // 자막 켜짐. 읽기 설정과 같은 값이라 ReaderScreen이 들고 있다.
+  subtitles: boolean
+  onToggleSubtitles: () => void
 }
 
 export default function ScenePane({
@@ -36,20 +39,16 @@ export default function ScenePane({
   onTogglePlay,
   onOpenMap,
   onOpenSheet,
+  subtitles,
+  onToggleSubtitles,
 }: Props) {
   const [shown, setShown] = useState(scene)
   const [previous, setPrevious] = useState<Scene | null>(null)
-  const [subtitles, setSubtitles] = useState(loadSubtitles)
 
   // 장면이 바뀌면 이전 그림을 아래에 깔아 두고 새 그림을 위에서 서서히 나타나게 한다.
   if (scene.id !== shown.id) {
     setPrevious(shown)
     setShown(scene)
-  }
-
-  function toggleSubtitles() {
-    setSubtitles(!subtitles)
-    saveSubtitles(!subtitles)
   }
 
   const badge = badgeText[shown.reviewStatus]
@@ -86,7 +85,7 @@ export default function ScenePane({
           className="round-button toggle"
           aria-label="자막 켜기/끄기"
           aria-pressed={subtitles}
-          onClick={toggleSubtitles}
+          onClick={onToggleSubtitles}
         >
           <Icon name="subtitles" />
         </button>
@@ -146,11 +145,4 @@ function SceneLayer({
       )}
     </div>
   )
-}
-
-// 그림이 없는 동안에도 장면이 바뀌는 것이 보이도록 장면마다 다른 바탕색을 쓴다.
-function hueOf(id: string): number {
-  let sum = 0
-  for (const char of id) sum += char.charCodeAt(0)
-  return (sum * 47) % 360
 }
