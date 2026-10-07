@@ -50,11 +50,11 @@ function checkImages(sceneFiles: SceneFile[], catalog: ImageCatalog): void {
 
 export async function writeBundle(): Promise<Bundle> {
   const source = await readJson(sourceFile, (value) => SourceSchema.parse(value))
-  const { places } = await readCanon()
+  const { characters, places, eras } = await readCanon()
   const sceneFiles = await readSceneFiles()
   const audioNames = existsSync(audioDir) ? new Set(await readdir(audioDir)) : new Set<string>()
   const catalog = await readImageCatalog()
-  const bundle = BundleSchema.parse(buildBundle(source, sceneFiles, places, audioNames, catalog))
+  const bundle = BundleSchema.parse(buildBundle(source, sceneFiles, { characters, places, eras }, audioNames, catalog))
   checkImages(sceneFiles, catalog)
 
   await rm(appContentDir, { recursive: true, force: true })

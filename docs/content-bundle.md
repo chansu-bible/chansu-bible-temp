@@ -16,6 +16,8 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 
 ## 필드
 
+**형식 버전.** 키를 더하기만 할 때는 `schemaVersion`을 올리지 않는다. `characters`, `eras`, 장면의 `characters`는 나중에 더한 키라 `schemaVersion`은 1 그대로이며, 이 키를 모르는 옛 독자는 무시하면 된다. 있던 키의 뜻이나 형식을 바꿀 때만 올린다.
+
 ### 최상위
 
 | 필드 | 형식 | 뜻 |
@@ -24,6 +26,8 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 | `book` | string | 책 이름. 지금은 `창세기` |
 | `translation` | string | 번역본 이름. 지금은 `개역한글` |
 | `places` | Place[] | 지도에 쓰는 장소. 설정집에서 사람이 승인한(`approved`) 장소만 들어간다 |
+| `characters` | Character[] | 인물 카드와 연표에 쓰는 인물. 설정집에서 승인한 인물만, 설정집 파일 순서 |
+| `eras` | Era[] | 연표에 쓰는 시대. 설정집에서 승인한 시대만, 설정집 파일 순서 |
 | `imageVersions` | ImageVersion[] | 그림 버전 목록. 추가한 순서 |
 | `defaultImageVersion` | string \| null | 처음 보여 줄 그림 버전 id. 목록의 마지막 버전이고, 버전이 없으면 null |
 | `chapters` | Chapter[] | 장 목록. 장 번호 순서 |
@@ -37,6 +41,36 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 | `description` | string | 지도 카드에 보여 줄 설명 |
 | `estimated` | boolean | 위치가 확실하지 않으면 true(추정지) |
 | `lat`, `lng` | number \| null | 좌표. 위치를 모르면 둘 다 null이고 지도에 그리지 않는다 |
+
+### Character
+
+설정집 인물의 `facts`만 옮긴다(`design`과 기준 이미지는 넣지 않는다). 앱의 인물 카드와 연표가 이 데이터를 쓴다.
+
+| 필드 | 형식 | 뜻 |
+|---|---|---|
+| `id` | string | 인물 id. 장면의 `characters`와 관계의 `to`가 가리킨다 |
+| `name` | string | 이름 |
+| `aliases` | string[] | 다른 이름 |
+| `gender` | `남` \| `여` \| `불명` | 성별 |
+| `firstAppearance` | string | 처음 나오는 절. `장:절` 또는 `장:절-절` (예: `4:1`) |
+| `years` | `{ born: number \| null, died: number \| null }` | 창조 원년 기준 태어난 해와 죽은 해. 모르면 null(에녹처럼 죽지 않고 데려간 경우도 `died`가 null) |
+| `relations` | `{ type: string, to: string }[]` | 관계. `type`은 `아내`, `아들` 같은 말, `to`는 인물 id |
+| `attire` | `{ from: string, description: string }[]` | 옷차림. `from`은 근거 절 |
+| `notes` | string | 본문이 말하는 것. 줄바꿈(`\n`)으로 문단을 나눈다 |
+| `sources` | string[] | 본문 근거 절 |
+
+### Era
+
+설정집 시대의 `facts`만 옮긴다. 앱의 연표가 이 데이터를 쓴다.
+
+| 필드 | 형식 | 뜻 |
+|---|---|---|
+| `id` | string | 시대 id |
+| `name` | string | 이름 |
+| `range` | `{ from: string, to: string }` | 시대가 덮는 본문 범위(절 인용) |
+| `years` | `{ from: number \| null, to: number \| null }` | 창조 원년 기준 햇수. 모르면 null |
+| `description` | string | 설명 |
+| `present`, `absent` | string[] | 그 시대에 있는 것과 아직 없는 것 |
 
 ### ImageVersion
 
@@ -70,6 +104,7 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 | `history` | HistoryNote[] | 역사 배경 메모 |
 | `glossary` | Gloss[] | 본문 낱말 풀이 |
 | `placeId` | string \| null | 장면의 장소. `places`의 id |
+| `characters` | string[] | 장면에 나오는 인물. 최상위 `characters`의 id. 기본 장면은 빈 배열 |
 | `images` | Record<string, string> | 그림 버전 id → 그림 경로. 그 버전에 그림이 없으면 키가 없다 |
 | `reviewStatus` | `none` \| `draft` \| `reviewed` \| `flagged` \| `approved` | 검수 상태. `none`은 장면 파일이 없는 장의 기본 장면 |
 
@@ -85,6 +120,7 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 - 한 장의 장면들은 1절부터 마지막 절까지 순서대로, 빈틈도 겹침도 없이 덮는다. 그래서 어떤 절이든 그 절을 담은 장면이 정확히 하나 있다.
 - 풀이한 낱말(`glossary[].word`)은 그 절(`glossary[].verse`)의 본문에 글자 그대로 있고, 그 절은 장면 범위 안이다.
 - 장면의 `placeId`가 null이 아니면 `places`에 그 id가 있다.
+- 장면의 `characters`와 인물의 `relations[].to`는 모두 최상위 `characters`에 있는 id다. 승인되지 않은 인물을 가리키는 것은 빌드가 오류 없이 뺀다.
 - `images`의 키는 모두 `imageVersions`에 있는 버전 id다.
 - 그림·음성 경로가 가리키는 파일은 묶음과 함께 복사되어 있다.
 
@@ -93,6 +129,7 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 - `audio`는 null일 수 있다. 일부 절만 낭독 파일이 있을 수 있다.
 - 장면에 지금 고른 버전의 그림이 없을 수 있다. 그때는 자리 표시(웹: "그림 준비 중")를 보여 준다.
 - `lat`/`lng`가 null인 장소가 있을 수 있다.
+- 인물의 `years.born`/`died`, 시대의 `years.from`/`to`는 null일 수 있다.
 - `commentary`, `explanation`, `history`, `glossary`는 비어 있을 수 있다.
 
 ## 읽기 규칙

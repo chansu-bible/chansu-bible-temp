@@ -1,8 +1,12 @@
 import {
   BUNDLE_SCHEMA_VERSION,
   type Bundle,
+  type BundleCharacter,
+  type BundleEra,
   type BundlePlace,
   type BundleScene,
+  type Character,
+  type Era,
   type ImageVersion,
   type Place,
   type Scene,
@@ -16,16 +20,23 @@ import { audioName } from '../tts/select.ts'
 // files: 버전 id → 그 버전 폴더에 있는 그림 파일 이름들
 export type ImageCatalog = { versions: ImageVersion[]; files: Record<string, string[]> }
 
+// 묶음에 넣을 설정집. 승인 여부는 buildBundle이 거른다.
+export type BundleCanon = { characters: Character[]; places: Place[]; eras: Era[] }
+
 export function buildBundle(
   source: Source,
   sceneFiles: SceneFile[],
-  allPlaces: Place[],
+  canon: BundleCanon,
   audioNames: ReadonlySet<string> = new Set(),
   catalog: ImageCatalog = { versions: [], files: {} },
 ): Bundle {
   // 사람이 승인한 장소만 앱에 나간다. 검수 전 초안은 지도에 올리지 않는다.
-  const places = allPlaces.filter((place) => place.status === 'approved')
+  const places = canon.places.filter((place) => place.status === 'approved')
   const placeIds = new Set(places.map((place) => place.id))
+  // 인물과 시대도 승인된 것만 나간다.
+  const characters = canon.characters.filter((character) => character.status === 'approved')
+  const characterIds = new Set(characters.map((character) => character.id))
+  const eras = canon.eras.filter((era) => era.status === 'approved')
 
   const seenChapters = new Set<number>()
   for (const file of sceneFiles) {
@@ -58,7 +69,7 @@ export function buildBundle(
       }
       checkGlossary(scene, chapter, sourceChapter.verses)
     }
-    return { chapter, verses, scenes: sceneFile.scenes.map((scene) => toBundleScene(scene, catalog)) }
+    return { chapter, verses, scenes: sceneFile.scenes.map((scene) => toBundleScene(scene, catalog, characterIds)) }
   })
 
   return {
@@ -66,6 +77,8 @@ export function buildBundle(
     book: source.book,
     translation: source.translation,
     places: places.map(toBundlePlace),
+    characters: characters.map((character) => toBundleCharacter(character, characterIds)),
+    eras: eras.map(toBundleEra),
     imageVersions: catalog.versions,
     // 가장 나중에 추가한 버전을 기본으로 보여 준다.
     defaultImageVersion: catalog.versions.at(-1)?.id ?? null,
@@ -85,6 +98,35 @@ function toBundlePlace(place: Place): BundlePlace {
   }
 }
 
+// 인물 카드와 연표에 쓸 사실만 옮긴다. 묶음에 없는 인물을 가리키는 관계는 뺀다.
+function toBundleCharacter(character: Character, characterIds: ReadonlySet<string>): BundleCharacter {
+  const { facts } = character
+  return {
+    id: character.id,
+    name: character.name,
+    aliases: character.aliases,
+    gender: facts.gender,
+    firstAppearance: facts.firstAppearance,
+    years: facts.years,
+    relations: facts.relations.filter((relation) => characterIds.has(relation.to)),
+    attire: facts.attire,
+    notes: facts.notes,
+    sources: facts.sources,
+  }
+}
+
+function toBundleEra(era: Era): BundleEra {
+  return {
+    id: era.id,
+    name: era.name,
+    range: era.range,
+    years: era.years,
+    description: era.facts.description,
+    present: era.facts.present,
+    absent: era.facts.absent,
+  }
+}
+
 function fallbackScene(chapter: number, verseCount: number, catalog: ImageCatalog): BundleScene {
   const id = `genesis-${String(chapter).padStart(2, '0')}-00`
   return {
@@ -97,6 +139,7 @@ function fallbackScene(chapter: number, verseCount: number, catalog: ImageCatalo
     history: [],
     glossary: [],
     placeId: null,
+    characters: [],
     images: imagesFor(id, catalog),
     reviewStatus: 'none',
   }
@@ -112,7 +155,8 @@ function imagesFor(sceneId: string, catalog: ImageCatalog): Record<string, strin
   return images
 }
 
-function toBundleScene(scene: Scene, catalog: ImageCatalog): BundleScene {
+// 장면의 인물은 묶음에 있는 인물만 남긴다. 승인 전 인물은 오류 없이 조용히 뺀다.
+function toBundleScene(scene: Scene, catalog: ImageCatalog, characterIds: ReadonlySet<string>): BundleScene {
   return {
     id: scene.id,
     verseStart: scene.verseStart,
@@ -123,6 +167,7 @@ function toBundleScene(scene: Scene, catalog: ImageCatalog): BundleScene {
     history: scene.history,
     glossary: scene.glossary,
     placeId: scene.placeId,
+    characters: scene.visual.characters.filter((id) => characterIds.has(id)),
     images: imagesFor(scene.id, catalog),
     reviewStatus: scene.review.status,
   }

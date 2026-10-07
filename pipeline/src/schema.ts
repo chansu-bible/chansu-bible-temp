@@ -202,6 +202,8 @@ export const BundleSceneSchema = z.object({
   history: z.array(HistoryNoteSchema),
   glossary: z.array(GlossSchema),
   placeId: z.string().nullable(),
+  // 장면에 나오는 인물 id. 묶음의 characters에 있는 인물만 남긴다.
+  characters: z.array(z.string()),
   // 그림 버전 id → 그림 경로. 그 버전에 그림이 없는 장면은 키가 없다.
   images: z.record(z.string(), z.string()),
   reviewStatus: z.enum(['none', 'draft', 'reviewed', 'flagged', 'approved']),
@@ -217,7 +219,36 @@ export const BundlePlaceSchema = z.object({
   lng: z.number().min(-180).max(180).nullable(),
 })
 
+// 앱의 인물 카드와 연표가 쓰는 인물. 설정집의 facts만 옮기고 design은 넣지 않는다.
+export const BundleCharacterSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  aliases: z.array(z.string()),
+  gender: z.enum(['남', '여', '불명']),
+  firstAppearance: z.string(),
+  // 창조 원년 기준 햇수
+  years: z.object({ born: z.number().int().nullable(), died: z.number().int().nullable() }),
+  // to는 묶음에 있는 인물 id만
+  relations: z.array(z.object({ type: z.string(), to: z.string() })),
+  attire: z.array(z.object({ from: z.string(), description: z.string() })),
+  // 줄바꿈(\n)으로 문단을 나눈다.
+  notes: z.string(),
+  sources: z.array(z.string()),
+})
+
+// 앱의 연표가 쓰는 시대
+export const BundleEraSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  range: z.object({ from: z.string(), to: z.string() }),
+  years: z.object({ from: z.number().int().nullable(), to: z.number().int().nullable() }),
+  description: z.string(),
+  present: z.array(z.string()),
+  absent: z.array(z.string()),
+})
+
 // 묶음 형식이 바뀌면 올린다. 형식은 docs/content-bundle.md에 적는다.
+// 키를 더하기만 할 때는 올리지 않는다(옛 독자는 모르는 키를 무시한다).
 export const BUNDLE_SCHEMA_VERSION = 1
 
 export const BundleSchema = z.object({
@@ -225,6 +256,8 @@ export const BundleSchema = z.object({
   book: z.string(),
   translation: z.string(),
   places: z.array(BundlePlaceSchema),
+  characters: z.array(BundleCharacterSchema),
+  eras: z.array(BundleEraSchema),
   imageVersions: z.array(ImageVersionSchema),
   defaultImageVersion: z.string().nullable(),
   chapters: z.array(
@@ -249,6 +282,8 @@ export type Proposal = z.infer<typeof ProposalSchema>
 export type CanonKind = z.infer<typeof CanonKindSchema>
 export type Canon = { characters: Character[]; places: Place[]; eras: Era[]; things: Thing[]; proposals: Proposal[] }
 export type BundlePlace = z.infer<typeof BundlePlaceSchema>
+export type BundleCharacter = z.infer<typeof BundleCharacterSchema>
+export type BundleEra = z.infer<typeof BundleEraSchema>
 export type Gloss = z.infer<typeof GlossSchema>
 export type StyleReference = z.infer<typeof StyleReferenceSchema>
 export type Style = z.infer<typeof StyleSchema>

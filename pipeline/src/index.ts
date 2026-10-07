@@ -4,7 +4,7 @@ export * as paths from './paths.ts'
 export { sceneFilePath } from './paths.ts'
 export { fetchSource } from './source/fetchSource.ts'
 export { writeBundle } from './build/writeBundle.ts'
-export { buildBundle, type ImageCatalog } from './build/buildBundle.ts'
+export { buildBundle, type BundleCanon, type ImageCatalog } from './build/buildBundle.ts'
 export { generateImages, type ImagesOptions, type ImagesResult } from './images/generateImages.ts'
 export { createOpenAiDraw } from './images/openaiDraw.ts'
 export {
