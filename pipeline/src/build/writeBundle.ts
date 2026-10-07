@@ -1,9 +1,9 @@
 import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { z } from 'zod'
-import { appContentDir, audioDir, imagesDir, placesFile, repoRoot, scenesDir, sourceFile } from '../paths.ts'
-import { BundleSchema, PlaceSchema, SceneFileSchema, SourceSchema, type Bundle, type SceneFile } from '../schema.ts'
+import { appContentDir, audioDir, imagesDir, repoRoot, scenesDir, sourceFile } from '../paths.ts'
+import { BundleSchema, SceneFileSchema, SourceSchema, type Bundle, type SceneFile } from '../schema.ts'
+import { readCanon } from '../canon/files.ts'
 import { readImageCatalog } from '../images/versions.ts'
 import { buildBundle, type ImageCatalog } from './buildBundle.ts'
 
@@ -50,7 +50,7 @@ function checkImages(sceneFiles: SceneFile[], catalog: ImageCatalog): void {
 
 export async function writeBundle(): Promise<Bundle> {
   const source = await readJson(sourceFile, (value) => SourceSchema.parse(value))
-  const places = await readJson(placesFile, (value) => z.array(PlaceSchema).parse(value))
+  const { places } = await readCanon()
   const sceneFiles = await readSceneFiles()
   const audioNames = existsSync(audioDir) ? new Set(await readdir(audioDir)) : new Set<string>()
   const catalog = await readImageCatalog()

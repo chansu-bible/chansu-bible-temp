@@ -24,7 +24,17 @@ const source: Source = {
   ],
 }
 
-const places: Place[] = [{ id: 'eden', name: '에덴', description: '동산', estimated: true, lat: 31, lng: 47 }]
+const places: Place[] = [
+  {
+    id: 'eden',
+    name: '에덴',
+    aliases: [],
+    status: 'approved',
+    facts: { firstAppearance: '2:8', description: '동산', sources: ['2:8'] },
+    location: { lat: 31, lng: 47, certainty: '추정' },
+    design: { landscape: '', notes: '' },
+  },
+]
 
 function scene(overrides: Partial<Scene>): Scene {
   return {
@@ -48,6 +58,18 @@ function scene(overrides: Partial<Scene>): Scene {
 const textOf = (verses: { verse: number; text: string }[]) => verses.map(({ verse, text }) => ({ verse, text }))
 
 describe('buildBundle', () => {
+  it('묶음 형식 버전을 넣는다', () => {
+    expect(buildBundle(source, [], places).schemaVersion).toBe(1)
+  })
+
+  it('설정집의 장소를 앱이 쓰는 장소 형식으로 바꿔 넣는다', () => {
+    const sure: Place = { ...places[0], id: 'ararat', location: { lat: 39.7, lng: 44.3, certainty: '확실' } }
+    expect(buildBundle(source, [], [...places, sure]).places).toEqual([
+      { id: 'eden', name: '에덴', description: '동산', estimated: true, lat: 31, lng: 47 },
+      { id: 'ararat', name: '에덴', description: '동산', estimated: false, lat: 39.7, lng: 44.3 },
+    ])
+  })
+
   it('그림 버전이 없으면 기본 버전도 없다', () => {
     const bundle = buildBundle(source, [], places)
     expect(bundle.imageVersions).toEqual([])

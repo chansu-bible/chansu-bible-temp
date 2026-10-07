@@ -1,4 +1,15 @@
-import type { Bundle, BundleScene, ImageVersion, Place, Scene, SceneFile, Source, Verse } from '../schema.ts'
+import {
+  BUNDLE_SCHEMA_VERSION,
+  type Bundle,
+  type BundlePlace,
+  type BundleScene,
+  type ImageVersion,
+  type Place,
+  type Scene,
+  type SceneFile,
+  type Source,
+  type Verse,
+} from '../schema.ts'
 import { findCoverageProblems } from '../scenes/coverage.ts'
 import { audioName } from '../tts/select.ts'
 
@@ -49,13 +60,26 @@ export function buildBundle(
   })
 
   return {
+    schemaVersion: BUNDLE_SCHEMA_VERSION,
     book: source.book,
     translation: source.translation,
-    places,
+    places: places.map(toBundlePlace),
     imageVersions: catalog.versions,
     // 가장 나중에 추가한 버전을 기본으로 보여 준다.
     defaultImageVersion: catalog.versions.at(-1)?.id ?? null,
     chapters,
+  }
+}
+
+// 앱은 지도에 쓸 것만 받는다. '확실'이 아닌 위치는 추정으로 표시한다.
+function toBundlePlace(place: Place): BundlePlace {
+  return {
+    id: place.id,
+    name: place.name,
+    description: place.facts.description,
+    estimated: place.location.certainty !== '확실',
+    lat: place.location.lat,
+    lng: place.location.lng,
   }
 }
 

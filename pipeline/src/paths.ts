@@ -3,9 +3,10 @@ import path from 'node:path'
 export const repoRoot = path.resolve(import.meta.dirname, '../..')
 export const contentDir = path.join(repoRoot, 'content')
 export const sourceFile = path.join(contentDir, 'source', 'genesis.json')
-export const placesFile = path.join(contentDir, 'story-bible', 'places.json')
-export const styleFile = path.join(contentDir, 'story-bible', 'style.json')
-export const refsDir = path.join(contentDir, 'story-bible', 'refs')
+// 설정집. characters.json, places.json, eras.json, things.json, proposals.json이 있다.
+export const storyBibleDir = path.join(contentDir, 'story-bible')
+export const styleFile = path.join(storyBibleDir, 'style.json')
+export const refsDir = path.join(storyBibleDir, 'refs')
 export const envFile = path.join(repoRoot, '.env')
 
 export function sceneFilePath(chapter: number): string {
