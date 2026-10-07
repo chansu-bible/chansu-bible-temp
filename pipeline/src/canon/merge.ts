@@ -136,19 +136,40 @@ function namesOf(item: Item): Set<string> {
   return new Set([item.name, ...aliases].map((name) => name.trim()).filter(Boolean))
 }
 
-// id가 같거나 이름·별칭이 겹치는 기존 항목
-function findMatch(list: Item[], incoming: Item): Item | undefined {
+function fatherOf(item: Item): string | undefined {
+  const relations = isRecord(item.facts) && Array.isArray(item.facts.relations) ? item.facts.relations : []
+  return (relations as { type: string; to: string }[]).find((relation) => relation.type === '아버지')?.to
+}
+
+// id가 같거나 이름·별칭이 겹치는 기존 항목.
+// 창세기에는 이름이 같은 다른 사람이 있다(가인 계열의 에녹·라멕과 셋 계열의 에녹·라멕). 이름이 같아도 둘 다 아버지가 적혀 있고
+// 서로 다르면 다른 인물로 본다. resolve는 출력 쪽 아버지 id를 기존 id로 바꿔 읽는 함수다.
+function findMatch(list: Item[], incoming: Item, resolve: (id: string) => string = (id) => id): Item | undefined {
   const byId = list.find((item) => item.id === incoming.id)
   if (byId) return byId
   const names = namesOf(incoming)
-  return list.find((item) => [...namesOf(item)].some((name) => names.has(name)))
+  const father = fatherOf(incoming)
+  return list.find((item) => {
+    if (![...namesOf(item)].some((name) => names.has(name))) return false
+    const existingFather = fatherOf(item)
+    return !(father && existingFather && resolve(father) !== existingFather)
+  })
 }
 
-function combineItem(existing: Item, incoming: Item): Item {
+// 사람이 정해 두는 필드. 기존 값이 비어 있지 않으면 출력으로 바꾸지 않는다(빈 칸은 채울 수 있다).
+const KEEP_EXISTING: Partial<Record<CanonKind, string[]>> = { eras: ['range', 'years'] }
+
+function combineItem(kind: CanonKind, existing: Item, incoming: Item): Item {
   // 기존 이름이나 별칭으로 나온 것이면 이름은 그대로 둔다
   const name = namesOf(existing).has(incoming.name.trim()) ? existing.name : incoming.name
   const combined = combine(existing, { ...incoming, id: existing.id, name }, '') as Item
   combined.status = existing.status
+  for (const field of KEEP_EXISTING[kind] ?? []) {
+    const before = existing[field]
+    const after = combined[field]
+    if (!isRecord(before) || !isRecord(after)) continue
+    for (const key of Object.keys(before)) if (!isEmpty(before[key])) after[key] = before[key]
+  }
   return combined
 }
 
@@ -202,6 +223,7 @@ const hasRef = (refs: CanonRef[], kind: CanonKind, id: string) => refs.some((ref
 // - 새 항목은 draft로 추가한다. 출력의 status는 무시한다.
 // - id나 이름·별칭이 같은 기존 항목이 있으면 추가하지 않는다. 그 항목이 draft면 덮어쓰고(배열은 합치고,
 //   빈 값은 기존 값을 지우지 않는다), draft가 아니면(사람이 본 항목) 바꾸지 않고 달라진 필드마다 열린 proposal을 만든다.
+// - 시대의 range와 years는 사람이 나눠 둔 값이라 draft라도 기존 값을 지킨다(비어 있는 칸만 채운다).
 // - 없는 인물을 가리키는 관계, 스키마나 절 범위를 어긴 항목은 버리고 경고에 적는다.
 export function mergeCanon(existing: Canon, output: CanonOutput, now: string): MergeResult {
   const warnings: string[] = []
@@ -226,7 +248,7 @@ export function mergeCanon(existing: Canon, output: CanonOutput, now: string): M
   const knownCharacters = new Set(existing.characters.map((character) => character.id))
   const remap = new Map<string, string>()
   for (const incoming of outputs.characters) {
-    const match = findMatch(lists.characters, incoming)
+    const match = findMatch(lists.characters, incoming, (id) => remap.get(id) ?? id)
     if (match) remap.set(incoming.id, match.id)
     else if ('item' in checkItem('characters', withoutRelations('characters', draftOf('characters', incoming)))) {
       knownCharacters.add(incoming.id)
@@ -298,7 +320,7 @@ export function mergeCanon(existing: Canon, output: CanonOutput, now: string): M
         continue
       }
 
-      const checked = checkItem(kind, combineItem(match, incoming))
+      const checked = checkItem(kind, combineItem(kind, match, incoming))
       if ('problem' in checked) {
         warnings.push(`${label}: ${kind}/${match.id}에 합치지 않았습니다 (${checked.problem})`)
         continue

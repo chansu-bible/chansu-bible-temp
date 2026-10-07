@@ -23,7 +23,7 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 | `schemaVersion` | `1` | 묶음 형식 버전. 앱은 모르는 값이면 읽지 않고 오류를 낸다(웹: `묶음 형식이 다릅니다 (schemaVersion n)`) |
 | `book` | string | 책 이름. 지금은 `창세기` |
 | `translation` | string | 번역본 이름. 지금은 `개역한글` |
-| `places` | Place[] | 지도에 쓰는 장소 |
+| `places` | Place[] | 지도에 쓰는 장소. 설정집에서 사람이 승인한(`approved`) 장소만 들어간다 |
 | `imageVersions` | ImageVersion[] | 그림 버전 목록. 추가한 순서 |
 | `defaultImageVersion` | string \| null | 처음 보여 줄 그림 버전 id. 목록의 마지막 버전이고, 버전이 없으면 null |
 | `chapters` | Chapter[] | 장 목록. 장 번호 순서 |

@@ -189,6 +189,43 @@ describe('mergeCanon', () => {
     expect(validateCanon(result.canon)).toEqual([])
   })
 
+  it('이름이 같아도 아버지가 다르면 다른 인물로 추가하고, 아버지가 같으면 같은 인물로 합친다', () => {
+    const facts = characterOut().facts
+    const existing = canon({
+      characters: [
+        character(),
+        character({ id: 'cain', name: '가인', status: 'draft', facts: { ...facts, firstAppearance: '4:1', sources: ['4:1'] } }),
+        character({ id: 'jared', name: '야렛', status: 'draft', facts: { ...facts, firstAppearance: '5:15', sources: ['5:15'] } }),
+        character({
+          id: 'enoch-cain',
+          name: '에녹',
+          status: 'draft',
+          facts: { ...facts, firstAppearance: '4:17', relations: [{ type: '아버지', to: 'cain' }], sources: ['4:17'] },
+        }),
+      ],
+    })
+    const sethite = characterOut({
+      id: 'enoch',
+      name: '에녹',
+      facts: { firstAppearance: '5:18', relations: [{ type: '아버지', to: 'jared' }], sources: ['5:18'] },
+    })
+    const split = mergeCanon(existing, output({ characters: [sethite] }), NOW)
+    expect(split.added).toEqual([{ kind: 'characters', id: 'enoch' }])
+    expect(split.canon.characters.find((item) => item.id === 'enoch-cain')?.facts.relations).toEqual([
+      { type: '아버지', to: 'cain' },
+    ])
+    expect(validateCanon(split.canon)).toEqual([])
+
+    const cainite = characterOut({
+      id: 'enoch',
+      name: '에녹',
+      facts: { firstAppearance: '4:17', relations: [{ type: '아버지', to: 'cain' }], notes: '성을 쌓음', sources: ['4:17'] },
+    })
+    const joined = mergeCanon(existing, output({ characters: [cainite] }), NOW)
+    expect(joined.added).toEqual([])
+    expect(joined.updated).toEqual([{ kind: 'characters', id: 'enoch-cain' }])
+  })
+
   it('기존 항목이 draft면 proposal 없이 덮어쓴다(배열은 합치고 refs는 둔다)', () => {
     const existing = canon({
       characters: [character({ status: 'draft', refs: ['adam-front.jpg'], facts: { ...character().facts, notes: '옛 메모' } })],
@@ -207,6 +244,37 @@ describe('mergeCanon', () => {
       refs: ['adam-front.jpg'],
       aliases: ['사람'],
       facts: { notes: '새 메모', sources: ['1:26-27', '2:7'] },
+    })
+  })
+
+  it('draft 시대라도 range와 years는 기존 값을 지키고 빈 칸만 채운다', () => {
+    const era = {
+      id: 'creation-week',
+      name: '창조 주간',
+      range: { from: '1:1', to: '2:3' },
+      years: { from: 0, to: null },
+      facts: { description: '엿새 창조', present: ['빛(1:3)'], absent: [], sources: ['1:3'] },
+      design: { visualNotes: '' },
+    }
+    const result = mergeCanon(
+      canon({ eras: [{ ...era, status: 'draft' }] }),
+      output({
+        eras: [
+          {
+            ...era,
+            range: { from: '1:1', to: '1:31' },
+            years: { from: 7, to: 0 },
+            facts: { ...era.facts, present: ['사람(1:27)'], description: '' },
+          },
+        ],
+      }),
+      NOW,
+    )
+    expect(result.updated).toEqual([{ kind: 'eras', id: 'creation-week' }])
+    expect(result.canon.eras[0]).toMatchObject({
+      range: { from: '1:1', to: '2:3' },
+      years: { from: 0, to: 0 },
+      facts: { description: '엿새 창조', present: ['빛(1:3)', '사람(1:27)'] },
     })
   })
 

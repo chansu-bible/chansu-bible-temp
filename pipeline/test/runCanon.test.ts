@@ -65,6 +65,10 @@ describe('buildCanonPrompt', () => {
     })
     expect(prompt.system).toContain('facts')
     expect(prompt.system).toContain('design')
+    // 하나님과 일반 명사, 창조물 범주는 항목으로 내지 않는다
+    expect(prompt.system).toContain('하나님·여호와·하나님의 신은 내지 않는다')
+    expect(prompt.system).toContain('고유한 지명만 낸다')
+    expect(prompt.system).toContain('이미 있는 시대는 다시 내지 않는다')
     expect(prompt.user).toContain('창세기 2장')
     expect(prompt.user).toContain('2:7 여호와 하나님이 흙으로 사람을 지으시고')
     expect(prompt.user).toContain('places/eden')

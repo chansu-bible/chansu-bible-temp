@@ -19,10 +19,12 @@ export type ImageCatalog = { versions: ImageVersion[]; files: Record<string, str
 export function buildBundle(
   source: Source,
   sceneFiles: SceneFile[],
-  places: Place[],
+  allPlaces: Place[],
   audioNames: ReadonlySet<string> = new Set(),
   catalog: ImageCatalog = { versions: [], files: {} },
 ): Bundle {
+  // 사람이 승인한 장소만 앱에 나간다. 검수 전 초안은 지도에 올리지 않는다.
+  const places = allPlaces.filter((place) => place.status === 'approved')
   const placeIds = new Set(places.map((place) => place.id))
 
   const seenChapters = new Set<number>()
@@ -52,7 +54,7 @@ export function buildBundle(
     }
     for (const scene of sceneFile.scenes) {
       if (scene.placeId && !placeIds.has(scene.placeId)) {
-        throw new Error(`${scene.id}: 장소 ${scene.placeId}가 places.json에 없습니다`)
+        throw new Error(`${scene.id}: 장소 ${scene.placeId}가 places.json의 승인된 항목에 없습니다`)
       }
       checkGlossary(scene, chapter, sourceChapter.verses)
     }

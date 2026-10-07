@@ -160,7 +160,16 @@ describe('buildBundle', () => {
 
   it('없는 장소를 가리키면 오류를 낸다', () => {
     const file = { chapter: 1, scenes: [scene({ placeId: 'nowhere' })] }
-    expect(() => buildBundle(source, [file], places)).toThrow('genesis-01-01: 장소 nowhere가 places.json에 없습니다')
+    expect(() => buildBundle(source, [file], places)).toThrow(
+      'genesis-01-01: 장소 nowhere가 places.json의 승인된 항목에 없습니다',
+    )
+  })
+
+  it('승인되지 않은 장소는 묶음에 넣지 않고, 장면이 가리키면 오류를 낸다', () => {
+    const draft: Place = { ...places[0], id: 'nod', name: '놋', status: 'draft' }
+    expect(buildBundle(source, [], [...places, draft]).places.map((place) => place.id)).toEqual(['eden'])
+    const file = { chapter: 1, scenes: [scene({ placeId: 'nod' })] }
+    expect(() => buildBundle(source, [file], [...places, draft])).toThrow('승인된 항목에 없습니다')
   })
 
   it('장면 파일이 있는 장도 본문은 원본 그대로 들어간다', () => {
