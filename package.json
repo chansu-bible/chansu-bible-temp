@@ -2,11 +2,16 @@
   "name": "chansu-bible",
   "private": true,
   "type": "module",
-  "workspaces": ["pipeline", "app"],
+  "workspaces": [
+    "pipeline",
+    "app",
+    "admin"
+  ],
   "scripts": {
     "pipeline": "npm run cli -w pipeline --",
     "dev": "npm run pipeline -- build && npm run dev -w app",
     "build": "npm run pipeline -- build && npm run build -w app",
-    "test": "npm test -w pipeline && npm test -w app"
+    "test": "npm test -w pipeline && npm test -w app && npm test -w admin",
+    "admin": "npm run dev -w admin"
   }
 }
