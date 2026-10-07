@@ -12,9 +12,11 @@
 
 | 폴더 | 내용 |
 |---|---|
-| `app/` | 읽기 화면 (React + Vite + TypeScript) |
+| `app/` | 읽기 화면 (React + Vite + TypeScript). 네이티브 앱의 참고 구현 |
 | `pipeline/` | 콘텐츠 생성 스크립트 (Node + TypeScript) |
-| `content/` | 본문, 설정집, 장면, 그림 |
+| `admin/` | 로컬 관리 도구: 상태 보기, 작업 실행, 설정집 편집·승인 |
+| `content/` | 본문, 설정집, 장면, 그림, 음성 |
+| `docs/content-bundle.md` | 앱이 읽는 묶음 형식(네이티브 앱용 계약) |
 
 ## 실행
 
@@ -22,6 +24,18 @@
 npm install
 npm run dev
 ```
+
+## 관리 도구
+
+```bash
+npm run admin
+```
+
+`http://localhost:5174`에서 열린다. 대시보드(장별 진행), 설정집(인물·장소·시대·물건 편집과 승인, 변경 제안), 장면, 작업(파이프라인 단계 실행과 실시간 로그, 호출 비용), 검수 대기열, 저장소 상태를 볼 수 있다. 서버는 `127.0.0.1:8787`에만 열리고 로그인은 없다. 커밋과 푸시는 터미널에서 한다.
+
+## 설정집
+
+`content/story-bible/`의 `characters.json`, `places.json`, `eras.json`, `things.json`이 인물·장소·시대·물건의 확정 정보다. 항목마다 `facts`(본문 근거, 절 인용)와 `design`(제작상 결정)을 나누고, `status`가 `approved`인 항목만 그림과 시나리오가 참조한다. `npm run pipeline -- canon --chapter N`이 본문에서 초안을 뽑고, 승인된 항목에 대한 변경은 `proposals.json`에 제안으로만 쌓인다.
 
 ## 명령
 
@@ -31,6 +45,7 @@ npm run dev
 | `npm test` | 전체 테스트 |
 | `npm run pipeline -- source` | 개역한글 창세기 1~10장을 받아 `content/source/genesis.json`에 저장한다 |
 | `npm run pipeline -- images --chapter 1 --allow-draft` | 1장 장면 중 그림이 없는 것을 OpenAI로 그려 `content/images/`에 저장한다 |
+| `npm run pipeline -- canon --chapter 1` | 1장 본문에서 설정집 초안(인물·장소·시대·물건)을 뽑는다. `--dry-run`은 프롬프트만 보여 준다 |
 | `npm run pipeline -- tts --chapter 1` | 1장의 절마다 낭독 음성을 OpenAI로 만들어 `content/audio/`에 저장한다 |
 | `npm run pipeline -- build` | 본문·장면·장소·그림·음성을 합쳐 `app/public/content/`에 묶음을 만든다 |
 
