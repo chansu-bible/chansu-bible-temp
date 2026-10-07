@@ -142,9 +142,10 @@ describe('mergeCanon', () => {
     // 배열은 합치고, 빈 값(null)은 기존 값을 지우지 않는다
     expect(byField['facts.sources']?.value).toEqual(['1:26-27', '5:5'])
     expect(byField['facts.years']?.value).toEqual({ born: 0, died: 930 })
+    // 본문 근거 글은 기존 글 뒤에 이어 붙인 값을 제안한다
     expect(byField['facts.notes']).toMatchObject({
       target: 'characters/adam',
-      value: '930세에 죽음',
+      value: '흙으로 지음\n930세에 죽음',
       status: 'open',
       createdAt: NOW,
       sources: ['5:5'],
@@ -243,7 +244,7 @@ describe('mergeCanon', () => {
       status: 'draft',
       refs: ['adam-front.jpg'],
       aliases: ['사람'],
-      facts: { notes: '새 메모', sources: ['1:26-27', '2:7'] },
+      facts: { notes: '옛 메모\n새 메모', sources: ['1:26-27', '2:7'] },
     })
   })
 
@@ -276,6 +277,34 @@ describe('mergeCanon', () => {
       years: { from: 0, to: 0 },
       facts: { description: '엿새 창조', present: ['빛(1:3)', '사람(1:27)'] },
     })
+  })
+
+  it('facts.notes와 facts.description은 바꾸지 않고 이어 붙이고, 같은 글은 다시 붙이지 않는다', () => {
+    const facts = characterOut().facts
+    const existing = canon({
+      characters: [character({ id: 'noah', name: '노아', status: 'draft', facts: { ...facts, notes: '방주를 지었다.' } })],
+      places: [place({ status: 'draft' })],
+    })
+    const out = output({
+      characters: [characterOut({ id: 'noah', name: '노아', facts: { notes: '포도나무를 심었다.' } })],
+      places: [
+        {
+          id: 'eden',
+          name: '에덴',
+          aliases: [],
+          facts: { firstAppearance: '2:8', description: '네 강이 흐른다', sources: ['2:10'] },
+          location: { lat: null, lng: null, certainty: '불명' },
+          design: { landscape: '숲', notes: '' },
+        },
+      ],
+    })
+    const once = mergeCanon(existing, out, NOW)
+    expect(once.canon.characters[0]?.facts.notes).toBe('방주를 지었다.\n포도나무를 심었다.')
+    expect(once.canon.places[0]?.facts.description).toBe('동산\n네 강이 흐른다')
+    expect(once.canon.places[0]?.design.landscape).toBe('숲')
+    const twice = mergeCanon(once.canon, out, NOW)
+    expect(twice.updated).toEqual([])
+    expect(twice.canon.characters[0]?.facts.notes).toBe('방주를 지었다.\n포도나무를 심었다.')
   })
 
   it('첫 등장은 더 앞선 절을 남긴다', () => {

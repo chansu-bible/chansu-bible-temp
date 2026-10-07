@@ -109,8 +109,13 @@ function earlierCitation(a: string, b: string): string {
   return y[0] < x[0] || (y[0] === x[0] && y[1] < x[1]) ? b : a
 }
 
-// 기존 값에 출력 값을 합친다. 배열은 합집합, 객체는 키마다, 빈 값은 기존 값 유지, 첫 등장은 앞선 절.
-function combine(existing: unknown, incoming: unknown, key: string): unknown {
+// 장마다 그 장에서 새로 알게 된 것만 적으므로, 본문 근거 글은 바꾸지 않고 뒤에 이어 붙인다.
+// design은 제작 제안이라 나중 값으로 바꾼다.
+const APPEND_PATHS = new Set(['facts.notes', 'facts.description'])
+
+// 기존 값에 출력 값을 합친다. 배열은 합집합, 객체는 키마다, 빈 값은 기존 값 유지, 첫 등장은 앞선 절,
+// 본문 근거 글(facts.notes, facts.description)은 이어 붙인다. path는 "facts.notes"처럼 점으로 이은 필드 경로다.
+function combine(existing: unknown, incoming: unknown, path: string): unknown {
   if (isEmpty(incoming)) return existing
   if (existing === undefined) return incoming
   if (Array.isArray(existing) && Array.isArray(incoming)) {
@@ -121,12 +126,15 @@ function combine(existing: unknown, incoming: unknown, key: string): unknown {
   if (isRecord(existing) && isRecord(incoming)) {
     const result: Record<string, unknown> = {}
     for (const field of new Set([...Object.keys(existing), ...Object.keys(incoming)])) {
-      result[field] = combine(existing[field], incoming[field], field)
+      result[field] = combine(existing[field], incoming[field], path ? `${path}.${field}` : field)
     }
     return result
   }
-  if (key === 'firstAppearance' && typeof existing === 'string' && typeof incoming === 'string') {
-    return earlierCitation(existing, incoming)
+  if (typeof existing === 'string' && typeof incoming === 'string') {
+    if (path === 'facts.firstAppearance') return earlierCitation(existing, incoming)
+    if (APPEND_PATHS.has(path) && existing !== '') {
+      return existing.includes(incoming.trim()) ? existing : `${existing}\n${incoming.trim()}`
+    }
   }
   return incoming
 }
