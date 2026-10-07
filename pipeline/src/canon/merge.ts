@@ -144,6 +144,11 @@ function namesOf(item: Item): Set<string> {
   return new Set([item.name, ...aliases].map((name) => name.trim()).filter(Boolean))
 }
 
+// 모델이 id 안에 띄어쓰기나 대문자를 넣을 때가 있다("miz raim"). 고칠 수 있는 것은 고친다. 그래도 형식에 안 맞으면 뒤에서 버린다.
+function normalizeId(raw: string): string {
+  return raw.trim().toLowerCase().replace(/\s+/g, '')
+}
+
 function fatherOf(item: Item): string | undefined {
   const relations = isRecord(item.facts) && Array.isArray(item.facts.relations) ? item.facts.relations : []
   return (relations as { type: string; to: string }[]).find((relation) => relation.type === '아버지')?.to
@@ -248,6 +253,17 @@ export function mergeCanon(existing: Canon, output: CanonOutput, now: string): M
     lists[kind] = [...(existing[kind] as Item[])]
     outputs[kind] = (output[kind] as Item[]).map((raw) => {
       const { status: _status, refs: _refs, ...rest } = structuredClone(raw) as Item & { refs?: unknown }
+      const id = normalizeId(rest.id)
+      if (id !== rest.id) {
+        warnings.push(`${kind}/${rest.id}: id를 ${id}로 고쳤습니다`)
+        rest.id = id
+      }
+      if (kind === 'characters' && isRecord(rest.facts) && Array.isArray(rest.facts.relations)) {
+        rest.facts.relations = (rest.facts.relations as { type: string; to: string }[]).map((relation) => ({
+          ...relation,
+          to: normalizeId(relation.to),
+        }))
+      }
       return rest as Item
     })
   }

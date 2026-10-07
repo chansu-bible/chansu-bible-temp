@@ -313,6 +313,30 @@ describe('mergeCanon', () => {
     expect(result.canon.characters[0]?.facts.firstAppearance).toBe('1:26')
   })
 
+  it('id의 띄어쓰기와 대문자는 고쳐서 넣고 경고에 적는다. 관계도 고친 id를 가리킨다', () => {
+    const result = mergeCanon(
+      canon(),
+      output({
+        characters: [
+          characterOut({ id: 'Miz raim', name: '미스라임', facts: { firstAppearance: '10:6', sources: ['10:6'] } }),
+          characterOut({
+            id: 'ludim',
+            name: '루딤',
+            facts: { firstAppearance: '10:13', relations: [{ type: '조상', to: 'Miz raim' }], sources: ['10:13'] },
+          }),
+        ],
+      }),
+      NOW,
+    )
+    expect(result.added).toEqual([
+      { kind: 'characters', id: 'mizraim' },
+      { kind: 'characters', id: 'ludim' },
+    ])
+    expect(result.canon.characters[1]?.facts.relations).toEqual([{ type: '조상', to: 'mizraim' }])
+    expect(result.warnings).toEqual(['characters/Miz raim: id를 mizraim로 고쳤습니다'])
+    expect(validateCanon(result.canon)).toEqual([])
+  })
+
   it('없는 인물을 가리키는 관계는 버리고 경고한다', () => {
     const result = mergeCanon(
       canon(),
@@ -329,7 +353,7 @@ describe('mergeCanon', () => {
       canon(),
       output({
         characters: [
-          characterOut({ id: 'Bad Id' }),
+          characterOut({ id: 'bad_id' }),
           characterOut({ id: 'seth', name: '셋', facts: { firstAppearance: '11:1', sources: ['4:25'] } }),
         ],
       }),

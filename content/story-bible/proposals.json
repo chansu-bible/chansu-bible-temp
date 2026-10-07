@@ -1,1 +1,99 @@
-[]
+[
+  {
+    "id": "places-eden-facts-description-20261007030047",
+    "createdAt": "2026-10-07T03:00:47.213Z",
+    "target": "places/eden",
+    "field": "facts.description",
+    "value": "여호와 하나님이 동산을 만드신 동방의 땅이에요. 어디였는지는 알려지지 않았어요. 지도에는 여러 추정지 가운데 티그리스와 유프라테스가 만나는 곳을 표시했어요.\n동방에 있으며, 그곳에 동산이 창설되고 사람이 놓였다. 에덴에서 발원한 강은 동산을 적신 뒤 갈라져 네 근원이 되었다. 아담은 에덴 동산을 다스리며 지키도록 맡겨졌다.",
+    "reason": "본문에서 뽑은 설정이 기존 값과 다릅니다",
+    "sources": [
+      "2:8-10",
+      "2:15"
+    ],
+    "status": "open"
+  },
+  {
+    "id": "places-eden-facts-sources-20261007030047",
+    "createdAt": "2026-10-07T03:00:47.213Z",
+    "target": "places/eden",
+    "field": "facts.sources",
+    "value": [
+      "2:8",
+      "2:10-14",
+      "2:8-10",
+      "2:15"
+    ],
+    "reason": "본문에서 뽑은 설정이 기존 값과 다릅니다",
+    "sources": [
+      "2:8-10",
+      "2:15"
+    ],
+    "status": "open"
+  },
+  {
+    "id": "places-eden-design-landscape-20261007030047",
+    "createdAt": "2026-10-07T03:00:47.213Z",
+    "target": "places/eden",
+    "field": "design.landscape",
+    "value": "물을 공급하는 강과 열매 맺는 나무들이 어우러진 동산.",
+    "reason": "본문에서 뽑은 설정이 기존 값과 다릅니다",
+    "sources": [
+      "2:8-10",
+      "2:15"
+    ],
+    "status": "open"
+  },
+  {
+    "id": "places-eden-design-notes-20261007030047",
+    "createdAt": "2026-10-07T03:00:47.213Z",
+    "target": "places/eden",
+    "field": "design.notes",
+    "value": "실제 지리와의 대응은 확정하지 않는다.",
+    "reason": "본문에서 뽑은 설정이 기존 값과 다릅니다",
+    "sources": [
+      "2:8-10",
+      "2:15"
+    ],
+    "status": "open"
+  },
+  {
+    "id": "places-eden-facts-description-20261007030133",
+    "createdAt": "2026-10-07T03:01:33.685Z",
+    "target": "places/eden",
+    "field": "facts.description",
+    "value": "여호와 하나님이 동산을 만드신 동방의 땅이에요. 어디였는지는 알려지지 않았어요. 지도에는 여러 추정지 가운데 티그리스와 유프라테스가 만나는 곳을 표시했어요.\n아담이 에덴 동산에서 내보내졌다. 에덴 동산 동편에는 그룹들과 두루 도는 화염검이 놓여 생명나무의 길을 지키게 되었다.",
+    "reason": "본문에서 뽑은 설정이 기존 값과 다릅니다",
+    "sources": [
+      "3:23-24"
+    ],
+    "status": "open"
+  },
+  {
+    "id": "places-eden-facts-sources-20261007030133",
+    "createdAt": "2026-10-07T03:01:33.685Z",
+    "target": "places/eden",
+    "field": "facts.sources",
+    "value": [
+      "2:8",
+      "2:10-14",
+      "3:23-24"
+    ],
+    "reason": "본문에서 뽑은 설정이 기존 값과 다릅니다",
+    "sources": [
+      "3:23-24"
+    ],
+    "status": "open"
+  },
+  {
+    "id": "places-eden-design-notes-20261007030133",
+    "createdAt": "2026-10-07T03:01:33.685Z",
+    "target": "places/eden",
+    "field": "design.notes",
+    "value": "동편의 경계와 생명나무로 향하는 길이 구별되도록 배치한다.",
+    "reason": "본문에서 뽑은 설정이 기존 값과 다릅니다",
+    "sources": [
+      "3:23-24"
+    ],
+    "status": "open"
+  }
+]

@@ -7,7 +7,10 @@
     "facts": {
       "firstAppearance": "2:8",
       "description": "여호와 하나님이 동산을 만드신 동방의 땅이에요. 어디였는지는 알려지지 않았어요. 지도에는 여러 추정지 가운데 티그리스와 유프라테스가 만나는 곳을 표시했어요.",
-      "sources": ["2:8", "2:10-14"]
+      "sources": [
+        "2:8",
+        "2:10-14"
+      ]
     },
     "location": {
       "lat": 31.02,
@@ -16,6 +19,650 @@
     },
     "design": {
       "landscape": "강이 흐르는 평야. 큰 나무가 많은 동산",
+      "notes": ""
+    }
+  },
+  {
+    "id": "pishon",
+    "name": "비손",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "2:11",
+      "description": "에덴에서 발원한 강이 갈라진 네 근원 가운데 첫째 강이다. 금이 있는 하윌라 온 땅에 둘렸다.",
+      "sources": [
+        "2:10-11"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
+      "notes": "강의 실제 위치와 경로를 확정하지 않는다."
+    }
+  },
+  {
+    "id": "havilah",
+    "name": "하윌라",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "2:11",
+      "description": "비손 강이 온 땅에 둘린 곳이다. 정금과 베델리엄과 호마노가 있다.",
+      "sources": [
+        "2:11-12"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "gihon",
+    "name": "기혼",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "2:13",
+      "description": "에덴에서 발원한 강이 갈라진 네 근원 가운데 둘째 강이다. 구스 온 땅에 둘렸다.",
+      "sources": [
+        "2:10",
+        "2:13"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
+      "notes": "강의 실제 위치와 경로를 확정하지 않는다."
+    }
+  },
+  {
+    "id": "cush",
+    "name": "구스",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "2:13",
+      "description": "기혼 강이 온 땅에 둘린 곳이다.",
+      "sources": [
+        "2:13"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
+      "notes": "이 장의 구스가 가리키는 지리적 범위는 확정하지 않는다."
+    }
+  },
+  {
+    "id": "tigris",
+    "name": "힛데겔",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "2:14",
+      "description": "에덴에서 발원한 강이 갈라진 네 근원 가운데 셋째 강이다. 앗수르 동편으로 흐른다.",
+      "sources": [
+        "2:10",
+        "2:14"
+      ]
+    },
+    "location": {
+      "lat": 33.35,
+      "lng": 44.4,
+      "certainty": "추정"
+    },
+    "design": {
+      "landscape": "넓은 강줄기와 충적 평야.",
+      "notes": "티그리스 강을 참고한다. 좌표는 현대 강줄기의 대표 지점이며 에덴의 위치를 뜻하지 않는다."
+    }
+  },
+  {
+    "id": "assyria",
+    "name": "앗수르",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "2:14",
+      "description": "힛데겔 강이 그 동편으로 흐른다고 언급된 곳이다.\n니므롯이 시날 땅에서 나아간 곳. 이어 니느웨, 르호보딜, 갈라, 레센의 건축이 기록된다.",
+      "sources": [
+        "2:14",
+        "10:11-12"
+      ]
+    },
+    "location": {
+      "lat": 35.46,
+      "lng": 43.26,
+      "certainty": "추정"
+    },
+    "design": {
+      "landscape": "",
+      "notes": "좌표는 고대 앗수르의 중심지 아슈르를 참고한 대표 지점이다. 이 장의 장면에 후대 제국의 건축물을 넣지 않는다."
+    }
+  },
+  {
+    "id": "euphrates",
+    "name": "유브라데",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "2:14",
+      "description": "에덴에서 발원한 강이 갈라진 네 근원 가운데 넷째 강이다.",
+      "sources": [
+        "2:10",
+        "2:14"
+      ]
+    },
+    "location": {
+      "lat": 35.95,
+      "lng": 39.01,
+      "certainty": "추정"
+    },
+    "design": {
+      "landscape": "넓은 강줄기와 강변의 충적 평야.",
+      "notes": "유프라테스 강을 참고한다. 좌표는 현대 강줄기의 대표 지점이며 에덴의 위치를 뜻하지 않는다."
+    }
+  },
+  {
+    "id": "nod",
+    "name": "놋",
+    "aliases": [
+      "놋 땅"
+    ],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "4:16",
+      "description": "에덴 동편에 있는 땅으로, 가인이 여호와의 앞을 떠나 나가 거한 곳이다.",
+      "sources": [
+        "4:16"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "enoch-city",
+    "name": "에녹",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "4:17",
+      "description": "가인이 쌓고 자기 아들 에녹의 이름을 따라 이름 붙인 성이다.",
+      "sources": [
+        "4:17"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "흙과 돌을 이용한 초기 취락 형태로 표현한다.",
+      "notes": "대규모 궁전이나 후대의 성곽 양식은 피한다."
+    }
+  },
+  {
+    "id": "ararat",
+    "name": "아라랏 산",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "8:4",
+      "description": "칠월 십칠일에 방주가 머무른 산이다.",
+      "sources": [
+        "8:4"
+      ]
+    },
+    "location": {
+      "lat": 39.7,
+      "lng": 44.3,
+      "certainty": "추정"
+    },
+    "design": {
+      "landscape": "높은 산봉우리와 험한 능선이 이어지는 산악 풍경.",
+      "notes": "방주가 머문 구체적인 봉우리와 착지 지형은 단정하지 않는다."
+    }
+  },
+  {
+    "id": "shinar",
+    "name": "시날",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:10",
+      "description": "니므롯의 나라가 시작된 바벨, 에렉, 악갓, 갈레가 있는 땅.",
+      "sources": [
+        "10:10"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "babel",
+    "name": "바벨",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:10",
+      "description": "시날 땅에 있으며 니므롯의 나라가 시작된 곳 중 하나.",
+      "sources": [
+        "10:10"
+      ]
+    },
+    "location": {
+      "lat": 32.536,
+      "lng": 44.42,
+      "certainty": "추정"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "erech",
+    "name": "에렉",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:10",
+      "description": "시날 땅에 있으며 니므롯의 나라가 시작된 곳 중 하나.",
+      "sources": [
+        "10:10"
+      ]
+    },
+    "location": {
+      "lat": 31.322,
+      "lng": 45.636,
+      "certainty": "추정"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "accad",
+    "name": "악갓",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:10",
+      "description": "시날 땅에 있으며 니므롯의 나라가 시작된 곳 중 하나.",
+      "sources": [
+        "10:10"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "calneh",
+    "name": "갈레",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:10",
+      "description": "시날 땅에 있으며 니므롯의 나라가 시작된 곳 중 하나.",
+      "sources": [
+        "10:10"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "nineveh",
+    "name": "니느웨",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:11",
+      "description": "니므롯이 건축한 성읍. 레센은 니느웨와 갈라 사이에 있다.",
+      "sources": [
+        "10:11-12"
+      ]
+    },
+    "location": {
+      "lat": 36.359,
+      "lng": 43.153,
+      "certainty": "추정"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "rehoboth-ir",
+    "name": "르호보딜",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:11",
+      "description": "니므롯이 앗수르로 나아가 건축한 성읍 중 하나.",
+      "sources": [
+        "10:11"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "calah",
+    "name": "갈라",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:11",
+      "description": "니므롯이 건축한 성읍. 레센은 니느웨와 갈라 사이에 있다.",
+      "sources": [
+        "10:11-12"
+      ]
+    },
+    "location": {
+      "lat": 36.099,
+      "lng": 43.328,
+      "certainty": "추정"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "resen",
+    "name": "레센",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:12",
+      "description": "니느웨와 갈라 사이에 있으며 니므롯이 건축한 성읍. 본문에서 큰 성이라고 언급된다.",
+      "sources": [
+        "10:12"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "sidon",
+    "name": "시돈",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:19",
+      "description": "가나안의 지경을 설명할 때 출발점으로 언급되는 곳.",
+      "sources": [
+        "10:19"
+      ]
+    },
+    "location": {
+      "lat": 33.563,
+      "lng": 35.368,
+      "certainty": "추정"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "gerar",
+    "name": "그랄",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:19",
+      "description": "가나안의 지경을 설명할 때 시돈에서 가사로 이어지는 구간에서 지나가는 곳.",
+      "sources": [
+        "10:19"
+      ]
+    },
+    "location": {
+      "lat": 31.383,
+      "lng": 34.607,
+      "certainty": "추정"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "gaza",
+    "name": "가사",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:19",
+      "description": "가나안의 지경이 시돈에서 그랄을 지나 이르는 곳으로 언급된다.",
+      "sources": [
+        "10:19"
+      ]
+    },
+    "location": {
+      "lat": 31.503,
+      "lng": 34.467,
+      "certainty": "추정"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "sodom",
+    "name": "소돔",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:19",
+      "description": "가나안의 지경을 설명할 때 라사에 이르기까지 지나가는 곳 중 하나.",
+      "sources": [
+        "10:19"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "gomorrah",
+    "name": "고모라",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:19",
+      "description": "가나안의 지경을 설명할 때 라사에 이르기까지 지나가는 곳 중 하나.",
+      "sources": [
+        "10:19"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "admah",
+    "name": "아드마",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:19",
+      "description": "가나안의 지경을 설명할 때 라사에 이르기까지 지나가는 곳 중 하나.",
+      "sources": [
+        "10:19"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "zeboiim",
+    "name": "스보임",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:19",
+      "description": "가나안의 지경을 설명할 때 라사에 이르기까지 지나가는 곳 중 하나.",
+      "sources": [
+        "10:19"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "lasha",
+    "name": "라사",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:19",
+      "description": "가나안의 지경이 소돔, 고모라, 아드마, 스보임을 지나 이르는 곳으로 언급된다.",
+      "sources": [
+        "10:19"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "mesha",
+    "name": "메사",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:30",
+      "description": "욕단의 아들들의 거주 범위를 설명할 때 시작점으로 언급되는 곳.",
+      "sources": [
+        "10:30"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
+      "notes": ""
+    }
+  },
+  {
+    "id": "sephar",
+    "name": "스발",
+    "aliases": [],
+    "status": "draft",
+    "facts": {
+      "firstAppearance": "10:30",
+      "description": "욕단의 아들들의 거주지는 메사에서부터 스발로 가는 길의 동편 산이라고 기록된다.",
+      "sources": [
+        "10:30"
+      ]
+    },
+    "location": {
+      "lat": null,
+      "lng": null,
+      "certainty": "불명"
+    },
+    "design": {
+      "landscape": "",
       "notes": ""
     }
   }
