@@ -5,7 +5,7 @@
     "aliases": [
       "사람"
     ],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "2:7",
       "gender": "남",
@@ -72,7 +72,7 @@
       "여자",
       "아담의 아내"
     ],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "2:22",
       "gender": "여",
@@ -136,7 +136,7 @@
     "id": "serpent",
     "name": "뱀",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "3:1",
       "gender": "불명",
@@ -174,7 +174,7 @@
     "aliases": [
       "그룹들"
     ],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "3:24",
       "gender": "불명",
@@ -203,7 +203,7 @@
     "id": "cain",
     "name": "가인",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "4:1",
       "gender": "남",
@@ -250,7 +250,7 @@
     "id": "abel",
     "name": "아벨",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "4:2",
       "gender": "남",
@@ -294,7 +294,7 @@
     "id": "enoch",
     "name": "에녹",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "4:17",
       "gender": "남",
@@ -332,7 +332,7 @@
     "id": "irad",
     "name": "이랏",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "4:18",
       "gender": "남",
@@ -370,7 +370,7 @@
     "id": "mehujael",
     "name": "므후야엘",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "4:18",
       "gender": "남",
@@ -408,7 +408,7 @@
     "id": "methushael",
     "name": "므드사엘",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "4:18",
       "gender": "남",
@@ -446,7 +446,7 @@
     "id": "lamech",
     "name": "라멕",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "4:18",
       "gender": "남",
@@ -500,7 +500,7 @@
     "id": "adah",
     "name": "아다",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "4:19",
       "gender": "여",
@@ -543,7 +543,7 @@
     "id": "zillah",
     "name": "씰라",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "4:19",
       "gender": "여",
@@ -582,7 +582,7 @@
     "id": "jabal",
     "name": "야발",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "4:20",
       "gender": "남",
@@ -624,7 +624,7 @@
     "id": "jubal",
     "name": "유발",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "4:21",
       "gender": "남",
@@ -666,7 +666,7 @@
     "id": "tubal-cain",
     "name": "두발가인",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "4:22",
       "gender": "남",
@@ -709,7 +709,7 @@
     "id": "naamah",
     "name": "나아마",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "4:22",
       "gender": "여",
@@ -743,7 +743,7 @@
     "id": "seth",
     "name": "셋",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "4:25",
       "gender": "남",
@@ -787,7 +787,7 @@
     "id": "enosh",
     "name": "에노스",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "4:26",
       "gender": "남",
@@ -828,7 +828,7 @@
     "id": "kenan",
     "name": "게난",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "5:9",
       "gender": "남",
@@ -869,7 +869,7 @@
     "id": "mahalalel",
     "name": "마할랄렐",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "5:12",
       "gender": "남",
@@ -911,7 +911,7 @@
     "id": "jared",
     "name": "야렛",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "5:15",
       "gender": "남",
@@ -954,7 +954,7 @@
     "id": "enoch-son-of-jared",
     "name": "에녹",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "5:18",
       "gender": "남",
@@ -998,7 +998,7 @@
     "id": "methuselah",
     "name": "므두셀라",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "5:21",
       "gender": "남",
@@ -1043,7 +1043,7 @@
     "id": "lamech-son-of-methuselah",
     "name": "라멕",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "5:25",
       "gender": "남",
@@ -1089,7 +1089,7 @@
     "id": "noah",
     "name": "노아",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "5:29",
       "gender": "남",
@@ -1167,7 +1167,7 @@
     "id": "shem",
     "name": "셈",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "5:32",
       "gender": "남",
@@ -1226,7 +1226,7 @@
     "id": "ham",
     "name": "함",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "5:32",
       "gender": "남",
@@ -1285,7 +1285,7 @@
     "id": "japheth",
     "name": "야벳",
     "aliases": [],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "5:32",
       "gender": "남",

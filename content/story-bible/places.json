@@ -186,21 +186,21 @@
     "aliases": [
       "놋 땅"
     ],
-    "status": "draft",
+    "status": "approved",
     "facts": {
       "firstAppearance": "4:16",
-      "description": "에덴 동편에 있는 땅으로, 가인이 여호와의 앞을 떠나 나가 거한 곳이다.",
+      "description": "에덴 동편에 있는 땅으로, 가인이 여호와의 앞을 떠나 나가 거한 곳이다. 어디였는지는 알려지지 않았고, 지도에는 에덴 추정지의 동쪽을 표시했다.",
       "sources": [
         "4:16"
       ]
     },
     "location": {
-      "lat": null,
-      "lng": null,
-      "certainty": "불명"
+      "lat": 31.6,
+      "lng": 49.3,
+      "certainty": "추정"
     },
     "design": {
-      "landscape": "",
+      "landscape": "물이 적은 너른 들. 에덴의 우거진 숲과 대비되게 마른 풀과 돌이 많은 땅.",
       "notes": ""
     }
   },
