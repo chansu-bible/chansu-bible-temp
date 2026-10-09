@@ -4,6 +4,12 @@ import path from 'node:path'
 const list = (value: string | undefined, fallback: string[]) =>
   value ? value.split(',').map((item) => item.trim()).filter(Boolean) : fallback
 
+// 양의 정수만 받고, 비었거나 틀린 값이면 기본값이다(빈 ASK_DAILY_LIMIT=이 한도 0이 되지 않게).
+const positiveInt = (value: string | undefined, fallback: number) => {
+  const parsed = Number(value)
+  return value && Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
+}
+
 export type Config = {
   host: string
   port: number
@@ -25,7 +31,7 @@ export type Config = {
 export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
   return {
     host: env.HOST ?? '127.0.0.1',
-    port: Number(env.PORT ?? 8790),
+    port: positiveInt(env.PORT, 8790),
     databaseUrl: env.DATABASE_URL ?? 'postgres://chansu:chansu-dev@127.0.0.1:5433/chansu',
     issuers: list(env.AUTH_ISSUERS, [
       'http://localhost:8080/realms/chansu-bible',
@@ -38,6 +44,6 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
     bundleFile: env.BUNDLE_FILE ?? path.resolve(import.meta.dirname, '../../app/public/content/genesis.json'),
     openaiApiKey: env.OPENAI_API_KEY || null,
     askModel: env.ASK_MODEL || env.OPENAI_WRITER_MODEL || 'gpt-6.1-sol',
-    askDailyLimit: Number(env.ASK_DAILY_LIMIT ?? 20),
+    askDailyLimit: positiveInt(env.ASK_DAILY_LIMIT, 20),
   }
 }
