@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs'
-import { readdir, readFile, stat } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
-import { bookOrder, findBook, getBook, hasChapter, josa, type BookId } from 'reader-core'
-import { displayPath, sourceDir as defaultSourceDir, sourceFilePath } from '../paths.ts'
+import { getBook, hasChapter, josa, type BookId } from 'reader-core'
+import { displayPath, listBookFiles, sourceDir as defaultSourceDir, sourceFilePath } from '../paths.ts'
 import { SourceSchema, type Source, type SourceChapter } from '../schema.ts'
 
 // 책의 본문을 읽는다. 없으면 source 단계를 먼저 돌리라는 오류를, 파일의 book(한국어 이름)이 책과 다르면 오류를 낸다.
@@ -32,13 +32,7 @@ export async function readSourceChapter(book: BookId, chapter: number, dir: stri
 
 // 본문 파일이 있는 책을 성경 순서로 돌려준다.
 export async function listSourceBooks(dir: string = defaultSourceDir): Promise<BookId[]> {
-  if (!existsSync(dir)) return []
-  const names = await readdir(dir)
-  const books = names.flatMap((name) => {
-    const book = name.endsWith('.json') ? findBook(name.slice(0, -'.json'.length)) : undefined
-    return book ? [book] : []
-  })
-  return books.sort((a, b) => bookOrder(a.id) - bookOrder(b.id)).map((book) => book.id)
+  return listBookFiles(dir)
 }
 
 // 본문 파일(절대 경로)마다 센 절 수와 그때의 수정 시각·크기

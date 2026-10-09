@@ -3,10 +3,11 @@ import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { BookId } from 'reader-core'
 import { appContentDir, audioDir, displayPath, imagesDir, lexiconFile, originalFilePath, styleFile } from '../paths.ts'
-import { BundleSchema, LexiconFileSchema, OriginalFileSchema, type Bundle, type QuizFile, type SceneFile } from '../schema.ts'
+import { BundleSchema, LexiconFileSchema, type Bundle, type QuizFile, type SceneFile } from '../schema.ts'
 import { readStyle } from '../images/style.ts'
 import { readCanon } from '../canon/files.ts'
 import { readImageCatalog } from '../images/versions.ts'
+import { readOriginal } from '../original/files.ts'
 import { listQuizChapters, readQuizFile } from '../quiz/files.ts'
 import { listSceneChapters, readSceneFile } from '../scenes/files.ts'
 import { readSource } from '../source/files.ts'
@@ -72,8 +73,7 @@ export async function writeBundles(books: BookId[]): Promise<Bundle[]> {
   for (const book of books) {
     const source = await readSource(book)
     const sceneFiles = await readSceneFiles(book)
-    const originalFile = originalFilePath(book)
-    const original = existsSync(originalFile) ? await readJson(originalFile, (value) => OriginalFileSchema.parse(value)) : null
+    const original = existsSync(originalFilePath(book)) ? await readOriginal(book) : null
     const quizzes = await readQuizFiles(book)
     const bundle = BundleSchema.parse(
       buildBundle(source, sceneFiles, { characters, places, eras, things }, audio, catalog, {

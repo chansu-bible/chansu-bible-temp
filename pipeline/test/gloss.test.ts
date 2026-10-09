@@ -1,10 +1,11 @@
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { Llm, ParseRequest } from '../src/llm/client.ts'
 import { buildGlossPrompt } from '../src/original/glossPrompt.ts'
 import { runGloss } from '../src/original/runGloss.ts'
+import { displayPath } from '../src/paths.ts'
 import type { LexiconEntry } from '../src/schema.ts'
 
 const entry = (strong: string, korean: LexiconEntry['korean'] = null): LexiconEntry => ({
@@ -20,6 +21,16 @@ const entry = (strong: string, korean: LexiconEntry['korean'] = null): LexiconEn
 
 type Files = { lexiconFile: string; originalDir: string; sourceDir: string }
 type VerseWords = { verse: number; text: string; strongs: string[] }
+
+let dir: string
+
+beforeEach(async () => {
+  dir = await mkdtemp(path.join(tmpdir(), 'gloss-'))
+})
+
+afterEach(async () => {
+  await rm(dir, { recursive: true, force: true })
+})
 
 // 한 책의 1장 원어 파일과 본문 파일을 쓴다. source가 false면 원어만 쓴다.
 async function writeBook(files: Files, book: string, name: string, verses: VerseWords[], { source = true } = {}): Promise<void> {
@@ -37,7 +48,6 @@ async function writeBook(files: Files, book: string, name: string, verses: Verse
 
 // 사전과 창세기 원어·본문을 임시 폴더에 쓴다. 원어 폴더에는 실제처럼 lexicon.json과 README.md도 함께 있다.
 async function setup(entries: LexiconEntry[]): Promise<Files> {
-  const dir = await mkdtemp(path.join(tmpdir(), 'gloss-'))
   const files = { lexiconFile: path.join(dir, 'lexicon.json'), originalDir: dir, sourceDir: path.join(dir, 'source') }
   await mkdir(files.sourceDir)
   await writeFile(files.lexiconFile, JSON.stringify({ entries }))
@@ -130,10 +140,35 @@ describe('runGloss', () => {
     expect(examplesOf(llm.requests[0]!.user)).toEqual({ H1: ['창세기 1:1 태초에'] })
   })
 
+  it('원어 파일이 하나도 없으면 로그를 한 번 남기고 예문 없이 쓴다', async () => {
+    const files = await setup([entry('H1')])
+    // 책 파일이 없는 폴더(README.md만 있다)와 아예 없는 폴더
+    const empty = path.join(dir, 'empty')
+    await mkdir(empty)
+    await writeFile(path.join(empty, 'README.md'), '# 원어')
+    for (const originalDir of [empty, path.join(dir, 'none')]) {
+      const lines: string[] = []
+      const llm = fakeLlm()
+      const result = await runGloss({ ...files, originalDir, llm, force: true }, (line) => lines.push(line))
+      expect(result).toMatchObject({ selected: 1, written: 1 })
+      expect(lines.filter((line) => line.includes('원어 파일이 없어'))).toEqual([`원어 파일이 없어 예문 없이 씁니다(${displayPath(originalDir)})`])
+      expect(examplesOf(llm.requests[0]!.user)).toEqual({ H1: [] })
+    }
+  })
+
+  it('원어 파일이 깨졌으면 어느 파일인지 알려 준다', async () => {
+    const files = await setup([entry('H1')])
+    await writeFile(path.join(dir, 'exodus.json'), JSON.stringify({ chapters: 'x' }))
+    await writeFile(path.join(files.sourceDir, 'exodus.json'), JSON.stringify({ book: '출애굽기', translation: '개역한글', chapters: [] }))
+    const llm = fakeLlm()
+    await expect(runGloss({ ...files, llm })).rejects.toThrow(`${displayPath(path.join(dir, 'exodus.json'))}: `)
+    expect(llm.requests).toEqual([])
+  })
+
   it('낱말 뜻 프롬프트의 system은 책을 가리지 않는다', () => {
     const { system } = buildGlossPrompt([entry('H1')], new Map())
     expect(system).toContain('성경을 처음 읽는 한국어 독자가 히브리어 낱말을 볼 때')
-    expect(system).toContain('이 앱에 있는 장의 쓰임에서')
+    expect(system).toContain('- note: 주어진 절의 쓰임에서')
     expect(system).not.toContain('창세기')
   })
 })

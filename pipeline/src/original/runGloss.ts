@@ -1,16 +1,18 @@
 import { existsSync } from 'node:fs'
-import { readdir, readFile, writeFile } from 'node:fs/promises'
-import { bookOrder, findBook, getBook, type BookId } from 'reader-core'
+import { readFile, writeFile } from 'node:fs/promises'
+import { getBook, type BookId } from 'reader-core'
 import { createLlm, type Llm } from '../llm/client.ts'
 import {
+  displayPath,
   lexiconFile as defaultLexiconFile,
+  listBookFiles,
   originalDir as defaultOriginalDir,
-  originalFilePath,
   sourceDir as defaultSourceDir,
   sourceFilePath,
 } from '../paths.ts'
-import { LexiconFileSchema, OriginalFileSchema, type OriginalFile, type Source } from '../schema.ts'
+import { LexiconFileSchema, type OriginalFile, type Source } from '../schema.ts'
 import { readSource } from '../source/files.ts'
+import { readOriginal } from './files.ts'
 import { buildGlossPrompt, GlossOutputSchema } from './glossPrompt.ts'
 
 export type GlossOptions = {
@@ -30,16 +32,6 @@ export type GlossOptions = {
 }
 
 export type GlossResult = { selected: number; written: number; missing: string[]; dryRun: boolean }
-
-// 원어 파일(<책 id>.json)이 있는 책을 성경 순서로 돌려준다. lexicon.json과 README.md처럼 책이 아닌 파일은 건너뛴다.
-async function originalBooks(dir: string): Promise<BookId[]> {
-  if (!existsSync(dir)) return []
-  const books = (await readdir(dir)).flatMap((name) => {
-    const book = name.endsWith('.json') ? findBook(name.slice(0, -'.json'.length)) : undefined
-    return book ? [book] : []
-  })
-  return books.sort((a, b) => bookOrder(a.id) - bookOrder(b.id)).map((book) => book.id)
-}
 
 // 한 책의 원어 낱말마다 그 낱말이 나온 절의 개역한글 본문을 예문으로 더한다. 번호마다 둘까지, 찾은 차례대로다.
 function addExamples(examples: Map<string, string[]>, book: BookId, original: OriginalFile, source: Source): void {
@@ -61,20 +53,21 @@ function addExamples(examples: Map<string, string[]>, book: BookId, original: Or
 }
 
 // 사전 항목마다 원어가 있는 책들에서 처음 나오는 절 둘의 개역한글 본문(작성 모델이 문맥을 보게). 성경 순서로 모으므로 앞 책의 절이 먼저다.
-// 원어는 있는데 본문이 없는 책은 오류 없이 예문에서 뺀다.
+// 원어는 있는데 본문이 없는 책은 오류 없이 예문에서 빼고, 원어 파일이 하나도 없으면 예문 없이 쓴다. 둘 다 로그를 남긴다.
 async function collectExamples(
   originalDir: string,
   sourceDir: string,
   log: (line: string) => void,
 ): Promise<Map<string, string[]>> {
   const examples = new Map<string, string[]>()
-  for (const book of await originalBooks(originalDir)) {
+  const books = await listBookFiles(originalDir)
+  if (books.length === 0) log(`원어 파일이 없어 예문 없이 씁니다(${displayPath(originalDir)})`)
+  for (const book of books) {
     if (!existsSync(sourceFilePath(book, sourceDir))) {
       log(`${getBook(book).name} 원어는 있지만 본문이 없어 예문에서 뺍니다`)
       continue
     }
-    const original = OriginalFileSchema.parse(JSON.parse(await readFile(originalFilePath(book, originalDir), 'utf8')))
-    addExamples(examples, book, original, await readSource(book, sourceDir))
+    addExamples(examples, book, await readOriginal(book, originalDir), await readSource(book, sourceDir))
   }
   return examples
 }

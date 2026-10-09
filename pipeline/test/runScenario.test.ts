@@ -1,11 +1,11 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { BookId } from 'reader-core'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { approvedCanon } from '../src/canon/approved.ts'
 import type { Llm, ParseRequest } from '../src/llm/client.ts'
-import { sceneFilePath } from '../src/paths.ts'
+import { displayPath, sceneFilePath } from '../src/paths.ts'
 import { assembleScenes } from '../src/scenario/assemble.ts'
 import type { ScenarioOutput } from '../src/scenario/output.ts'
 import { runScenario } from '../src/scenario/runScenario.ts'
@@ -105,12 +105,15 @@ describe('runScenario', () => {
   }
 
   const noExamples = '## 본보기 장면\n(없음)\n\n## 쓸 것'
+  // 마지막으로 남긴 "본보기: …" 로그
+  const exampleLog = () => lines.findLast((line) => line.startsWith('본보기: '))
 
   it('그 책에 본보기로 볼 장면 파일이 없으면 창세기 2장 장면을 본보기로 쓴다', async () => {
     await writeBookSource('exodus', '출애굽기')
     const none = await runScenario('exodus', 3, { ...paths, dryRun: true }, log)
     expect(none.prompt.user).toContain('출애굽기 3장 (1~4절)')
     expect(none.prompt.user).toContain(noExamples)
+    expect(exampleLog()).toBe('본보기: 없음')
 
     await writeExamples('genesis', 2, '창세기 본보기')
     const result = await runScenario('exodus', 3, { ...paths, dryRun: true }, log)
@@ -118,6 +121,7 @@ describe('runScenario', () => {
     expect(result.prompt.user).toContain('"title": "창세기 본보기1"')
     expect(result.prompt.user).not.toContain('"title": "창세기 본보기2"')
     expect(result.prompt.user).toContain('"title": "창세기 본보기3"')
+    expect(exampleLog()).toBe('본보기: 창세기 2장')
   })
 
   it('한 장뿐인 책(오바댜)에도 창세기 2장 장면을 본보기로 쓴다', async () => {
@@ -126,6 +130,7 @@ describe('runScenario', () => {
     const result = await runScenario('obadiah', 1, { ...paths, dryRun: true }, log)
     expect(result.prompt.user).toContain('오바댜 1장 (1~4절)')
     expect(result.prompt.user).toContain('"title": "창세기 본보기1"')
+    expect(exampleLog()).toBe('본보기: 창세기 2장')
   })
 
   it('그 책에 2장 장면 파일이 있으면 창세기 2장 대신 그 파일을 쓴다', async () => {
@@ -136,6 +141,7 @@ describe('runScenario', () => {
     expect(result.prompt.user).toContain('"title": "출애굽기 본보기1"')
     expect(result.prompt.user).toContain('"title": "출애굽기 본보기3"')
     expect(result.prompt.user).not.toContain('창세기 본보기')
+    expect(exampleLog()).toBe('본보기: 출애굽기 2장')
   })
 
   it('2장을 쓸 때는 그 책의 1장 파일을 쓰고, 없으면 창세기 2장 파일을 쓴다', async () => {
@@ -143,11 +149,13 @@ describe('runScenario', () => {
     await writeExamples('genesis', 2, '창세기 본보기')
     const fallback = await runScenario('exodus', 2, { ...paths, dryRun: true }, log)
     expect(fallback.prompt.user).toContain('"title": "창세기 본보기1"')
+    expect(exampleLog()).toBe('본보기: 창세기 2장')
 
     await writeExamples('exodus', 1, '출애굽기 본보기')
     const own = await runScenario('exodus', 2, { ...paths, dryRun: true }, log)
     expect(own.prompt.user).toContain('"title": "출애굽기 본보기1"')
     expect(own.prompt.user).not.toContain('창세기 본보기')
+    expect(exampleLog()).toBe('본보기: 출애굽기 1장')
   })
 
   it('창세기 2장을 쓸 때는 2장 파일을 본보기로 삼지 않고, 1장 파일이 있으면 그것을 쓴다', async () => {
@@ -155,14 +163,16 @@ describe('runScenario', () => {
     await writeExamples('genesis', 2, '창세기 2장 본보기')
     const none = await runScenario('genesis', 2, { ...paths, dryRun: true }, log)
     expect(none.prompt.user).toContain(noExamples)
+    expect(exampleLog()).toBe('본보기: 없음')
 
     await writeExamples('genesis', 1, '창세기 1장 본보기')
     const result = await runScenario('genesis', 2, { ...paths, dryRun: true }, log)
     expect(result.prompt.user).toContain('"title": "창세기 1장 본보기1"')
     expect(result.prompt.user).not.toContain('창세기 2장 본보기')
+    expect(exampleLog()).toBe('본보기: 창세기 1장')
   })
 
-  it('examplesFile을 주면 그 파일이 우선한다', async () => {
+  it('examplesFile을 주면 그 파일이 우선하고, 로그에는 장면 파일이면 장을, 그 밖의 파일이면 경로를 남긴다', async () => {
     await writeBookSource('exodus', '출애굽기')
     await writeExamples('genesis', 2, '창세기 본보기')
     await writeExamples('exodus', 2, '출애굽기 본보기')
@@ -172,6 +182,17 @@ describe('runScenario', () => {
     expect(result.prompt.user).toContain('"title": "지정한 본보기1"')
     expect(result.prompt.user).not.toContain('창세기 본보기')
     expect(result.prompt.user).not.toContain('출애굽기 본보기')
+    expect(exampleLog()).toBe('본보기: 출애굽기 1장')
+
+    const custom = path.join(dir, 'my-examples.json')
+    await copyFile(examplesFile, custom)
+    await runScenario('exodus', 3, { ...paths, dryRun: true, examplesFile: custom }, log)
+    expect(exampleLog()).toBe(`본보기: ${displayPath(custom)}`)
+
+    // 없는 파일을 주면 본보기 없이 간다.
+    const none = await runScenario('exodus', 3, { ...paths, dryRun: true, examplesFile: path.join(dir, 'none.json') }, log)
+    expect(none.prompt.user).toContain(noExamples)
+    expect(exampleLog()).toBe('본보기: 없음')
   })
 
   it('장면 파일이 있으면 force 없이 덮어쓰지 않는다', async () => {

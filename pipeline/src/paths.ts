@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import path from 'node:path'
-import { chapterStem, parseChapterStem, type BookId } from 'reader-core'
+import { bookOrder, chapterStem, findBook, parseChapterStem, type BookId } from 'reader-core'
 
 export const repoRoot = path.resolve(import.meta.dirname, '../..')
 export const contentDir = path.join(repoRoot, 'content')
@@ -20,6 +20,17 @@ export const envFile = path.join(repoRoot, '.env')
 export function displayPath(file: string): string {
   const relative = path.relative(repoRoot, file)
   return (relative.startsWith('..') ? file : relative).split(path.sep).join('/')
+}
+
+// 폴더에서 책 파일(genesis.json)이 있는 책을 성경 순서로 돌려준다. 본문·원어 폴더에 쓴다.
+// 책 id가 아닌 이름(lexicon.json, notes.json, README.md)은 건너뛰고, 폴더가 없으면 빈 목록이다.
+export async function listBookFiles(dir: string): Promise<BookId[]> {
+  if (!existsSync(dir)) return []
+  const books = (await readdir(dir)).flatMap((name) => {
+    const book = name.endsWith('.json') ? findBook(name.slice(0, -'.json'.length)) : undefined
+    return book ? [book] : []
+  })
+  return books.sort((a, b) => bookOrder(a.id) - bookOrder(b.id)).map((book) => book.id)
 }
 
 // 폴더에서 그 책의 장 파일(genesis-04.json)이 있는 장 번호를 오름차순으로 돌려준다. 장면·퀴즈 폴더에 쓴다.

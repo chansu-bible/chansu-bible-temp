@@ -1,12 +1,14 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { hasChapter, type BookId } from 'reader-core'
+import path from 'node:path'
+import { getBook, hasChapter, parseChapterStem, type BookId } from 'reader-core'
 import { approvedCanon } from '../canon/approved.ts'
 import { readCanon } from '../canon/files.ts'
 import { readStyle } from '../images/style.ts'
 import { createLlm, type Llm } from '../llm/client.ts'
 import { writerModel } from '../llm/models.ts'
 import {
+  displayPath,
   sceneFilePath,
   scenesDir as defaultScenesDir,
   sourceDir as defaultSourceDir,
@@ -58,6 +60,12 @@ function defaultExamplesFile(book: BookId, chapter: number, scenesDir: string): 
   return book === 'genesis' && chapter === 2 ? null : sceneFilePath('genesis', 2, scenesDir)
 }
 
+// 본보기 파일을 로그에 남길 말로 바꾼다. 장면 파일(genesis-02.json)이면 "창세기 2장", 그 밖의 파일이면 경로다.
+function exampleLabel(file: string): string {
+  const stem = parseChapterStem(path.basename(file, '.json'))
+  return stem ? `${getBook(stem.book).name} ${stem.chapter}장` : displayPath(file)
+}
+
 function rangeLabel(scene: Scene): string {
   return scene.verseStart === scene.verseEnd
     ? `${scene.chapter}:${scene.verseStart}`
@@ -88,7 +96,9 @@ export async function runScenario(
 
   const canon = approvedCanon(await readCanon(storyBibleDir, { sourceDir }))
   const style = await readStyle(styleFile, { requireFiles: false })
-  const examples = await readExamples(examplesFile ?? defaultExamplesFile(book, chapter, scenesDir))
+  const exampleFile = examplesFile ?? defaultExamplesFile(book, chapter, scenesDir)
+  const examples = await readExamples(exampleFile)
+  log(`본보기: ${exampleFile !== null && examples.length > 0 ? exampleLabel(exampleFile) : '없음'}`)
   const prompt = buildScenarioPrompt(book, sourceChapter, canon, style, examples)
 
   if (dryRun) {

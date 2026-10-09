@@ -103,6 +103,17 @@ describe('buildScenarioPrompt', () => {
     expect(user).toContain(`${'가'.repeat(300)}…`)
     expect(user).not.toContain('가'.repeat(301))
   })
+
+  // 스냅숏은 책 이름을 붙이기 전 코드가 같은 입력으로 낸 글과 바이트까지 같다. 창세기 글이 바뀌면 여기서 걸린다.
+  it('창세기로 부르면 user 글 전체가 스냅숏과 같다', async () => {
+    const { user } = buildScenarioPrompt('genesis', chapter3, approved, style, [example!])
+    await expect(user).toMatchFileSnapshot('./__snapshots__/scenario-genesis-3.user.txt')
+  })
+
+  it('다른 책이면 user 글 전체가 스냅숏과 같다(머리와 다른 책 인용만 창세기와 다르다)', async () => {
+    const { user } = buildScenarioPrompt('exodus', chapter3, approved, style, [example!])
+    await expect(user).toMatchFileSnapshot('./__snapshots__/scenario-exodus-3.user.txt')
+  })
 })
 
 describe('canonSummary', () => {
@@ -112,7 +123,8 @@ describe('canonSummary', () => {
     expect(genesis).toContain('- eden-era 에덴 (2:4~3:24)')
     const exodus = canonSummary(approved, 'exodus')
     expect(exodus).toContain('옷차림: 창세기 3:21부터 가죽옷')
-    expect(exodus).toContain('- eden-era 에덴 (창세기 2:4~창세기 3:24)')
+    // 두 끝이 같은 다른 책이면 책 이름은 앞에 한 번만 쓴다.
+    expect(exodus).toContain('- eden-era 에덴 (창세기 2:4~3:24)')
   })
 
   it('끝 절이 있는 인용은 그대로 보이고, 읽을 수 없는 글은 그대로 둔다', () => {
@@ -126,11 +138,19 @@ describe('canonSummary', () => {
     expect(canonSummary(odd, 'exodus')).toContain('옷차림: 창세기 4:1-2부터 겉옷 / 알 수 없는 인용부터 띠')
   })
 
-  it('시대 범위의 두 끝을 각각 가른다', () => {
+  it('시대 범위의 두 끝이 서로 다른 책이면 끝마다 책 이름을 쓴다(이 책이 한 끝이어도)', () => {
     const era = approved.eras[0]!
     const across = { ...approved, eras: [{ ...era, range: { from: 'genesis 50:26', to: 'exodus 1:1' } }] }
-    expect(canonSummary(across, 'genesis')).toContain('- eden-era 에덴 (50:26~출애굽기 1:1)')
-    expect(canonSummary(across, 'exodus')).toContain('- eden-era 에덴 (창세기 50:26~1:1)')
+    for (const book of ['genesis', 'exodus', 'leviticus'] as const) {
+      expect(canonSummary(across, book)).toContain('- eden-era 에덴 (창세기 50:26~출애굽기 1:1)')
+    }
+  })
+
+  it('시대 범위의 한 끝이 읽을 수 없는 글이면 끝마다 보인다', () => {
+    const era = approved.eras[0]!
+    const odd = { ...approved, eras: [{ ...era, range: { from: '알 수 없는 인용', to: 'genesis 3:24' } }] }
+    expect(canonSummary(odd, 'genesis')).toContain('- eden-era 에덴 (알 수 없는 인용~3:24)')
+    expect(canonSummary(odd, 'exodus')).toContain('- eden-era 에덴 (알 수 없는 인용~창세기 3:24)')
   })
 })
 
@@ -151,6 +171,12 @@ describe('buildRevisePrompt', () => {
     expect(prompt.user.split('\n')[0]).toBe('출애굽기 3장 (1~4절)')
     expect(prompt.user).toContain('exodus-03-01, 3:1~4')
     expect(prompt.user).not.toContain('창세기 3장')
+  })
+
+  it('창세기로 부르면 user 글 전체가 스냅숏(책 이름을 붙이기 전 글)과 같다', async () => {
+    const [scene] = assembleScenes('genesis', chapter3, { scenes: [outScene()] }, approved).scenes
+    const { user } = buildRevisePrompt('genesis', chapter3, approved, style, scene!, ['3:1 해설이 요약에 그칩니다'])
+    await expect(user).toMatchFileSnapshot('./__snapshots__/revise-genesis-3-1.user.txt')
   })
 })
 
@@ -180,5 +206,11 @@ describe('buildReviewTextPrompt', () => {
     expect(prompt.user).not.toContain('창세기 3장')
     expect(prompt.user).toContain('옷차림: 창세기 3:21부터 가죽옷')
     expect(prompt.system).toBe(buildReviewTextPrompt('genesis', chapter3, approved, style, scene!).system)
+  })
+
+  it('창세기로 부르면 user 글 전체가 스냅숏(책 이름을 붙이기 전 글)과 같다', async () => {
+    const [scene] = assembleScenes('genesis', chapter3, { scenes: [outScene({ verseEnd: 2 }), outScene({ verseStart: 3 })] }, approved).scenes
+    const { user } = buildReviewTextPrompt('genesis', chapter3, approved, style, scene!)
+    await expect(user).toMatchFileSnapshot('./__snapshots__/review-genesis-3-1.user.txt')
   })
 })

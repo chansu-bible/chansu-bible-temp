@@ -1,4 +1,4 @@
-import { formatRef, getBook, localRef, parseRef, type BookId } from 'reader-core'
+import { displayRange, displayRef, getBook, type BookId } from 'reader-core'
 import type { Canon, Character, Scene, SourceChapter, Style } from '../schema.ts'
 import { toScenarioScene } from './output.ts'
 
@@ -62,15 +62,6 @@ function verseCount(chapter: SourceChapter): number {
 
 const oneLine = (text: string) => text.replace(/\s*\n\s*/g, ' ').trim()
 
-// 설정집 인용("genesis 3:21")을 보인다. 이 책의 절이면 책 없이("3:21"), 다른 책의 절이면 책 이름을 붙여("창세기 3:21") 보인다.
-// 읽을 수 없는 글은 그대로 둔다.
-function refText(text: string, book: BookId): string {
-  const local = localRef(text, book)
-  if (local !== null) return local
-  const ref = parseRef(text)
-  return ref ? formatRef(ref, 'name') : text
-}
-
 function clip(text: string, limit: number): string {
   const line = oneLine(text)
   return line.length > limit ? `${line.slice(0, limit)}…` : line
@@ -98,7 +89,7 @@ function characterLines(character: Character, book: BookId): string[] {
     lines.push(`  관계: ${facts.relations.map((relation) => `${relation.type} ${relation.to}`).join(', ')}`)
   }
   if (facts.attire.length > 0) {
-    lines.push(`  옷차림: ${facts.attire.map((item) => `${refText(item.from, book)}부터 ${oneLine(item.description)}`).join(' / ')}`)
+    lines.push(`  옷차림: ${facts.attire.map((item) => `${displayRef(item.from, book)}부터 ${oneLine(item.description)}`).join(' / ')}`)
   }
   if (facts.notes.trim() !== '') lines.push(`  메모: ${clip(facts.notes, NOTES_LIMIT)}`)
   lines.push(`  외모: ${designLine(character)}`)
@@ -122,7 +113,7 @@ export function canonSummary(canon: Canon, book: BookId): string {
     '### 시대 (id 이름 (절 범위) / 있는 것 / 없는 것)',
     ...orNone(
       canon.eras.flatMap((era) => [
-        `- ${era.id} ${era.name} (${refText(era.range.from, book)}~${refText(era.range.to, book)})`,
+        `- ${era.id} ${era.name} (${displayRange(era.range.from, era.range.to, book)})`,
         `  있는 것: ${era.facts.present.join(', ') || '(적힌 것 없음)'}`,
         `  없는 것: ${era.facts.absent.join(', ') || '(적힌 것 없음)'}`,
       ]),
