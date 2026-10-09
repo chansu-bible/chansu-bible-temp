@@ -721,12 +721,21 @@ export async function fetchSource(book: BookId, range: { from?: number; to?: num
 }
 ```
 
-CLI: `source --book <id> [--chapters 3-7]`. `--chapters`는 `/^(\d+)-(\d+)$/` 또는 한 장 `/^\d+$/`만 받는다.
+CLI: `source --book <id> [--chapters 3-7]`. `--chapters`는 `/^(\d+)-(\d+)$/` 또는 한 장 `/^\d+$/`만 받는다. 읽는 함수 `parseChapterRange(text)`는 `fetchSource.ts`에 두고 `index.ts`로 내보낸다(Task 8의 작업 폼이 쓴다).
+
+위키문헌에서 66권을 받아 확인한 것(2026-10-09):
+- 63권은 지금 규칙(`== N장 ==`, `{{절|…}}`)으로 장과 절이 빠짐없이 읽힌다. 시편도 `N장`이고, 한 장짜리 책도 `== 1장 ==`이 있다.
+- 요한일서·요한이서·요한삼서는 `개역한글판/요한일서`가 없고(404) `개역한글판/요한1서`·`요한2서`·`요한3서`에 있다. `fetchSource.ts`에 이 세 권만 쪽 이름을 바꾸는 표를 둔다. 본문 파일의 `book`은 그대로 책 이름(요한일서)이다.
+- 요한계시록에는 앞 절이 이어지는 줄 29개가 있다(`<br> &nbsp;&nbsp;그 천사를 …`). `parseWikisource`는 이 줄을 앞 절 끝에 빈칸 하나로 붙인다. 장에서 절보다 먼저 나오면 지금처럼 오류다.
+- `[없음]`, `[25절과 같음]`, 괄호는 개역한글 본문이므로 그대로 둔다.
+- 오늘 받은 창세기 1~10장은 커밋된 `content/source/genesis.json`과 같다.
+
+관리 도구의 본문 작업은 Task 8 전까지 `fetchSource(ADMIN_BOOK, { from: 1, to: 10 })`으로 지금처럼 1~10장을 받는다.
 
 - [ ] **Step 3: 확인**
 
 Run: `npm test -w pipeline`
-Expected: 통과. (네트워크가 되는 곳에서) `npm run pipeline -- source --book ruth` 뒤 `content/source/ruth.json`이 4장인지 보고 지운다(커밋하지 않는다).
+Expected: 통과. (네트워크가 되는 곳에서) `source --book ruth`(4장), `source --book 1-john`(5장, 책 이름 요한일서), `source --book revelation --chapters 1`(20절, 1절이 "지시하신 것이라"로 끝남)을 받아 보고 지운다(커밋하지 않는다). `source --book genesis --chapters 1-10` 뒤 `git diff --quiet content/source/genesis.json`이 바뀐 것이 없어야 한다. 받은 본문 파일이 남아 있는 동안 `build`를 돌리지 않는다.
 
 - [ ] **Step 4: 커밋**
 
@@ -919,7 +928,7 @@ git commit -m "feat(pipeline): 책마다 묶음(bookId, 그 책의 설정집, �
   - `/api/scenes/:chapter…` → `/api/books/:book/scenes/:chapter…`
   - `/api/quiz`, `/api/quiz/:chapter`, `/api/quiz/:chapter/:id` → `/api/books/:book/quiz…`
   - 설정집, 원어 뜻(사전), 그림, 작업, 실행 기록, 저장소 API는 그대로다(책을 가리지 않는다).
-- 작업 옵션에 `book`. `original`·`build`는 `book`이 없으면 모든 책, 나머지 단계는 `book`이 필요하다(없으면 400). 작업 폼에 책 고르기를 둔다. 실행 중 작업이 같은 책·같은 파일을 쓰면 저장을 막는 지금 규칙(409)은 책까지 보고 판단한다.
+- 작업 옵션에 `book`. `original`은 `book`이 없으면 모든 책, `build`는 언제나 모든 책(`book`을 받지 않는다), 나머지 단계는 `book`이 필요하다(없으면 400). `source` 작업은 `chapters`(예: `1-10`, `parseChapterRange`로 읽는다. 없으면 책 전체)를 받는다. 작업 폼에 책 고르기를 둔다. 실행 중 작업이 같은 책·같은 파일을 쓰면 저장을 막는 지금 규칙(409)은 책까지 보고 판단한다.
 - 화면: 머리(내비)에 책 고르기를 두고 고른 책을 `localStorage`에 기억한다. 책을 가리는 화면의 주소는 `#/<book>/dashboard`, `#/<book>/scenes/4`, `#/<book>/quiz/4`이고, 옛 주소(`#/scenes/4`, `#/quiz/4`, `#/`)는 고른 책(없으면 첫 책) 주소로 넘긴다.
 - 설정집 화면의 인용은 `formatRef(parseRef(text), 'name')`으로 보인다(창세기 2:7). 고칠 때 넣는 인용은 `genesis 2:7`이나 책 없는 `2:7`(고르고 있는 책을 붙인다)을 받는다.
 - 시험: 지금 시험을 새 주소로 옮기고, 알 수 없는 책 404, `GET /api/books`, `book` 없는 단계 작업 400을 더한다.
