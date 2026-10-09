@@ -2,6 +2,8 @@ import { existsSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { isBookId, type BookId } from 'reader-core'
 import { writeBundles } from './build/writeBundle.ts'
+import { readCanonRaw, writeCanon } from './canon/files.ts'
+import { migrateCanonRefs } from './canon/migrateRefs.ts'
 import { runCanon } from './canon/runCanon.ts'
 import { runGloss } from './original/runGloss.ts'
 import { runOriginal } from './original/runOriginal.ts'
@@ -70,6 +72,21 @@ const commands: Record<string, (flags: Flags) => Promise<void>> = {
   async canon(flags) {
     const book = requireBook(flags)
     await runCanon(book, requireChapter(flags), { dryRun: flags['dry-run'] }, console.log)
+  },
+  async 'migrate-canon-refs'(flags) {
+    const book = requireBook(flags)
+    // 옛 인용("2:7")은 지금 스키마에 맞지 않으므로 검증 없이 읽고, 고친 뒤 다섯 파일을 한 번에 검증해 쓴다.
+    const { canon, changed } = migrateCanonRefs(await readCanonRaw(), book)
+    if (flags['dry-run']) {
+      console.log(`책을 붙일 인용 ${changed}개 (dry-run이라 쓰지 않았습니다)`)
+      return
+    }
+    if (changed === 0) {
+      console.log('책을 붙일 인용이 없어 쓰지 않았습니다')
+      return
+    }
+    await writeCanon(canon)
+    console.log(`인용 ${changed}개에 ${book}를 붙였습니다`)
   },
   async scenario(flags) {
     const book = requireBook(flags)

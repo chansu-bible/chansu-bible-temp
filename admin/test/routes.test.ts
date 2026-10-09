@@ -16,7 +16,7 @@ const proposal: Proposal = {
   field: 'design.landscape',
   value: '네 강이 갈라지는 평야',
   reason: '2:10',
-  sources: ['2:10'],
+  sources: ['genesis 2:10'],
   status: 'open',
 }
 
@@ -77,7 +77,7 @@ describe('설정집 API', () => {
   it('형식에 맞지 않으면 400과 한국어 오류, 파일은 그대로', async () => {
     const res = await app.request('/api/canon/eras/flood', {
       method: 'PUT',
-      ...json({ ...flood, range: { from: '여섯', to: '8:22' }, facts: { ...flood.facts, sources: [] } }),
+      ...json({ ...flood, range: { from: '여섯', to: 'genesis 8:22' }, facts: { ...flood.facts, sources: [] } }),
     })
     expect(res.status).toBe(400)
     const { error } = await read(res)
@@ -101,7 +101,7 @@ describe('설정집 API', () => {
   it('교차 검증에 걸리면 400', async () => {
     const res = await app.request('/api/canon/eras/flood', {
       method: 'PUT',
-      ...json({ ...flood, range: { from: '8:22', to: '6:9' } }),
+      ...json({ ...flood, range: { from: 'genesis 8:22', to: 'genesis 6:9' } }),
     })
     expect(res.status).toBe(400)
     expect((await read(res)).error).toContain('설정집')

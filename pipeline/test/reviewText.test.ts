@@ -9,7 +9,7 @@ import { assembleScenes } from '../src/scenario/assemble.ts'
 import type { ReviseOutput, TextVerdict } from '../src/scenario/output.ts'
 import type { Scene } from '../src/schema.ts'
 import { readSceneFile, writeSceneFile } from '../src/scenes/files.ts'
-import { canon, chapter3, outScene, source, style } from './scenarioFixtures.ts'
+import { canon, chapter3, outScene, source, storedCanon, style } from './scenarioFixtures.ts'
 
 const PASS: TextVerdict = { verdict: 'pass', issues: [] }
 const FAIL: TextVerdict = { verdict: 'fail', issues: ['3:1 해설이 요약에 그칩니다'] }
@@ -31,7 +31,7 @@ describe('runReviewText', () => {
     }
     await mkdir(paths.storyBibleDir, { recursive: true })
     for (const key of ['characters', 'places', 'eras', 'things', 'proposals'] as const) {
-      await writeFile(path.join(paths.storyBibleDir, `${key}.json`), JSON.stringify(canon[key]), 'utf8')
+      await writeFile(path.join(paths.storyBibleDir, `${key}.json`), JSON.stringify(storedCanon[key]), 'utf8')
     }
     await writeFile(paths.styleFile, JSON.stringify(style), 'utf8')
     await writeFile(path.join(dir, 'genesis.json'), JSON.stringify(source), 'utf8')

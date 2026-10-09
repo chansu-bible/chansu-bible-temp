@@ -1,4 +1,4 @@
-import { bookByName, fallbackSceneIdOf, sceneIdOf, verseAudioName, type BookId } from 'reader-core'
+import { bookByName, fallbackSceneIdOf, localRef, sceneIdOf, verseAudioName, type BookId } from 'reader-core'
 import {
   BUNDLE_SCHEMA_VERSION,
   type Bundle,
@@ -147,9 +147,9 @@ export function buildBundle(
     book: source.book,
     translation: source.translation,
     places: places.map(toBundlePlace),
-    characters: characters.map((character) => toBundleCharacter(character, characterIds)),
-    eras: eras.map(toBundleEra),
-    things: (canon.things ?? []).filter((thing) => thing.status === 'approved').map(toBundleThing),
+    characters: characters.map((character) => toBundleCharacter(character, characterIds, book)),
+    eras: eras.map((era) => toBundleEra(era, book)),
+    things: (canon.things ?? []).filter((thing) => thing.status === 'approved').map((thing) => toBundleThing(thing, book)),
     imageVersions: catalog.versions,
     // 가장 나중에 추가한 버전을 기본으로 보여 준다.
     defaultImageVersion: catalog.versions.at(-1)?.id ?? null,
@@ -171,28 +171,33 @@ function toBundlePlace(place: Place): BundlePlace {
   }
 }
 
+// 설정집 인용("genesis 2:7")을 묶음 안 인용("2:7")으로 바꾼다. 다른 책 인용과 읽을 수 없는 글은 그대로 둔다.
+function bundleRef(text: string, book: BookId): string {
+  return localRef(text, book) ?? text
+}
+
 // 인물 카드와 연표에 쓸 사실만 옮긴다. 묶음에 없는 인물을 가리키는 관계는 뺀다.
-function toBundleCharacter(character: Character, characterIds: ReadonlySet<string>): BundleCharacter {
+function toBundleCharacter(character: Character, characterIds: ReadonlySet<string>, book: BookId): BundleCharacter {
   const { facts } = character
   return {
     id: character.id,
     name: character.name,
     aliases: character.aliases,
     gender: facts.gender,
-    firstAppearance: facts.firstAppearance,
+    firstAppearance: bundleRef(facts.firstAppearance, book),
     years: facts.years,
     relations: facts.relations.filter((relation) => characterIds.has(relation.to)),
-    attire: facts.attire,
+    attire: facts.attire.map((attire) => ({ ...attire, from: bundleRef(attire.from, book) })),
     notes: facts.notes,
-    sources: facts.sources,
+    sources: facts.sources.map((source) => bundleRef(source, book)),
   }
 }
 
-function toBundleEra(era: Era): BundleEra {
+function toBundleEra(era: Era, book: BookId): BundleEra {
   return {
     id: era.id,
     name: era.name,
-    range: era.range,
+    range: { from: bundleRef(era.range.from, book), to: bundleRef(era.range.to, book) },
     years: era.years,
     description: era.facts.description,
     present: era.facts.present,
@@ -200,14 +205,14 @@ function toBundleEra(era: Era): BundleEra {
   }
 }
 
-function toBundleThing(thing: Thing): BundleThing {
+function toBundleThing(thing: Thing, book: BookId): BundleThing {
   return {
     id: thing.id,
     name: thing.name,
     aliases: thing.aliases,
     description: thing.facts.description,
     details: thing.facts.details,
-    sources: thing.facts.sources,
+    sources: thing.facts.sources.map((source) => bundleRef(source, book)),
   }
 }
 

@@ -1,7 +1,8 @@
+import { compareRefs, parseRef, qualifyRef, type BookId } from 'reader-core'
 import { z } from 'zod'
 import { CanonIdSchema, CitationSchema, type Canon, type CanonKind, type Proposal } from '../schema.ts'
 import { canonItemSchemas } from './files.ts'
-import { validateCanon } from './validate.ts'
+import { validateCanon, type VerseCounts } from './validate.ts'
 
 // canon 단계의 LLM 출력. 각 설정집 스키마에서 status와 refs를 뺀 모양이다.
 // 구조화 출력 제약 때문에 모든 필드가 필수이고, 형식 제약(id, 절 인용)은 여기서 걸지 않고 합칠 때 실제 스키마로 검사한다.
@@ -68,6 +69,8 @@ export const CanonOutputSchema = z.object({
 
 export type CanonOutput = z.infer<typeof CanonOutputSchema>
 export type CanonRef = { kind: CanonKind; id: string }
+// book은 이번에 읽은 장의 책이다. 모델이 책 없이 낸 절 인용에 붙인다. verseCounts로 절 인용의 범위를 본다.
+export type MergeOptions = { book: BookId; verseCounts: VerseCounts }
 export type MergeResult = {
   canon: Canon
   added: CanonRef[] // 새로 넣은 draft
@@ -97,16 +100,39 @@ const isEmpty = (value: unknown): boolean =>
 
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
 
-function citationStart(citation: string): [number, number] | null {
-  const match = citation.match(/^(\d+):(\d+)/)
-  return match ? [Number(match[1]), Number(match[2])] : null
+// 앞선 절 인용. 둘 중 하나라도 읽을 수 없거나 한쪽에만 책이 있으면 견줄 수 없으므로 기존 값 a를 지킨다.
+function earlierCitation(a: string, b: string): string {
+  const x = parseRef(a)
+  const y = parseRef(b)
+  if (!x || !y || (x.book === null) !== (y.book === null)) return a
+  return compareRefs(y, x) < 0 ? b : a
 }
 
-function earlierCitation(a: string, b: string): string {
-  const x = citationStart(a)
-  const y = citationStart(b)
-  if (!x || !y) return a
-  return y[0] < x[0] || (y[0] === x[0] && y[1] < x[1]) ? b : a
+// 모델 출력의 절 인용에 책을 붙인다. 이미 책이 있는 인용("exodus 1:1")은 그대로다.
+// 읽을 수 없는 글은 바꾸지 않아 뒤의 스키마 검사가 그 항목을 경고와 함께 거르게 한다. 모름을 뜻하는 빈 글("")도 그대로다.
+function qualifyOutput(output: CanonOutput, book: BookId): CanonOutput {
+  const qualify = (text: string) => qualifyRef(text, book) ?? text
+  return {
+    characters: output.characters.map((item) => ({
+      ...item,
+      facts: {
+        ...item.facts,
+        firstAppearance: qualify(item.facts.firstAppearance),
+        attire: item.facts.attire.map((attire) => ({ ...attire, from: qualify(attire.from) })),
+        sources: item.facts.sources.map(qualify),
+      },
+    })),
+    places: output.places.map((item) => ({
+      ...item,
+      facts: { ...item.facts, firstAppearance: qualify(item.facts.firstAppearance), sources: item.facts.sources.map(qualify) },
+    })),
+    eras: output.eras.map((item) => ({
+      ...item,
+      range: { ...item.range, from: qualify(item.range.from), to: qualify(item.range.to) },
+      facts: { ...item.facts, sources: item.facts.sources.map(qualify) },
+    })),
+    things: output.things.map((item) => ({ ...item, facts: { ...item.facts, sources: item.facts.sources.map(qualify) } })),
+  }
 }
 
 // 장마다 그 장에서 새로 알게 된 것만 적으므로, 본문 근거 글은 바꾸지 않고 뒤에 이어 붙인다.
@@ -213,14 +239,14 @@ function withoutRelations(kind: CanonKind, item: Item): Item {
 
 // 항목 하나를 스키마와 교차 검증(절 인용 범위 등)으로 검사한다. 관계는 따로 거른다.
 // 통과하면 스키마 순서로 키를 정리한 항목을 돌려준다.
-function checkItem(kind: CanonKind, item: Item): { item: Item } | { problem: string } {
+function checkItem(kind: CanonKind, item: Item, verseCounts: VerseCounts): { item: Item } | { problem: string } {
   const parsed = canonItemSchemas[kind].safeParse(item)
   if (!parsed.success) {
     const issues = parsed.error.issues.map((issue) => `${issue.path.join('.') || '항목'}: ${issue.message}`)
     return { problem: issues.join('; ') }
   }
   const alone: Canon = { characters: [], places: [], eras: [], things: [], proposals: [] }
-  const problems = validateCanon({ ...alone, [kind]: [withoutRelations(kind, parsed.data as Item)] })
+  const problems = validateCanon({ ...alone, [kind]: [withoutRelations(kind, parsed.data as Item)] }, verseCounts)
   if (problems.length > 0) return { problem: problems.join('; ') }
   return { item: parsed.data as Item }
 }
@@ -233,12 +259,18 @@ function draftOf(kind: CanonKind, incoming: Item): Item {
 const hasRef = (refs: CanonRef[], kind: CanonKind, id: string) => refs.some((ref) => ref.kind === kind && ref.id === id)
 
 // canon 단계 출력을 기존 설정집에 합친다(순수 함수).
+// - 출력의 책 없는 절 인용("2:7")에는 book을 붙인다("genesis 2:7").
 // - 새 항목은 draft로 추가한다. 출력의 status는 무시한다.
 // - id나 이름·별칭이 같은 기존 항목이 있으면 추가하지 않는다. 그 항목이 draft면 덮어쓰고(배열은 합치고,
 //   빈 값은 기존 값을 지우지 않는다), draft가 아니면(사람이 본 항목) 바꾸지 않고 달라진 필드마다 열린 proposal을 만든다.
 // - 시대의 range와 years는 사람이 나눠 둔 값이라 draft라도 기존 값을 지킨다(비어 있는 칸만 채운다).
 // - 없는 인물을 가리키는 관계, 스키마나 절 범위를 어긴 항목은 버리고 경고에 적는다.
-export function mergeCanon(existing: Canon, output: CanonOutput, now: string): MergeResult {
+export function mergeCanon(
+  existing: Canon,
+  output: CanonOutput,
+  now: string,
+  { book, verseCounts }: MergeOptions,
+): MergeResult {
   const warnings: string[] = []
   const added: CanonRef[] = []
   const updated: CanonRef[] = []
@@ -249,9 +281,10 @@ export function mergeCanon(existing: Canon, output: CanonOutput, now: string): M
 
   const lists = {} as Record<CanonKind, Item[]>
   const outputs = {} as Record<CanonKind, Item[]>
+  const qualified = qualifyOutput(output, book)
   for (const kind of KINDS) {
     lists[kind] = [...(existing[kind] as Item[])]
-    outputs[kind] = (output[kind] as Item[]).map((raw) => {
+    outputs[kind] = (qualified[kind] as Item[]).map((raw) => {
       const { status: _status, refs: _refs, ...rest } = structuredClone(raw) as Item & { refs?: unknown }
       const id = normalizeId(rest.id)
       if (id !== rest.id) {
@@ -274,7 +307,9 @@ export function mergeCanon(existing: Canon, output: CanonOutput, now: string): M
   for (const incoming of outputs.characters) {
     const match = findMatch(lists.characters, incoming, (id) => remap.get(id) ?? id)
     if (match) remap.set(incoming.id, match.id)
-    else if ('item' in checkItem('characters', withoutRelations('characters', draftOf('characters', incoming)))) {
+    else if (
+      'item' in checkItem('characters', withoutRelations('characters', draftOf('characters', incoming)), verseCounts)
+    ) {
       knownCharacters.add(incoming.id)
     }
   }
@@ -334,7 +369,7 @@ export function mergeCanon(existing: Canon, output: CanonOutput, now: string): M
       const match = findMatch(list, incoming)
 
       if (!match) {
-        const checked = checkItem(kind, draftOf(kind, incoming))
+        const checked = checkItem(kind, draftOf(kind, incoming), verseCounts)
         if ('problem' in checked) {
           warnings.push(`${label}: 넣지 않았습니다 (${checked.problem})`)
           continue
@@ -344,7 +379,7 @@ export function mergeCanon(existing: Canon, output: CanonOutput, now: string): M
         continue
       }
 
-      const checked = checkItem(kind, combineItem(kind, match, incoming))
+      const checked = checkItem(kind, combineItem(kind, match, incoming), verseCounts)
       if ('problem' in checked) {
         warnings.push(`${label}: ${kind}/${match.id}에 합치지 않았습니다 (${checked.problem})`)
         continue

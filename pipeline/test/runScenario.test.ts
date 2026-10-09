@@ -6,7 +6,7 @@ import type { Llm, ParseRequest } from '../src/llm/client.ts'
 import type { ScenarioOutput } from '../src/scenario/output.ts'
 import { runScenario } from '../src/scenario/runScenario.ts'
 import { readSceneFile } from '../src/scenes/files.ts'
-import { canon, outScene, source, style } from './scenarioFixtures.ts'
+import { outScene, source, storedCanon, style } from './scenarioFixtures.ts'
 
 describe('runScenario', () => {
   let dir: string
@@ -25,7 +25,7 @@ describe('runScenario', () => {
     }
     await mkdir(paths.storyBibleDir, { recursive: true })
     for (const key of ['characters', 'places', 'eras', 'things', 'proposals'] as const) {
-      await writeFile(path.join(paths.storyBibleDir, `${key}.json`), JSON.stringify(canon[key]), 'utf8')
+      await writeFile(path.join(paths.storyBibleDir, `${key}.json`), JSON.stringify(storedCanon[key]), 'utf8')
     }
     await writeFile(paths.styleFile, JSON.stringify(style), 'utf8')
     await writeFile(path.join(dir, 'genesis.json'), JSON.stringify(source), 'utf8')

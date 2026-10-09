@@ -1,3 +1,4 @@
+import { formatRef, parseRef } from 'reader-core'
 import type { Canon, Character, Scene, SourceChapter, Style } from '../schema.ts'
 import { toScenarioScene } from './output.ts'
 
@@ -61,6 +62,12 @@ function verseCount(chapter: SourceChapter): number {
 
 const oneLine = (text: string) => text.replace(/\s*\n\s*/g, ' ').trim()
 
+// 설정집 인용("genesis 3:21")을 책 없이("3:21") 보인다. 읽을 수 없는 글은 그대로 둔다.
+function bareRef(text: string): string {
+  const ref = parseRef(text)
+  return ref ? formatRef(ref, 'bare') : text
+}
+
 function clip(text: string, limit: number): string {
   const line = oneLine(text)
   return line.length > limit ? `${line.slice(0, limit)}…` : line
@@ -88,7 +95,7 @@ function characterLines(character: Character): string[] {
     lines.push(`  관계: ${facts.relations.map((relation) => `${relation.type} ${relation.to}`).join(', ')}`)
   }
   if (facts.attire.length > 0) {
-    lines.push(`  옷차림: ${facts.attire.map((item) => `${item.from}부터 ${oneLine(item.description)}`).join(' / ')}`)
+    lines.push(`  옷차림: ${facts.attire.map((item) => `${bareRef(item.from)}부터 ${oneLine(item.description)}`).join(' / ')}`)
   }
   if (facts.notes.trim() !== '') lines.push(`  메모: ${clip(facts.notes, NOTES_LIMIT)}`)
   lines.push(`  외모: ${designLine(character)}`)
@@ -112,7 +119,7 @@ export function canonSummary(canon: Canon): string {
     '### 시대 (id 이름 (절 범위) / 있는 것 / 없는 것)',
     ...orNone(
       canon.eras.flatMap((era) => [
-        `- ${era.id} ${era.name} (${era.range.from}~${era.range.to})`,
+        `- ${era.id} ${era.name} (${bareRef(era.range.from)}~${bareRef(era.range.to)})`,
         `  있는 것: ${era.facts.present.join(', ') || '(적힌 것 없음)'}`,
         `  없는 것: ${era.facts.absent.join(', ') || '(적힌 것 없음)'}`,
       ]),

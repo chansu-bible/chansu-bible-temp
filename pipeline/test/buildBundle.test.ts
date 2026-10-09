@@ -416,6 +416,36 @@ describe('buildBundle', () => {
     ])
   })
 
+  it('설정집 인용("genesis 2:7")은 책 없는 인용("2:7")으로 넣는다', () => {
+    const adam = character({
+      id: 'adam',
+      name: '아담',
+      facts: {
+        ...character({ id: 'x', name: 'x' }).facts,
+        firstAppearance: 'genesis 2:7',
+        attire: [{ from: 'genesis 3:21', description: '가죽옷' }],
+        sources: ['genesis 2:7', 'genesis 5:1-5'],
+      },
+    })
+    const flood = era({ id: 'flood', name: '홍수', range: { from: 'genesis 6:9', to: 'genesis 8:22' } })
+    const thing: Thing = {
+      id: 'ark',
+      name: '방주',
+      aliases: [],
+      status: 'approved',
+      facts: { description: '잣나무 배', details: [], sources: ['genesis 6:14-16'] },
+      design: { visualNotes: '' },
+    }
+    const bundle = buildBundle(source, [], canonOf(places, [adam], [flood], [thing]))
+    expect(bundle.characters[0]).toMatchObject({
+      firstAppearance: '2:7',
+      attire: [{ from: '3:21', description: '가죽옷' }],
+      sources: ['2:7', '5:1-5'],
+    })
+    expect(bundle.eras[0]?.range).toEqual({ from: '6:9', to: '8:22' })
+    expect(bundle.things[0]?.sources).toEqual(['6:14-16'])
+  })
+
   it('장면의 인물은 묶음에 있는 인물 id만 남긴다', () => {
     const adam = character({ id: 'adam', name: '아담' })
     const cain = character({ id: 'cain', name: '가인', status: 'draft' })

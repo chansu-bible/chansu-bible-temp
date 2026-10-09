@@ -3,7 +3,7 @@ import { createLlm, type Llm } from '../llm/client.ts'
 import { writerModel } from '../llm/models.ts'
 import { sourceDir as defaultSourceDir, storyBibleDir as defaultStoryBibleDir } from '../paths.ts'
 import type { Canon, CanonKind, Proposal } from '../schema.ts'
-import { readSourceChapter } from '../source/files.ts'
+import { readSourceChapter, readVerseCounts } from '../source/files.ts'
 import { readCanon, writeCanonKind, writeProposals } from './files.ts'
 import { CanonOutputSchema, mergeCanon, type CanonRef } from './merge.ts'
 import { buildCanonPrompt, type CanonPrompt } from './prompt.ts'
@@ -39,8 +39,8 @@ export async function runCanon(
 ): Promise<CanonRunResult> {
   const sourceChapter = await readSourceChapter(book, chapter, sourceDir)
 
-  const canon = await readCanon(storyBibleDir)
-  const prompt = buildCanonPrompt(sourceChapter, canon)
+  const canon = await readCanon(storyBibleDir, { sourceDir })
+  const prompt = buildCanonPrompt(book, sourceChapter, canon)
   const empty = { chapter, prompt, added: [], updated: [], proposals: [], warnings: [] }
 
   if (dryRun) {
@@ -52,12 +52,13 @@ export async function runCanon(
     return { ...empty, dryRun: true }
   }
 
+  const verseCounts = await readVerseCounts(sourceDir)
   log(`${chapter}장 설정집 추출: ${writerModel()} 호출 중`)
   const model = llm ?? createLlm({ stage: 'canon', book, chapter, log })
   const output = await model.parse(CanonOutputSchema, { ...prompt, name: 'canon' })
 
-  const merged = mergeCanon(canon, output, new Date().toISOString())
-  await save(canon, merged.canon, storyBibleDir)
+  const merged = mergeCanon(canon, output, new Date().toISOString(), { book, verseCounts })
+  await save(canon, merged.canon, storyBibleDir, sourceDir)
 
   const label = (ref: CanonRef) => `${ref.kind}/${ref.id}`
   log(`추가 ${merged.added.length}개, 갱신 ${merged.updated.length}개, 제안 ${merged.proposals.length}개, 경고 ${merged.warnings.length}개`)
@@ -77,9 +78,9 @@ export async function runCanon(
 }
 
 // 바뀐 파일만 쓴다. 인물 관계는 인물 파일 안에서만 이어지므로 종류별로 차례로 써도 중간 상태가 검증을 통과한다.
-async function save(before: Canon, after: Canon, dir: string): Promise<void> {
+async function save(before: Canon, after: Canon, dir: string, sourceDir: string): Promise<void> {
   for (const kind of KINDS) {
-    if (!same(before[kind], after[kind])) await writeCanonKind(kind, after[kind], dir)
+    if (!same(before[kind], after[kind])) await writeCanonKind(kind, after[kind], dir, { sourceDir })
   }
-  if (!same(before.proposals, after.proposals)) await writeProposals(after.proposals, dir)
+  if (!same(before.proposals, after.proposals)) await writeProposals(after.proposals, dir, { sourceDir })
 }

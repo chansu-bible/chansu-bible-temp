@@ -13,7 +13,8 @@ import {
   type CanonKind,
   type Proposal,
 } from '../schema.ts'
-import { validateCanon } from './validate.ts'
+import { readVerseCounts } from '../source/files.ts'
+import { validateCanon, type VerseCounts } from './validate.ts'
 
 // 종류별 항목 스키마. 관리 서버도 항목 하나를 검증할 때 쓴다.
 export const canonItemSchemas = {
@@ -24,6 +25,9 @@ export const canonItemSchemas = {
 } as const
 
 export type CanonItem<K extends CanonKind> = Canon[K][number]
+
+// 절 인용은 sourceDir(비우면 content/source)의 본문 절 수로 검증한다.
+type SourceOptions = { sourceDir?: string }
 
 const fileKeys = ['characters', 'places', 'eras', 'things', 'proposals'] as const
 type FileKey = (typeof fileKeys)[number]
@@ -40,20 +44,34 @@ export function canonFilePath(key: FileKey, dir: string = storyBibleDir): string
   return path.join(dir, `${key}.json`)
 }
 
-async function readList(key: FileKey, dir: string): Promise<unknown[]> {
+// 파일 하나를 다루다 난 오류에 파일 이름을 붙인다.
+function fileError(file: string, error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error)
+  return new Error(`${displayPath(file)}: ${message}`)
+}
+
+// 파일을 JSON으로만 읽는다. 없는 파일은 빈 목록이다.
+async function readJson(key: FileKey, dir: string): Promise<unknown> {
   const file = canonFilePath(key, dir)
   if (!existsSync(file)) return []
   try {
-    return listSchemas[key].parse(JSON.parse(await readFile(file, 'utf8')))
+    return JSON.parse(await readFile(file, 'utf8'))
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`${displayPath(file)}: ${message}`)
+    throw fileError(file, error)
+  }
+}
+
+function parseList(key: FileKey, value: unknown, dir: string): unknown[] {
+  try {
+    return listSchemas[key].parse(value)
+  } catch (error) {
+    throw fileError(canonFilePath(key, dir), error)
   }
 }
 
 // 교차 검증 문제를 파일 이름과 함께 묶어 오류로 낸다.
-function assertValid(canon: Canon, dir: string): void {
-  const problems = validateCanon(canon)
+function assertValid(canon: Canon, dir: string, verseCounts: VerseCounts): void {
+  const problems = validateCanon(canon, verseCounts)
   if (problems.length === 0) return
   const lines = problems.map((problem) => {
     const key = problem.slice(0, problem.indexOf('/')) as FileKey
@@ -63,27 +81,38 @@ function assertValid(canon: Canon, dir: string): void {
 }
 
 async function readLists(dir: string): Promise<Canon> {
-  const [characters, places, eras, things, proposals] = await Promise.all(fileKeys.map((key) => readList(key, dir)))
+  const [characters, places, eras, things, proposals] = await Promise.all(
+    fileKeys.map(async (key) => parseList(key, await readJson(key, dir), dir)),
+  )
   return { characters, places, eras, things, proposals } as Canon
 }
 
 // 설정집 전체를 읽는다. 없는 파일은 빈 목록이다. 스키마나 교차 검증을 통과하지 못하면 오류를 낸다.
-export async function readCanon(dir: string = storyBibleDir): Promise<Canon> {
+export async function readCanon(dir: string = storyBibleDir, { sourceDir }: SourceOptions = {}): Promise<Canon> {
   const canon = await readLists(dir)
-  assertValid(canon, dir)
+  assertValid(canon, dir, await readVerseCounts(sourceDir))
   return canon
 }
 
+// 스키마도 교차 검증도 거치지 않고 JSON 그대로 읽는다. 없는 파일은 빈 목록이다.
+// 지금 스키마로는 읽을 수 없는 옛 형식의 파일을 옮길 때(migrate-canon-refs) 쓴다.
+export async function readCanonRaw(dir: string = storyBibleDir): Promise<Canon> {
+  const [characters, places, eras, things, proposals] = await Promise.all(fileKeys.map((key) => readJson(key, dir)))
+  return { characters, places, eras, things, proposals } as Canon
+}
+
+const fileText = (items: unknown[]) => `${JSON.stringify(items, null, 2)}\n`
+
 // 쓰기 전에 바뀐 설정집 전체를 검증한다(지금 파일의 문제를 고치는 쓰기도 되게, 바꾼 뒤의 상태만 본다).
 // 중간에 끊겨도 파일이 반쯤 쓰이지 않게 임시 파일을 거친다.
-async function writeList(key: FileKey, items: unknown[], dir: string): Promise<void> {
+async function writeList(key: FileKey, items: unknown[], dir: string, sourceDir: string | undefined): Promise<void> {
   const parsed = listSchemas[key].parse(items)
   const canon = { ...(await readLists(dir)), [key]: parsed } as Canon
-  assertValid(canon, dir)
+  assertValid(canon, dir, await readVerseCounts(sourceDir))
 
   const file = canonFilePath(key, dir)
   await mkdir(dir, { recursive: true })
-  await writeFile(`${file}.tmp`, `${JSON.stringify(parsed, null, 2)}\n`, 'utf8')
+  await writeFile(`${file}.tmp`, fileText(parsed), 'utf8')
   await rename(`${file}.tmp`, file)
 }
 
@@ -91,10 +120,27 @@ export async function writeCanonKind<K extends CanonKind>(
   kind: K,
   items: CanonItem<K>[],
   dir: string = storyBibleDir,
+  { sourceDir }: SourceOptions = {},
 ): Promise<void> {
-  await writeList(kind, items, dir)
+  await writeList(kind, items, dir, sourceDir)
 }
 
-export async function writeProposals(items: Proposal[], dir: string = storyBibleDir): Promise<void> {
-  await writeList('proposals', items, dir)
+export async function writeProposals(
+  items: Proposal[],
+  dir: string = storyBibleDir,
+  { sourceDir }: SourceOptions = {},
+): Promise<void> {
+  await writeList('proposals', items, dir, sourceDir)
+}
+
+// 다섯 파일을 한 번에 쓴다. 다섯 목록의 스키마와 설정집 전체를 먼저 검증하고, 하나라도 틀리면 아무것도 쓰지 않는다.
+// 지금 파일은 읽지 않으므로 지금 파일이 옛 형식이어도 통째로 바꿀 수 있다(목록마다 쓰면 아직 옮기지 않은 파일에서 걸린다).
+// 임시 파일을 모두 쓴 뒤에 이름을 바꾼다.
+export async function writeCanon(canon: Canon, dir: string = storyBibleDir, { sourceDir }: SourceOptions = {}): Promise<void> {
+  const parsed = Object.fromEntries(fileKeys.map((key) => [key, parseList(key, canon[key], dir)])) as Canon
+  assertValid(parsed, dir, await readVerseCounts(sourceDir))
+
+  await mkdir(dir, { recursive: true })
+  for (const key of fileKeys) await writeFile(`${canonFilePath(key, dir)}.tmp`, fileText(parsed[key]), 'utf8')
+  for (const key of fileKeys) await rename(`${canonFilePath(key, dir)}.tmp`, canonFilePath(key, dir))
 }

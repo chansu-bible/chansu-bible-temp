@@ -77,7 +77,7 @@ export async function runScenario(
     throw new Error(`이미 ${chapter}장 장면 파일이 있습니다. 다시 쓰려면 --force를 붙이세요.`)
   }
 
-  const canon = approvedCanon(await readCanon(storyBibleDir))
+  const canon = approvedCanon(await readCanon(storyBibleDir, { sourceDir }))
   const style = await readStyle(styleFile, { requireFiles: false })
   // 한 장뿐인 책(오바댜 등)에는 본보기로 볼 다른 장이 없다.
   const exampleChapter = chapter === 2 ? 1 : 2

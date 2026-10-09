@@ -8,6 +8,7 @@ import { runCanon } from '../src/canon/runCanon.ts'
 import type { Llm } from '../src/llm/client.ts'
 import type { Canon, Source } from '../src/schema.ts'
 
+// 설정집의 절 인용은 본문의 절 수로 검증하므로 2장은 1~8절을 다 둔다.
 const source: Source = {
   book: '창세기',
   translation: '개역한글',
@@ -15,6 +16,7 @@ const source: Source = {
     {
       chapter: 2,
       verses: [
+        ...[1, 2, 3, 4, 5, 6].map((verse) => ({ verse, text: `2장 ${verse}절` })),
         { verse: 7, text: '여호와 하나님이 흙으로 사람을 지으시고' },
         { verse: 8, text: '여호와 하나님이 동방의 에덴에 동산을 창설하시고' },
       ],
@@ -49,7 +51,7 @@ const output: CanonOutput = {
 
 describe('buildCanonPrompt', () => {
   it('절 번호가 붙은 본문과 기존 항목 목록을 넣는다', () => {
-    const prompt = buildCanonPrompt(source.chapters[0]!, {
+    const prompt = buildCanonPrompt('genesis', source.chapters[0]!, {
       ...emptyCanon,
       places: [
         {
@@ -57,7 +59,7 @@ describe('buildCanonPrompt', () => {
           name: '에덴',
           aliases: ['에덴동산'],
           status: 'approved',
-          facts: { firstAppearance: '2:8', description: '', sources: ['2:8'] },
+          facts: { firstAppearance: 'genesis 2:8', description: '', sources: ['genesis 2:8'] },
           location: { lat: null, lng: null, certainty: '불명' },
           design: { landscape: '', notes: '' },
         },
@@ -74,6 +76,15 @@ describe('buildCanonPrompt', () => {
     expect(prompt.user).toContain('places/eden')
     expect(prompt.user).toContain('에덴동산')
     expect(prompt.user).toContain('approved')
+  })
+
+  it('어느 책이든 그 장 안의 절을 책 없이 쓰게 하고, 머리에 책 이름을 적는다', () => {
+    const prompt = buildCanonPrompt('exodus', { chapter: 3, verses: [{ verse: 2, text: '떨기나무' }] }, emptyCanon)
+    expect(prompt.system).toContain('성경 한 장을 읽고')
+    expect(prompt.system).toContain('이 장 안의 절만 쓴다. 책 이름은 붙이지 않는다(코드가 붙인다).')
+    expect(prompt.system).not.toContain('창세기 1~10장')
+    expect(prompt.user.split('\n')[0]).toBe('출애굽기 3장')
+    expect(prompt.user).toContain('3:2 떨기나무')
   })
 })
 
@@ -93,11 +104,11 @@ describe('runCanon', () => {
     await rm(dir, { recursive: true, force: true })
   })
 
-  function fakeLlm(calls: unknown[]): Llm {
+  function fakeLlm(calls: unknown[], answer: CanonOutput = output): Llm {
     return {
       async parse(schema, request) {
         calls.push(request)
-        return schema.parse(output)
+        return schema.parse(answer)
       },
     }
   }
@@ -119,7 +130,17 @@ describe('runCanon', () => {
 
     const saved = JSON.parse(await readFile(path.join(bible, 'characters.json'), 'utf8'))
     expect(saved[0]).toMatchObject({ id: 'adam', status: 'draft' })
+    // 모델이 책 없이 낸 인용에 책을 붙여 저장한다
+    expect(saved[0].facts).toMatchObject({ firstAppearance: 'genesis 2:7', sources: ['genesis 2:7'] })
     expect(lines.some((line) => line.includes('추가 1개'))).toBe(true)
+  })
+
+  it('절 인용은 sourceDir 본문의 절 수로 검증한다', async () => {
+    // 시험 본문의 2장은 8절까지다
+    const beyond = { ...output, characters: [{ ...output.characters[0]!, facts: { ...output.characters[0]!.facts, sources: ['2:9'] } }] }
+    const result = await runCanon('genesis', 2, { llm: fakeLlm([], beyond), storyBibleDir: bible, sourceDir: dir }, log)
+    expect(result.added).toEqual([])
+    expect(result.warnings.join('\n')).toContain('genesis 2:9이 범위를 벗어납니다')
   })
 
   it('없는 장이면 오류를 낸다', async () => {

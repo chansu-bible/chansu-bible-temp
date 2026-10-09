@@ -1,3 +1,4 @@
+import { parseRef } from 'reader-core'
 import { z } from 'zod'
 
 // 본문
@@ -18,8 +19,10 @@ export const SourceSchema = z.object({
 })
 
 // 설정집
-// 절 인용. "장:절" 또는 "장:절-절" (예: "1:26", "2:7-8")
-export const CitationSchema = z.string().regex(/^\d{1,2}:\d{1,3}(-\d{1,3})?$/)
+// 절 인용. "책 장:절" 또는 "책 장:절-절" (예: "genesis 1:26", "genesis 2:7-8")
+export const CitationSchema = z
+  .string()
+  .refine((value) => parseRef(value)?.book != null, '절 인용은 "책 장:절" 모양이어야 합니다(예: "genesis 2:7")')
 export const ReviewStateSchema = z.enum(['draft', 'approved', 'rejected'])
 export const CanonIdSchema = z.string().regex(/^[a-z][a-z0-9-]*$/)
 

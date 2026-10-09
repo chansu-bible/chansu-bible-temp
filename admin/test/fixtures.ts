@@ -53,7 +53,7 @@ export const eden: Place = {
   name: '에덴',
   aliases: [],
   status: 'approved',
-  facts: { firstAppearance: '2:8', description: '동산', sources: ['2:8'] },
+  facts: { firstAppearance: 'genesis 2:8', description: '동산', sources: ['genesis 2:8'] },
   location: { lat: 31.02, lng: 47.43, certainty: '추정' },
   design: { landscape: '평야', notes: '' },
 }
@@ -62,9 +62,9 @@ export const flood: Era = {
   id: 'flood',
   name: '홍수',
   status: 'draft',
-  range: { from: '6:9', to: '8:22' },
+  range: { from: 'genesis 6:9', to: 'genesis 8:22' },
   years: { from: 1656, to: 1657 },
-  facts: { description: '홍수', present: ['방주'], absent: [], sources: ['6:14-16'] },
+  facts: { description: '홍수', present: ['방주'], absent: [], sources: ['genesis 6:14-16'] },
   design: { visualNotes: '' },
 }
 

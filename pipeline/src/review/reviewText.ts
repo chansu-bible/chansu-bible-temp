@@ -89,7 +89,7 @@ export async function runReviewText(
     if (!sceneFile.scenes.some((scene) => scene.id === id)) throw new Error(`${id} 장면이 ${chapter}장에 없습니다`)
   }
 
-  const canon = approvedCanon(await readCanon(storyBibleDir))
+  const canon = approvedCanon(await readCanon(storyBibleDir, { sourceDir }))
   const style = await readStyle(styleFile, { requireFiles: false })
   const ids = canonIds(canon)
   const result: ReviewTextResult = { chapter, dryRun, reviewed: [], flagged: [], skipped: [], warnings: [] }

@@ -24,10 +24,26 @@ export { detectImageExtension } from './images/format.ts'
 export { readSceneFile, writeSceneFile, listSceneChapters } from './scenes/files.ts'
 export { generateSpeech, type SpeechOptions, type SpeechResult } from './tts/generateSpeech.ts'
 export { createOpenAiSpeak } from './tts/openaiSpeak.ts'
-export { readCanon, writeCanonKind, writeProposals, canonItemSchemas, canonFilePath, type CanonItem } from './canon/files.ts'
-export { validateCanon, GENESIS_VERSE_COUNTS } from './canon/validate.ts'
+export {
+  readCanon,
+  writeCanon,
+  writeCanonKind,
+  writeProposals,
+  canonItemSchemas,
+  canonFilePath,
+  type CanonItem,
+} from './canon/files.ts'
+export { validateCanon, type VerseCounts } from './canon/validate.ts'
+export { migrateCanonRefs } from './canon/migrateRefs.ts'
 export { runCanon, type CanonRunOptions, type CanonRunResult } from './canon/runCanon.ts'
-export { mergeCanon, CanonOutputSchema, type CanonOutput, type CanonRef, type MergeResult } from './canon/merge.ts'
+export {
+  mergeCanon,
+  CanonOutputSchema,
+  type CanonOutput,
+  type CanonRef,
+  type MergeOptions,
+  type MergeResult,
+} from './canon/merge.ts'
 export { buildCanonPrompt, type CanonPrompt } from './canon/prompt.ts'
 export { approvedCanon } from './canon/approved.ts'
 export {

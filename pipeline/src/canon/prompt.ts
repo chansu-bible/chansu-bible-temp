@@ -1,10 +1,11 @@
+import { getBook, type BookId } from 'reader-core'
 import type { Canon, CanonKind, SourceChapter } from '../schema.ts'
 
 export type CanonPrompt = { system: string; user: string }
 
 const KIND_LABELS: Record<CanonKind, string> = { characters: '인물', places: '장소', eras: '시대', things: '물건' }
 
-const SYSTEM = `너는 성경 본문에서 설정집을 뽑는 편집자다. 창세기 한 장을 읽고 그 장에 나오는 인물, 장소, 시대, 물건을 설정집 항목으로 정리한다.
+const SYSTEM = `너는 성경 본문에서 설정집을 뽑는 편집자다. 성경 한 장을 읽고 그 장에 나오는 인물, 장소, 시대, 물건을 설정집 항목으로 정리한다.
 설정집은 그림과 해설을 만들 때 기준으로 쓴다. 항목은 사람이 검수한 뒤에 쓰인다. 적게 정확히 내는 것이 많이 내는 것보다 낫다.
 
 무엇을 항목으로 낼지:
@@ -19,7 +20,7 @@ const SYSTEM = `너는 성경 본문에서 설정집을 뽑는 편집자다. 창
 
 규칙:
 1. facts에는 본문에 적힌 것만 쓴다. 추측이나 전승, 해석을 넣지 않는다. 항목마다 근거 절을 facts.sources에 단다(firstAppearance, attire.from도 절 인용).
-   절 인용은 "장:절" 또는 "장:절-절" 형식이다(예: "1:26", "2:7-8"). 창세기 1~10장 안의 절만 쓴다.
+   절 인용은 "장:절" 또는 "장:절-절" 형식이다(예: "1:26", "2:7-8"). 이 장 안의 절만 쓴다. 책 이름은 붙이지 않는다(코드가 붙인다).
 2. 인물의 facts.notes에는 그 인물이 이 장에서 한 일과 겪은 일을 두세 문장으로 적는다. attire는 본문이 옷을 말할 때만 적는다.
 3. design(인상착의, 풍경, 시각 메모)은 본문에 없으므로 제작 제안이다. 고대 근동 배경에 맞게 짧게 쓴다. 정할 근거가 약하면 ""로 둔다. 값 앞에 "제작 제안:" 같은 머리말을 붙이지 않는다.
 4. 이미 있는 항목 목록을 준다. 같은 인물·장소·물건을 새 id로 다시 만들지 않는다. 같은 것이면 같은 id를 쓴다.
@@ -43,12 +44,12 @@ function existingLines(canon: Canon): string[] {
   return lines
 }
 
-// canon 단계 프롬프트. user에는 장 번호, 절 번호가 붙은 본문 전체, 기존 항목 목록이 들어간다.
-export function buildCanonPrompt(chapter: SourceChapter, canon: Canon): CanonPrompt {
+// canon 단계 프롬프트. user에는 책 이름과 장 번호, 절 번호가 붙은 본문 전체, 기존 항목 목록이 들어간다.
+export function buildCanonPrompt(book: BookId, chapter: SourceChapter, canon: Canon): CanonPrompt {
   const verses = chapter.verses.map((verse) => `${chapter.chapter}:${verse.verse} ${verse.text}`)
   const existing = existingLines(canon)
   const user = [
-    `창세기 ${chapter.chapter}장`,
+    `${getBook(book).name} ${chapter.chapter}장`,
     '',
     '## 본문',
     ...verses,
