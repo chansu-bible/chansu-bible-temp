@@ -64,7 +64,7 @@ export { runReviewText, type ReviewTextOptions, type ReviewTextResult } from './
 export { createLlm, type Llm, type LlmOptions, type ParseRequest } from './llm/client.ts'
 export { writerModel, reviewerModel, estimateUsd, MODEL_PRICES } from './llm/models.ts'
 export { readRuns, summarizeRuns, appendRun, RunSchema, type Run, type RunTotals } from './llm/runs.ts'
-export { runOriginal, oshbUrl, type OriginalOptions, type OriginalResult } from './original/runOriginal.ts'
+export { runOriginal, originalBooks, oshbUrl, type OriginalOptions, type OriginalResult } from './original/runOriginal.ts'
 export { OSHB_BASE, STRONGS_URL } from './original/urls.ts'
 export { parseOshb, type OriginalChapter, type OriginalVerse, type OriginalWord } from './original/oshb.ts'
 export { OSHB_VERSE_MAP_URL, parseVerseMap, toKjvVerses, type VerseMapEntry } from './original/verseMap.ts'

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanHebrew, strongOf } from '../src/original/hebrew.ts'
 import { posLabel } from '../src/original/morph.ts'
 import { parseOshb } from '../src/original/oshb.ts'
-import { oshbUrl, runOriginal } from '../src/original/runOriginal.ts'
+import { originalBooks, oshbUrl, runOriginal } from '../src/original/runOriginal.ts'
 import { parseStrongs } from '../src/original/strongs.ts'
 import { STRONGS_URL } from '../src/original/urls.ts'
 import { OSHB_VERSE_MAP_URL } from '../src/original/verseMap.ts'
@@ -227,6 +227,20 @@ describe('runOriginal', () => {
   it('OSHB 주소는 책의 OSIS 코드로 만든다', () => {
     expect(oshbUrl('exodus').endsWith('/wlc/Exod.xml')).toBe(true)
     expect(oshbUrl('1-samuel').endsWith('/wlc/1Sam.xml')).toBe(true)
+  })
+})
+
+describe('originalBooks', () => {
+  it('모든 책을 돌릴 때 구약 책만 남기고, 신약 책은 건너뛴다고 알린다', () => {
+    const lines: string[] = []
+    expect(originalBooks(['genesis', 'malachi', 'matthew', 'romans'], (line) => lines.push(line))).toEqual(['genesis', 'malachi'])
+    expect(lines).toEqual(['마태복음은 신약이라 원어를 건너뜁니다', '로마서는 신약이라 원어를 건너뜁니다'])
+  })
+
+  it('구약 책뿐이면 그대로이고 알리지 않는다', () => {
+    const lines: string[] = []
+    expect(originalBooks(['genesis', 'psalms'], (line) => lines.push(line))).toEqual(['genesis', 'psalms'])
+    expect(lines).toEqual([])
   })
 })
 

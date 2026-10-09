@@ -6,7 +6,7 @@ import { readCanonRaw, writeCanon } from './canon/files.ts'
 import { migrateCanonRefs } from './canon/migrateRefs.ts'
 import { runCanon } from './canon/runCanon.ts'
 import { runGloss } from './original/runGloss.ts'
-import { runOriginal } from './original/runOriginal.ts'
+import { originalBooks, runOriginal } from './original/runOriginal.ts'
 import { runQuiz } from './quiz/runQuiz.ts'
 import { generateImages } from './images/generateImages.ts'
 import { createOpenAiDraw } from './images/openaiDraw.ts'
@@ -47,11 +47,6 @@ async function allSourceBooks(): Promise<BookId[]> {
   const books = await listSourceBooks()
   if (books.length === 0) throw new Error('본문이 있는 책이 없습니다. 먼저 source --book <책 id>를 실행하세요.')
   return books
-}
-
-// --book이 있으면 그 책 하나를, 없으면 본문이 있는 모든 책을 돌려준다.
-async function booksOrAll(flags: Flags): Promise<BookId[]> {
-  return flags.book === undefined ? allSourceBooks() : [requireBook(flags)]
 }
 
 function requireChapter(flags: Flags): number {
@@ -158,7 +153,9 @@ const commands: Record<string, (flags: Flags) => Promise<void>> = {
     if (result.failed.length > 0) process.exitCode = 1
   },
   async original(flags) {
-    for (const book of await booksOrAll(flags)) {
+    // --book이 없으면 본문이 있는 모든 책을 돌리되 신약 책은 건너뛴다. --book으로 고른 신약 책은 runOriginal이 오류를 낸다.
+    const books = flags.book === undefined ? originalBooks(await allSourceBooks(), console.log) : [requireBook(flags)]
+    for (const book of books) {
       const result = await runOriginal(book, {}, console.log)
       console.log(
         `원어 저장 완료: ${result.chapters}장, 낱말 ${result.words}개, 사전 항목 ${result.entries}개(한국어 뜻 있음 ${result.withKorean}개)`,

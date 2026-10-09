@@ -16,6 +16,7 @@ const verseMap = `<?xml version="1.0" encoding="UTF-8"?>
 	</book>
 	<book osisID="1Kgs">
 		<verse wlc="1Kgs.18.34!a" kjv="1Kgs.18.33!b" type="partial"/>
+		<verse wlc="1Kgs.22.21!b" kjv="1Kgs.22.22!a" type="partial"/>
 		<verse wlc="1Kgs.22.44" kjv="1Kgs.22.43!b" type="partial"/>
 		<verse wlc="1Kgs.22.45" kjv="1Kgs.22.44" type="full"/>
 	</book>
@@ -62,6 +63,7 @@ describe('parseVerseMap', () => {
   it('그 책의 대응만 읽고 조각 표시(!a, !b)를 따로 둔다', () => {
     expect(parseVerseMap(verseMap, '1Kgs')).toEqual([
       { wlc: { chapter: 18, verse: 34, piece: 'a' }, kjv: { chapter: 18, verse: 33, piece: 'b' } },
+      { wlc: { chapter: 22, verse: 21, piece: 'b' }, kjv: { chapter: 22, verse: 22, piece: 'a' } },
       { wlc: { chapter: 22, verse: 44, piece: null }, kjv: { chapter: 22, verse: 43, piece: 'b' } },
       { wlc: { chapter: 22, verse: 45, piece: null }, kjv: { chapter: 22, verse: 44, piece: null } },
     ])
@@ -84,22 +86,37 @@ describe('parseVerseMap', () => {
 })
 
 describe('toKjvVerses', () => {
-  it('대응표에 없는 시편 표제는 KJV 1절 앞에 붙는다(두 절 표제도)', () => {
-    // 시편 3편: WLC 1절이 표제, 2절이 KJV 1절. 시편 51편: WLC 1~2절이 표제, 3절도 KJV 1절
-    expect(kjvOf('Ps', { 3: [1, 2, 3], 51: [1, 2, 3, 4] })).toEqual([
+  it('대응표에 없는 시편 표제(WLC 3:1)는 KJV 3:1에 남고, 그리로 오는 WLC 3:2가 뒤에 붙는다', () => {
+    expect(kjvOf('Ps', { 3: [1, 2, 3] })).toEqual([
       ['3:1', ['3:1', '3:2']],
       ['3:2', ['3:3']],
+    ])
+  })
+
+  it('두 절 표제: WLC 51:1~3이 모두 KJV 51:1에 WLC 차례로 든다', () => {
+    // 대응표에 WLC 51:2 → 51:1, 51:3 → 51:1이 있고, 표제 앞부분인 WLC 51:1은 없다.
+    expect(kjvOf('Ps', { 51: [1, 2, 3, 4] })).toEqual([
       ['51:1', ['51:1', '51:2', '51:3']],
       ['51:2', ['51:4']],
     ])
   })
 
-  it('대응표에 없는 절은 그 번호가 앞 절의 목적지여도 다음 WLC 절이 가는 KJV 절 앞에 붙는다', () => {
-    // Num.25.19 → 26.1: WLC 26:1은 대응표에 없고 26:1이 목적지이므로, 다음 WLC 26:2가 가는 KJV 26:2 앞에 붙는다.
+  it('대응표에 없는 절은 앞 절이 그 번호로 와도 같은 번호에 남고, WLC 차례로 잇는다', () => {
+    // Num.25.19 → 26.1: WLC 25:19와 26:1이 차례로 KJV 26:1이 되고, KJV 26:2는 WLC 26:2뿐이다.
     expect(kjvOf('Num', { 25: [18, 19], 26: [1, 2] })).toEqual([
       ['25:18', ['25:18']],
-      ['26:1', ['25:19']],
-      ['26:2', ['26:1', '26:2']],
+      ['26:1', ['25:19', '26:1']],
+      ['26:2', ['26:2']],
+    ])
+  })
+
+  it('조각의 목적지를 대응표에 없는 같은 번호의 절이 채우면 낱말을 겹치지 않는다', () => {
+    // 1Kgs.22.21!b → 22.22!a: WLC 22:21의 목적지는 22:21(앞 조각)과 22:22(뒤 조각)인데, KJV 22:22는 WLC 22:22가 채운다.
+    expect(kjvOf('1Kgs', { 22: [20, 21, 22, 23] })).toEqual([
+      ['22:20', ['22:20']],
+      ['22:21', ['22:21']],
+      ['22:22', ['22:22']],
+      ['22:23', ['22:23']],
     ])
   })
 

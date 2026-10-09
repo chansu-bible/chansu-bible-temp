@@ -38,6 +38,16 @@ async function defaultFetch(url: string): Promise<string> {
   return response.text()
 }
 
+// 책을 고르지 않고 모든 책의 원어를 만들 때 돌릴 책을 고른다. 신약 원어 자료는 아직 정하지 않아 신약 책은 알리고 건너뛴다.
+export function originalBooks(books: BookId[], log: (line: string) => void = () => {}): BookId[] {
+  return books.filter((book) => {
+    const { name, testament } = getBook(book)
+    if (testament === 'old') return true
+    log(`${josa(name, '은는')} 신약이라 원어를 건너뜁니다`)
+    return false
+  })
+}
+
 // 원어 폴더의 모든 책 파일에서 스트롱 번호마다 나온 횟수를 센다.
 async function countStrongs(dir: string): Promise<Map<string, number>> {
   const counts = new Map<string, number>()

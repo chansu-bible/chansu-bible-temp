@@ -55,14 +55,13 @@ function targetsOf(entries: VerseMapEntry[]): Map<number, number[]> {
 
 // WLC 절 번호의 원어를 KJV 절 번호로 옮긴다. 입력은 바꾸지 않고, 장과 절 차례로 돌려준다.
 // - 대응표에 있는 WLC 절은 그 KJV 절로 간다(조각 표시는 뗀다).
-// - 대응표에 없는 절은 같은 번호로 가되, 그 번호가 다른 절의 목적지이면(시편 표제) 다음 WLC 절이 가는 KJV 절 앞에 붙는다.
-//   다음 절의 목적지가 여럿이면 그 첫 목적지 앞이다.
+// - 대응표에 없는 WLC 절은 언제나 같은 번호의 KJV 절로 간다. 대응표에서 다른 WLC 절도 그 절로 오면 WLC 차례로 잇는다
+//   (KJV 시편 3:1은 표제인 WLC 3:1과 WLC 3:2, KJV 민수기 26:1은 WLC 25:19와 26:1이다).
 // - 목적지가 여럿인 절(조각 대응)은 낱말을 나눌 경계가 대응표에 없으므로, 나머지 절을 다 둔 뒤 낱말을 받지 못한 목적지에 준다.
-//   그런 곳이 없으면 첫 목적지에, 여럿이면 모두에 준다(구약에서는 열왕기상 22:21, 이사야 63:19, 시편 13:6의 낱말이 두 절에 겹친다).
+//   그런 곳이 없으면 첫 목적지에, 여럿이면 모두에 준다(구약에서는 이사야 63:19, 시편 13:6의 낱말이 두 절에 겹친다).
 // - 같은 KJV 절로 가는 낱말은 WLC 차례로 잇는다.
 export function toKjvVerses(chapters: OriginalChapter[], entries: VerseMapEntry[]): OriginalChapter[] {
   const targets = targetsOf(entries)
-  const mapped = new Set([...targets.values()].flat())
   const verses = chapters.flatMap((chapter) =>
     chapter.verses.map((verse) => ({ key: keyOf(chapter.chapter, verse.verse), words: verse.words })),
   )
@@ -70,23 +69,13 @@ export function toKjvVerses(chapters: OriginalChapter[], entries: VerseMapEntry[
   const placed = new Map<number, number[]>()
   const place = (target: number, index: number) => placed.set(target, [...(placed.get(target) ?? []), index])
 
-  // 다음 절이 가는 곳 앞에 붙을 절(시편 표제)과 목적지가 여럿인 절
-  let waiting: number[] = []
+  // 목적지가 하나인 절(대응표에 없는 절은 같은 번호)을 먼저 다 두고, 목적지가 여럿인 절은 그 뒤에 정한다.
   const several: number[] = []
   verses.forEach((verse, index) => {
-    const list = targets.get(verse.key)
-    if (!list && mapped.has(verse.key)) {
-      waiting.push(index)
-      return
-    }
-    const first = list?.[0] ?? verse.key
-    for (const held of waiting) place(first, held)
-    waiting = []
-    if (list && list.length > 1) several.push(index)
-    else place(first, index)
+    const list = targets.get(verse.key) ?? [verse.key]
+    if (list.length > 1) several.push(index)
+    else place(list[0]!, index)
   })
-  // 뒤에 절이 없어 붙을 곳이 없으면 같은 번호에 둔다.
-  for (const held of waiting) place(verses[held]!.key, held)
   for (const index of several) {
     const list = targets.get(verses[index]!.key)!
     const empty = list.filter((target) => !placed.has(target))
