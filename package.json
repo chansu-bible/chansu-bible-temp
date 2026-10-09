@@ -6,7 +6,8 @@
     "packages/reader-core",
     "pipeline",
     "app",
-    "admin"
+    "admin",
+    "mobile"
   ],
   "scripts": {
     "pipeline": "npm run cli -w pipeline --",
