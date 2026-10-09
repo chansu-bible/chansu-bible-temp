@@ -210,6 +210,9 @@ export const BundleSceneSchema = z.object({
   // 그림 버전 id → 그림 경로. 그 버전에 그림이 없는 장면은 키가 없다.
   images: z.record(z.string(), z.string()),
   reviewStatus: z.enum(['none', 'draft', 'reviewed', 'flagged', 'approved']),
+  // 장면 낭독: 장면에 든 절의 낭독을 이은 파일(content/audio/scenes/<장면 id>.mp3)과 길이(ms). 음성이 없으면 null
+  audio: z.string().nullable(),
+  audioMs: z.number().int().nonnegative().nullable(),
 })
 
 // 앱이 지도에 쓰는 장소. 설정집의 장소에서 만든다.

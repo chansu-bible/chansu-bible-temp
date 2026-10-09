@@ -16,6 +16,8 @@ function scene(id: string, placeId: string | null): Scene {
     characters: [],
     images: {},
     reviewStatus: 'none',
+    audio: null,
+    audioMs: null,
   }
 }
 

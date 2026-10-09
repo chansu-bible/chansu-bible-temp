@@ -9,7 +9,7 @@ export function validateBundle(value: unknown): Bundle {
   return bundle
 }
 
-// 인물·시대·물건·낭독 길이는 나중에 더한 키라 옛 묶음에는 없다. 없으면 빈 값으로 채워 화면이 그대로 그려지게 한다.
+// 인물·시대·물건·낭독 길이·장면 낭독은 나중에 더한 키라 옛 묶음에는 없다. 없으면 빈 값으로 채워 화면이 그대로 그려지게 한다.
 export function fillMissing(bundle: Bundle): Bundle {
   return {
     ...bundle,
@@ -22,6 +22,8 @@ export function fillMissing(bundle: Bundle): Bundle {
       scenes: chapter.scenes.map((scene) => ({
         ...scene,
         characters: Array.isArray(scene.characters) ? scene.characters : [],
+        audio: scene.audio ?? null,
+        audioMs: scene.audioMs ?? null,
       })),
     })),
   }

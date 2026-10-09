@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildBundle } from '../src/build/buildBundle.ts'
+import { buildBundle, sceneAudioParts } from '../src/build/buildBundle.ts'
 import type { Character, Era, Place, Scene, Source, Thing } from '../src/schema.ts'
 
 const source: Source = {
@@ -134,6 +134,28 @@ describe('buildBundle', () => {
     ])
   })
 
+  it('장면에 든 절 가운데 음성이 있는 절을 이어 장면 낭독으로 둔다(길이는 합)', () => {
+    const audio = new Map<string, number | null>([
+      ['genesis-01-001.mp3', 1000],
+      ['genesis-01-003.mp3', 2500],
+    ])
+    const bundle = buildBundle(source, [{ chapter: 1, scenes: [scene({})] }], canonOf(places), audio)
+    const built = bundle.chapters[0].scenes[0]
+    expect(built.audio).toBe('content/audio/scenes/genesis-01-01.mp3')
+    expect(built.audioMs).toBe(3500)
+    expect(sceneAudioParts(built, bundle.chapters[0].verses)).toEqual([
+      'content/audio/genesis-01-001.mp3',
+      'content/audio/genesis-01-003.mp3',
+    ])
+  })
+
+  it('음성이 하나도 없는 장면은 낭독이 null이고, 길이를 모르는 절이 있으면 길이만 null이다', () => {
+    const none = buildBundle(source, [{ chapter: 1, scenes: [scene({})] }], canonOf(places))
+    expect(none.chapters[0].scenes[0]).toMatchObject({ audio: null, audioMs: null })
+    const unknown = buildBundle(source, [], canonOf(places), new Set(['genesis-02-001.mp3']))
+    expect(unknown.chapters[1].scenes[0]).toMatchObject({ audio: 'content/audio/scenes/genesis-02-00.mp3', audioMs: null })
+  })
+
   it('승인된 물건만 앱 형식으로 넣는다', () => {
     const thing: Thing = {
       id: 'tree-of-life',
@@ -177,6 +199,8 @@ describe('buildBundle', () => {
         characters: [],
         images: {},
         reviewStatus: 'none',
+        audio: null,
+        audioMs: null,
       },
     ])
   })

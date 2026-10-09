@@ -10,13 +10,14 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
     genesis.json                묶음 본체
     images/<versionId>/<sceneId>.<ext>   장면 그림 (png, jpg 등)
     audio/genesis-<장 2자리>-<절 3자리>.mp3  절 낭독 (예: genesis-01-001.mp3)
+    audio/scenes/<sceneId>.mp3   장면 낭독. 장면에 든 절 낭독을 차례로 이은 것
 ```
 
 **경로 주의.** 묶음 안의 그림·음성 경로는 `content/`로 시작한다(예: `content/images/v1/genesis-01-01.png`). 즉 묶음 폴더가 아니라 그 부모 폴더 기준이다. 웹 앱은 `BASE_URL + 경로`로 불러온다. 네이티브 앱은 묶음 폴더를 `content/`라는 이름으로 두고 그 부모를 기준으로 풀거나, 앞의 `content/`를 떼고 묶음 폴더 기준으로 풀면 된다.
 
 ## 필드
 
-**형식 버전.** 키를 더하기만 할 때는 `schemaVersion`을 올리지 않는다. `characters`, `eras`, `things`, 장면의 `characters`, 절의 `audioMs`는 나중에 더한 키라 `schemaVersion`은 1 그대로이며, 이 키를 모르는 옛 독자는 무시하면 된다. 있던 키의 뜻이나 형식을 바꿀 때만 올린다.
+**형식 버전.** 키를 더하기만 할 때는 `schemaVersion`을 올리지 않는다. `characters`, `eras`, `things`, 장면의 `characters`·`audio`·`audioMs`, 절의 `audioMs`는 나중에 더한 키라 `schemaVersion`은 1 그대로이며, 이 키를 모르는 옛 독자는 무시하면 된다. 있던 키의 뜻이나 형식을 바꿀 때만 올린다.
 
 ### 최상위
 
@@ -122,6 +123,8 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 | `characters` | string[] | 장면에 나오는 인물. 최상위 `characters`의 id. 기본 장면은 빈 배열 |
 | `images` | Record<string, string> | 그림 버전 id → 그림 경로. 그 버전에 그림이 없으면 키가 없다 |
 | `reviewStatus` | `none` \| `draft` \| `reviewed` \| `flagged` \| `approved` | 검수 상태. `none`은 장면 파일이 없는 장의 기본 장면 |
+| `audio` | string \| null | 장면 낭독 경로(`content/audio/scenes/<sceneId>.mp3`). 장면에 든 절 가운데 낭독이 있는 절을 차례로 이었다. 하나도 없으면 null |
+| `audioMs` | number \| null | 장면 낭독 길이(ms). 이은 절의 `audioMs` 합이고, 그중 길이를 모르는 절이 있으면 null |
 
 `HistoryNote`: `{ text, basis, certainty: '확실' | '추정' | '견해 갈림', sources: string[] }`. `text`는 내용, `basis`는 근거 설명, `sources`는 출처 표기다.
 
@@ -141,7 +144,7 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 
 믿으면 안 되는 것:
 
-- `audio`는 null일 수 있다. 일부 절만 낭독 파일이 있을 수 있다.
+- `audio`는 null일 수 있다. 일부 절만 낭독 파일이 있을 수 있다. 장면 낭독에는 낭독이 있는 절만 들어 있다.
 - 장면에 지금 고른 버전의 그림이 없을 수 있다. 그때는 자리 표시(웹: "그림 준비 중")를 보여 준다.
 - `lat`/`lng`가 null인 장소가 있을 수 있다.
 - 인물의 `years.born`/`died`, 시대의 `years.from`/`to`는 null일 수 있다.
@@ -155,7 +158,8 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 - **현재 절**: 본문을 스크롤할 때, 화면 위쪽 기준선(스크롤 영역 위에서 24px)을 위쪽 끝이 지난 절 가운데 마지막 절이다. 끝까지 스크롤했으면 마지막 절이다(`findActiveIndex`).
 - **현재 장면**: 현재 절을 담은 장면이다(`findSceneIndex`). 그림, 제목, 해설, 지도는 이 장면을 따른다.
 - **그림 버전**: 사용자가 고른 버전이 묶음에 있으면 그것, 아니면 `defaultImageVersion`이다. 버튼을 누르면 `imageVersions` 순서로 다음 버전, 마지막 다음은 처음이다(`pickImageVersion`, `nextImageVersion`).
-- **낭독**: 현재 절의 `audio`를 재생한다. 한 절이 끝나면 다음 절, 장의 끝이면 다음 장의 첫 절로 위치를 옮기고 이어 읽는다. 다음 절이 없거나 그 절의 `audio`가 null이면 멈춘다(`nextPosition`).
+- **낭독**: 웹 앱은 현재 절의 `audio`를 재생한다. 한 절이 끝나면 다음 절, 장의 끝이면 다음 장의 첫 절로 위치를 옮기고 이어 읽는다. 다음 절이 없거나 그 절의 `audio`가 null이면 멈춘다(`nextPosition`).
+- **장면 낭독**: 네이티브 앱은 장면의 `audio` 하나를 재생한다(화면을 꺼도 끊기지 않고 잠금 화면에 장면 단위로 보이게). 지금 절은 재생 위치로 정한다. 그 장면에서 낭독이 있는 절의 `audioMs`를 차례로 더해 절마다 구간을 매긴다(`sceneTrack`, `verseAtTime`). 장면이 끝나면 다음으로 낭독이 있는 장면을 재생한다(`adjacentTrack`).
 - **자막**: 켜져 있으면 그림 위에 현재 절의 번호와 본문을 보여 준다. 처음에는 켜져 있다.
 - **낱말 풀이**: 절 본문에서 그 절의 풀이 낱말이 처음 나오는 곳만 표시하고, 겹치면 먼저 나오는 낱말을 쓴다(`splitByGlosses`).
 - **지도 경로**: 처음 장면부터 현재 장면까지 좌표가 있는 장소를 차례로 모은 것이 지나온 길이고(같은 장소가 이어지면 한 번), 그 마지막이 현재 장소다. 현재 장면 뒤에서 처음 나오는 다른 장소가 다음 장소다(`buildRoute`).

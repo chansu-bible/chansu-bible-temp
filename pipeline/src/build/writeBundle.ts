@@ -5,8 +5,8 @@ import { appContentDir, audioDir, imagesDir, repoRoot, scenesDir, sourceFile } f
 import { BundleSchema, SceneFileSchema, SourceSchema, type Bundle, type SceneFile } from '../schema.ts'
 import { readCanon } from '../canon/files.ts'
 import { readImageCatalog } from '../images/versions.ts'
-import { mp3DurationMs } from '../tts/mp3.ts'
-import { buildBundle, type ImageCatalog } from './buildBundle.ts'
+import { joinMp3, mp3DurationMs } from '../tts/mp3.ts'
+import { buildBundle, sceneAudioParts, type ImageCatalog } from './buildBundle.ts'
 
 function relativeName(file: string): string {
   return path.relative(repoRoot, file).split(path.sep).join('/')
@@ -84,6 +84,18 @@ export async function writeBundle(): Promise<Bundle> {
         return src === from || !(name.startsWith('.') || name === 'versions.json')
       },
     })
+  }
+  // 장면 낭독: 절 낭독을 이어 붙인다. 모든 낭독이 같은 고정 비트레이트 MP3라 프레임을 잇기만 하면 된다.
+  for (const chapter of bundle.chapters) {
+    for (const scene of chapter.scenes) {
+      if (!scene.audio) continue
+      const parts = await Promise.all(
+        sceneAudioParts(scene, chapter.verses).map((file) => readFile(path.join(audioDir, path.basename(file)))),
+      )
+      const target = path.join(appContentDir, 'audio', 'scenes', `${scene.id}.mp3`)
+      await mkdir(path.dirname(target), { recursive: true })
+      await writeFile(target, joinMp3(parts))
+    }
   }
   return bundle
 }

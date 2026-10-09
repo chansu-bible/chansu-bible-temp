@@ -66,7 +66,7 @@ export function buildBundle(
       return { ...verse, audio: has ? `content/audio/${name}` : null, audioMs: has ? (durations.get(name) ?? null) : null }
     })
     const sceneFile = sceneFiles.find((file) => file.chapter === chapter)
-    if (!sceneFile) return { chapter, verses, scenes: [fallbackScene(chapter, verses.length, catalog)] }
+    if (!sceneFile) return { chapter, verses, scenes: [withSceneAudio(fallbackScene(chapter, verses.length, catalog), verses)] }
 
     checkSceneIds(sceneFile)
 
@@ -80,7 +80,11 @@ export function buildBundle(
       }
       checkGlossary(scene, chapter, sourceChapter.verses)
     }
-    return { chapter, verses, scenes: sceneFile.scenes.map((scene) => toBundleScene(scene, catalog, characterIds)) }
+    return {
+      chapter,
+      verses,
+      scenes: sceneFile.scenes.map((scene) => withSceneAudio(toBundleScene(scene, catalog, characterIds), verses)),
+    }
   })
 
   return {
@@ -150,7 +154,29 @@ function toBundleThing(thing: Thing): BundleThing {
   }
 }
 
-function fallbackScene(chapter: number, verseCount: number, catalog: ImageCatalog): BundleScene {
+type SceneWithoutAudio = Omit<BundleScene, 'audio' | 'audioMs'>
+type VerseAudio = { verse: number; audio: string | null; audioMs: number | null }
+
+// 장면 낭독에 들어가는 절 낭독 파일(묶음 안 경로)을 차례대로. writeBundle이 이 파일들을 이어 붙인다.
+// 앱은 장면마다 이 파일 하나를 재생한다. 화면을 꺼도 절마다 파일을 바꾸지 않아 끊기지 않고, 잠금 화면에는 장면 단위로 보인다.
+export function sceneAudioParts(scene: { verseStart: number; verseEnd: number }, verses: VerseAudio[]): string[] {
+  return verses.flatMap((verse) =>
+    verse.verse >= scene.verseStart && verse.verse <= scene.verseEnd && verse.audio !== null ? [verse.audio] : [],
+  )
+}
+
+function withSceneAudio(scene: SceneWithoutAudio, verses: VerseAudio[]): BundleScene {
+  const parts = verses.filter((verse) => verse.verse >= scene.verseStart && verse.verse <= scene.verseEnd && verse.audio !== null)
+  if (parts.length === 0) return { ...scene, audio: null, audioMs: null }
+  const known = parts.every((verse) => verse.audioMs !== null)
+  return {
+    ...scene,
+    audio: `content/audio/scenes/${scene.id}.mp3`,
+    audioMs: known ? parts.reduce((sum, verse) => sum + (verse.audioMs ?? 0), 0) : null,
+  }
+}
+
+function fallbackScene(chapter: number, verseCount: number, catalog: ImageCatalog): SceneWithoutAudio {
   const id = `genesis-${String(chapter).padStart(2, '0')}-00`
   return {
     id,
@@ -179,7 +205,7 @@ function imagesFor(sceneId: string, catalog: ImageCatalog): Record<string, strin
 }
 
 // 장면의 인물은 묶음에 있는 인물만 남긴다. 승인 전 인물은 오류 없이 조용히 뺀다.
-function toBundleScene(scene: Scene, catalog: ImageCatalog, characterIds: ReadonlySet<string>): BundleScene {
+function toBundleScene(scene: Scene, catalog: ImageCatalog, characterIds: ReadonlySet<string>): SceneWithoutAudio {
   return {
     id: scene.id,
     verseStart: scene.verseStart,

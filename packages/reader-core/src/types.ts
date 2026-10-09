@@ -30,6 +30,9 @@ export type Scene = {
   // 그림 버전 id → 그림 경로. 그 버전에 그림이 없으면 키가 없다.
   images: Record<string, string>
   reviewStatus: ReviewStatus
+  // 장면 낭독(장면에 든 절 낭독을 이은 파일)과 길이(ms). 음성이 없거나 옛 묶음이면 null이다(불러올 때 채운다).
+  audio: string | null
+  audioMs: number | null
 }
 
 // 설정집에서 검수된 인물. years는 창조 원년(0년) 기준 햇수다.
