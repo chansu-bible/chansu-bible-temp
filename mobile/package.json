@@ -13,9 +13,11 @@
     "typecheck": "node scripts/sync-content.mjs && tsc --noEmit"
   },
   "dependencies": {
+    "@bacons/apple-targets": "^5.0.0",
     "@expo-google-fonts/nanum-myeongjo": "^0.4.1",
     "@expo/metro-runtime": "~57.0.16",
     "expo": "~57.0.27",
+    "expo-asset": "~57.0.19",
     "expo-audio": "~57.0.5",
     "expo-auth-session": "~57.0.14",
     "expo-constants": "~57.0.21",
@@ -33,6 +35,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-android-widget": "^0.22.1",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
@@ -46,6 +49,7 @@
     "@turf/simplify": "^7.4.0",
     "@types/geojson": "^7946.0.16",
     "@types/react": "~19.2.2",
+    "sharp": "^0.34.5",
     "typescript": "~6.0.3"
   }
 }

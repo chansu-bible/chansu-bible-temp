@@ -9,7 +9,12 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.chansubible.app"
+      "bundleIdentifier": "com.chansubible.app",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.chansubible.app"
+        ]
+      }
     },
     "android": {
       "package": "com.chansubible.app",
@@ -29,12 +34,39 @@
     "plugins": [
       "expo-router",
       "expo-image",
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": true
+        }
+      ],
       "expo-sqlite",
       "expo-font",
       "expo-sharing",
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "TodayScene",
+              "label": "오늘의 장면",
+              "description": "이어 읽을 장면과 연속으로 읽은 날",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
+      ],
+      "@bacons/apple-targets",
+      "expo-asset"
     ]
   }
 }

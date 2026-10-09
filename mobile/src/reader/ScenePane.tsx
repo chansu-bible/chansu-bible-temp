@@ -29,6 +29,8 @@ type Props = {
   onOpenSheet: () => void
   // 1이면 다음 장면, -1이면 이전 장면
   onSwipe: (direction: 1 | -1) => void
+  // 낭독 중일 때만 준다. 낭독 플레이어를 연다.
+  onOpenPlayer?: () => void
 }
 
 // 화면 위쪽 절반: 장면 그림, 지도·해설·낭독·자막 단추, 그림 위 자막과 장면 제목
@@ -44,6 +46,7 @@ export default function ScenePane({
   onOpenMap,
   onOpenSheet,
   onSwipe,
+  onOpenPlayer,
 }: Props) {
   const { palette, verseScale, subtitles, setSubtitles } = useSettings()
   const insets = useSafeAreaInsets()
@@ -101,6 +104,7 @@ export default function ScenePane({
             disabled={playDisabled}
             onPress={onTogglePlay}
           />
+          {onOpenPlayer && <RoundButton name="headphones" label="낭독 플레이어 열기" onPress={onOpenPlayer} />}
           <RoundButton name="subtitles" label="그림 위 자막" toggled={subtitles} onPress={() => setSubtitles(!subtitles)} />
         </View>
 

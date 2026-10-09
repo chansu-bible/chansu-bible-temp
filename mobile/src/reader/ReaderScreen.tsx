@@ -8,7 +8,6 @@ import {
   findSceneIndex,
   initialPosition,
   localDay,
-  nextPosition,
   placeChange,
   startOfChapter,
   verseAt,
@@ -17,9 +16,10 @@ import {
   type PlaceChange,
   type Position,
 } from 'reader-core'
-import { audioSource, bookId } from '../content/bundle'
+import { bookId } from '../content/bundle'
 import { markSceneRead, savedPosition, savePositionRecord, useMarks, useReadScenes } from '../data/reading'
 import MapScreen from '../map/MapScreen'
+import { useNarration } from '../narration/NarrationContext'
 import { goHome, onReaderRequest, takeReaderRequest, type ReaderRequest } from '../navigation'
 import { useSettings } from '../settings/SettingsContext'
 import ShareCardSheet from '../share/ShareCardSheet'
@@ -30,7 +30,6 @@ import EntityCard from './EntityCard'
 import MarkSheet from './MarkSheet'
 import ScenePane from './ScenePane'
 import SettingsSheet from './SettingsSheet'
-import { useNarration } from './useNarration'
 import VersePane from './VersePane'
 
 // entity의 back: 목차(연표)에서 연 카드면 닫을 때 목차로 돌아간다.
@@ -82,17 +81,16 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   const sceneIndex = findSceneIndex(chapter.scenes, position.verse)
   const scene = chapter.scenes[sceneIndex]!
   const verse = verseAt(bundle.chapters, position)
-  const audio = audioSource(verse?.audio)
   const route = useMemo(() => buildRoute(bundle.chapters, bundle.places, scene.id), [bundle, scene.id])
   const nextChapter = bundle.chapters.find((c) => c.chapter > chapter.chapter && c.verses.length > 0)?.chapter
 
-  // 한 절을 다 읽으면 다음 절(장의 끝이면 다음 장의 첫 절)로 넘어가 이어 읽는다.
-  const narration = useNarration(() => {
-    const next = nextPosition(bundle.chapters, position.chapter, position.verse)
-    if (!next) return null
-    setPosition(next)
-    return audioSource(verseAt(bundle.chapters, next)?.audio)
-  }, settings.speed)
+  const narration = useNarration()
+  // 낭독 중에는 읽는 절을 따라 본문과 장면을 옮긴다(장이 바뀌어도 따라간다).
+  useEffect(() => {
+    if (!narration.playing || narration.track === null || narration.verse === null) return
+    const next = { chapter: narration.track.chapter, verse: narration.verse }
+    setPosition((current) => (current.chapter === next.chapter && current.verse === next.verse ? current : next))
+  }, [narration.playing, narration.track, narration.verse])
 
   useEffect(() => {
     savePositionRecord(position)
@@ -141,13 +139,13 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   }, [overlay])
 
   function goToChapter(next: number) {
-    narration.stop()
+    narration.pause()
     const target = bundle.chapters.find((c) => c.chapter === next)
     if (target) setPosition(startOfChapter(target))
   }
 
   function jumpTo(next: Position) {
-    narration.stop()
+    narration.pause()
     setPosition(next)
     setJumpCount((count) => count + 1)
     closeOverlay()
@@ -185,8 +183,8 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   )
 
   function togglePlay() {
-    if (narration.playing) narration.stop()
-    else if (audio !== null) narration.play(audio)
+    if (narration.playing) narration.pause()
+    else narration.start(position)
   }
 
   const covered = overlay !== 'none'
@@ -208,7 +206,8 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           sceneCount={chapter.scenes.length}
           verse={verse}
           playing={narration.playing}
-          canPlay={audio !== null}
+          canPlay={scene.audio !== null}
+          onOpenPlayer={narration.track !== null ? () => router.push('/player') : undefined}
           onTogglePlay={togglePlay}
           onOpenMap={() => openOverlay('map')}
           onOpenSheet={() => openOverlay('sheet')}

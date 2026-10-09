@@ -28,6 +28,11 @@ export type IconName =
   | 'book'
   | 'check'
   | 'account'
+  | 'headphones'
+  | 'moon'
+  | 'previous'
+  | 'next'
+  | 'pauseBars'
 
 // 웹 목업(app/src/components/Icon.tsx)과 같은 선 아이콘
 const shapes: Record<IconName, ReactNode> = {
@@ -118,6 +123,17 @@ const shapes: Record<IconName, ReactNode> = {
       <Path d="M6.5 18.5a6.5 6.5 0 0 1 11 0" />
     </>
   ),
+  headphones: (
+    <>
+      <Path d="M4 15v-3a8 8 0 0 1 16 0v3" />
+      <Path d="M4 15h3v5H5a1 1 0 0 1-1-1zM20 15h-3v5h2a1 1 0 0 0 1-1z" />
+    </>
+  ),
+  moon: <Path d="M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z" />,
+  // 채워 쓰는 재생 조작(낭독 플레이어)
+  previous: <Path d="M6 5h2v14H6zM20 5v14L9 12z" />,
+  next: <Path d="M16 5h2v14h-2zM4 5v14l11-7z" />,
+  pauseBars: <Path d="M7 5h3v14H7zM14 5h3v14h-3z" />,
 }
 
 // filled: 안을 칠한다(즐겨찾기, 불꽃)
