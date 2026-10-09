@@ -1,5 +1,39 @@
 import type { BundleSource, Style } from '../schema.ts'
 
+// 출처 글에 적힌 이용 조건. 이름이 null이면 글에 적힌 대로(대문자로) 쓴다.
+const LICENSES: [RegExp, string | null][] = [
+  [/퍼블릭 도메인|public domain/i, '퍼블릭 도메인'],
+  [/\bCC0(?: 1\.0)?/i, 'CC0'],
+  [/\bCC BY(?:-SA)?(?: \d\.\d)?/i, null],
+]
+
+// "작가, 작품 (연도). 소장처. 퍼블릭 도메인. https://…" → 설명, 이용 조건, 주소
+function referenceSource(source: string, index: number): BundleSource {
+  const url = /https?:\/\/\S+/.exec(source)?.[0] ?? null
+  let detail = url === null ? source : source.replace(url, ' ')
+  let license = '출처에 적힌 대로'
+  for (const [pattern, name] of LICENSES) {
+    const match = pattern.exec(detail)
+    if (!match) continue
+    license = name ?? match[0].toUpperCase()
+    let start = match.index
+    let end = start + match[0].length
+    // 이용 조건 뒤의 마침표와 앞의 쉼표도 함께 뺀다.
+    if (/[.,;]/.test(detail[end] ?? '')) end++
+    const before = detail.slice(0, start).trimEnd()
+    if (before.endsWith(',')) start = before.length - 1
+    detail = detail.slice(0, start) + detail.slice(end)
+    break
+  }
+  return {
+    id: `reference-${index + 1}`,
+    title: '그림 참고 작품',
+    detail: detail.replace(/\s+/g, ' ').replace(/[\s,;]+$/, '').trim(),
+    license,
+    url,
+  }
+}
+
 // 앱의 자료 출처 화면에 보일 목록. 그림 참고 작품은 style.json의 출처에서 모은다.
 export function buildSources(style: Style | null): BundleSource[] {
   const references = [...new Set((style?.references ?? []).map((reference) => reference.source))]
@@ -40,13 +74,7 @@ export function buildSources(style: Style | null): BundleSource[] {
       license: '퍼블릭 도메인',
       url: 'https://www.naturalearthdata.com',
     },
-    ...references.map((source, index) => ({
-      id: `reference-${index + 1}`,
-      title: '그림 참고 작품',
-      detail: source,
-      license: '출처에 적힌 대로',
-      url: /https?:\/\/\S+/.exec(source)?.[0] ?? null,
-    })),
+    ...references.map((source, index) => referenceSource(source, index)),
     {
       id: 'ai',
       title: 'AI가 만든 것',
