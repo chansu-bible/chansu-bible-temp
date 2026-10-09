@@ -49,3 +49,52 @@ describe('RecordStore', () => {
     expect(calls).toBe(1)
   })
 })
+
+describe('동기화가 쓰는 기능', () => {
+  it('기기 시계가 늦어도 새로 고친 줄의 시각은 앞의 것보다 뒤다', () => {
+    const store = new RecordStore(memory())
+    store.put('marks', 'a', { note: '가' }, 1000)
+    store.put('marks', 'a', { note: '나' }, 500)
+    expect(store.getRow('marks', 'a')).toMatchObject({ data: { note: '나' }, updatedAt: 1001 })
+    store.remove('marks', 'a', 900)
+    expect(store.getRow('marks', 'a')).toMatchObject({ updatedAt: 1002, deletedAt: 1002 })
+  })
+
+  it('dirtyRows는 지운 줄을 포함해 아직 안 올린 줄만 준다', () => {
+    const store = new RecordStore(
+      memory([
+        { collection: 'marks', id: 'a', data: {}, updatedAt: 1, deletedAt: null, dirty: false },
+        { collection: 'marks', id: 'b', data: {}, updatedAt: 1, deletedAt: 2, dirty: true },
+      ]),
+    )
+    expect(store.dirtyRows().map((item) => item.id)).toEqual(['b'])
+  })
+
+  it('writeRows는 여러 줄을 한 번에 저장하고 구독자에게 한 번 알린다', () => {
+    const batches: RecordRow[][] = []
+    const store = new RecordStore({ ...memory(), saveMany: (rows) => void batches.push(rows) })
+    let calls = 0
+    store.subscribe(() => calls++)
+    const rows: RecordRow[] = [
+      { collection: 'marks', id: 'a', data: {}, updatedAt: 1, deletedAt: null, dirty: false },
+      { collection: 'marks', id: 'b', data: {}, updatedAt: 1, deletedAt: null, dirty: false },
+    ]
+    store.writeRows(rows)
+    expect(batches).toEqual([rows])
+    expect(calls).toBe(1)
+    expect(store.list('marks').map((item) => item.id)).toEqual(['a', 'b'])
+  })
+
+  it('clear는 모든 줄을 지우고 알린다', () => {
+    let cleared = 0
+    const store = new RecordStore({
+      ...memory([{ collection: 'marks', id: 'a', data: {}, updatedAt: 1, deletedAt: null, dirty: false }]),
+      clear: () => void cleared++,
+    })
+    let calls = 0
+    store.subscribe(() => calls++)
+    store.clear()
+    expect(store.rowsSnapshot()).toEqual([])
+    expect([cleared, calls]).toEqual([1, 1])
+  })
+})
