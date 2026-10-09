@@ -749,7 +749,7 @@ git commit -m "feat(pipeline): source 단계가 책마다 위키문헌 본문을
 ### Task 5: 설정집 참조에 책
 
 **Files:**
-- Modify: `pipeline/src/schema.ts`, `pipeline/src/canon/{validate,merge,files,prompt,runCanon}.ts`, 관련 시험
+- Modify: `pipeline/src/schema.ts`, `pipeline/src/canon/{validate,merge,files,prompt,runCanon}.ts`, `pipeline/src/build/buildBundle.ts`, `pipeline/src/scenario/prompt.ts`, `admin/test/fixtures.ts`, 관련 시험
 - Create: `pipeline/src/canon/migrateRefs.ts`, `pipeline/test/migrateRefs.test.ts`
 - Modify: `pipeline/src/cli.ts`(`migrate-canon-refs`), `pipeline/src/index.ts`
 - Data: `content/story-bible/{characters,places,eras,things,proposals}.json`
@@ -764,15 +764,15 @@ git commit -m "feat(pipeline): source 단계가 책마다 위키문헌 본문을
 // schema.ts
 // 설정집의 절 인용. "책 장:절" 또는 "책 장:절-절" (예: "genesis 1:26", "genesis 2:7-8")
 export const CitationSchema = z.string().refine((value) => parseRef(value)?.book != null, '절 인용은 "책 장:절" 모양이어야 합니다')
-// 모델 출력처럼 한 장 안의 인용(책 없음). 합칠 때 책을 붙인다.
-export const ChapterCitationSchema = z.string().regex(/^\d{1,3}:\d{1,3}(-\d{1,3})?$/)
 ```
+
+모델 출력 스키마의 인용은 지금처럼 그냥 문자열이다(합칠 때 책을 붙인다).
 
 - [ ] **Step 2: 검증**
 
 `validateCanon(canon, verseCounts: ReadonlyMap<BookId, readonly number[]>)`로 바꾼다. 인용마다 `parseRef`로 읽고, 책이 없거나 본문이 없는 책이거나 절 범위를 벗어나면 문제로 적는다. 시대 범위는 `compareRefs`로 앞뒤를 본다. `GENESIS_VERSE_COUNTS`를 지운다(`index.ts`에서도). 시험의 절 수는 `new Map([['genesis', [31, 25, 24, 26, 32, 22, 24, 22, 29, 32]]])`로 넘긴다.
 
-`canon/files.ts`의 `readCanon`은 `readVerseCounts()`를 읽어 넘긴다(옵션 `sourceDir`).
+`canon/files.ts`의 `readCanon`, `writeCanonKind`, `writeProposals`는 `readVerseCounts()`를 읽어 넘긴다(옵션 `sourceDir`). 다섯 파일을 한 번에 검증하고 쓰는 `writeCanon(canon, dir, { sourceDir })`을 더한다(하나라도 틀리면 아무것도 쓰지 않는다). `writeCanonKind`는 한 목록을 바꾼 뒤 설정집 전체를 검증하므로, 파일마다 쓰는 이전은 아직 옮기지 않은 파일에서 걸린다.
 
 - [ ] **Step 3: 합치기**
 
@@ -780,19 +780,25 @@ export const ChapterCitationSchema = z.string().regex(/^\d{1,3}:\d{1,3}(-\d{1,3}
 
 - [ ] **Step 4: 프롬프트**
 
-`buildCanonPrompt(book, chapter, canon)`: 기존 항목을 보여 줄 때 같은 책 참조는 `localRef`로 책을 떼고, 다른 책 참조는 `formatRef(ref, 'name')`(창세기 2:7)로 보인다. "창세기 1~10장 안의 절만 쓴다"는 "이 장(책 이름 N장) 안의 절만 장:절로 쓴다"로 바꾼다.
+`buildCanonPrompt(book, chapter, canon)`: 시스템 글의 "창세기 한 장을 읽고"는 "성경 한 장을 읽고", "창세기 1~10장 안의 절만 쓴다"는 "이 장 안의 절만 쓴다. 책 이름은 붙이지 않는다(코드가 붙인다)"로 바꾸고, 사용자 글의 머리는 `${책 이름} ${장}장`이다. 기존 항목 목록에는 인용이 없으므로 그대로다.
+
+- [ ] **Step 4b: 묶음과 장면 프롬프트에는 책 없는 인용**
+
+창세기 결과를 매 커밋 그대로 두려고, 설정집 인용을 밖으로 내는 두 곳은 책을 뗀다. `buildBundle`은 인물·시대·물건의 인용을 `localRef(text, book) ?? text`로 넣고(항목을 책으로 거르거나 다른 책 인용을 빼는 것은 Task 7), 장면 프롬프트의 `canonSummary`는 옷차림 절과 시대 범위를 `formatRef(ref, 'bare')`로 보인다(책 이름을 쓰는 것은 Task 6).
 
 - [ ] **Step 5: 이전 명령과 시험**
 
 ```ts
 // canon/migrateRefs.ts
 // 책 없는 설정집 인용("2:7")에 책을 붙인다. 이미 책이 있는 인용은 그대로 둔다. 바뀐 인용 수를 돌려준다.
-export function migrateCanonRefs(canon: Canon, proposals: Proposal[], book: BookId): { canon: Canon; proposals: Proposal[]; changed: number }
+// 제안(proposals)의 sources와, field에 따라 value 안의 인용(facts.firstAppearance, facts.sources, facts.attire, range)도 붙인다.
+// 읽을 수 없는 인용은 어디인지 적은 오류를 낸다.
+export function migrateCanonRefs(canon: Canon, book: BookId): { canon: Canon; changed: number }
 ```
 
-시험: `firstAppearance: '2:7'`, `sources: ['2:7-8', 'genesis 3:1']`, `attire: [{ from: '3:21' }]`, 시대 `range: { from: '1:1', to: '5:32' }`, 제안 `sources: ['4:1']`가 모두 `genesis …`가 되고 `changed`가 바뀐 수인지, 두 번 돌려도 그대로(`changed` 0)인지 본다.
+시험: `firstAppearance: '2:7'`, `sources: ['2:7-8', 'genesis 3:1']`, `attire: [{ from: '3:21' }]`, 시대 `range: { from: '1:1', to: '5:32' }`, 제안 `sources: ['4:1']`와 `field: 'facts.sources'`인 제안의 `value: ['2:8']`이 모두 `genesis …`가 되고 `changed`가 바뀐 수인지, 두 번 돌려도 그대로(`changed` 0)인지, 읽을 수 없는 인용은 오류인지 본다.
 
-CLI `migrate-canon-refs --book genesis`는 파일을 읽어(검증 없이 원시 JSON으로) 고친 뒤 `writeCanonKind`, `writeProposals`로 쓰고 바뀐 수를 찍는다. `--dry-run`이면 쓰지 않는다.
+CLI `migrate-canon-refs --book genesis`는 파일을 읽어(검증 없이 원시 JSON으로) 고친 뒤 `writeCanon`으로 한 번에 쓰고 바뀐 수를 찍는다. `--dry-run`이거나 바뀐 것이 없으면 쓰지 않는다.
 
 - [ ] **Step 6: 이전을 돌리고 확인**
 
@@ -802,7 +808,7 @@ npm run pipeline -- migrate-canon-refs --book genesis
 npm test -w pipeline
 ```
 
-Expected: 인용 수가 찍히고, 두 번째 실행 뒤 `content/story-bible/*.json`의 인용이 모두 `genesis …`이다. 시험 통과.
+Expected: 인용 수가 찍히고, 두 번째 실행 뒤 `content/story-bible/*.json`의 인용이 모두 `genesis …`이다. 세 번째 실행은 0개다. 바뀐 파일에서 `"genesis `를 `"`로 되돌리면 커밋된 파일과 바이트까지 같다(인용 말고는 바뀐 것이 없다). `build` 뒤 앱 콘텐츠 365개 파일이 Step 0의 기준과 같다. 시험 통과.
 
 - [ ] **Step 7: 커밋(코드와 자료를 나눈다)**
 
@@ -825,6 +831,7 @@ git commit -m "data(canon): 설정집 절 인용에 genesis를 붙임(migrate-ca
 프롬프트 함수가 책 이름을 받는다. 시스템 글의 "창세기 한 장"은 "성경 한 장", 사용자 글의 머리는 `${getBook(book).name} ${chapter}장`이다.
 - `buildScenarioPrompt(book, chapter, canon, style, examples)`, `buildRevisePrompt(book, …)`, `verseLines`는 그대로
 - `buildReviewTextPrompt(book, chapter, canon, style, scene)`
+- `canonSummary(canon, book)`: 옷차림 절과 시대 범위는 같은 책 인용이면 `localRef`(4:1), 다른 책이면 `formatRef(ref, 'name')`(창세기 4:1)로 보인다(Task 5까지는 모두 책 없이 보였다).
 - `buildQuizPrompt(book, chapter, scenes)`, `buildQuizReviewPrompt(book, chapter, questions)`
 - `glossPrompt.ts`: "창세기 1~10장의 쓰임에서"는 "이 앱에 있는 장의 쓰임에서". `runGloss`는 Task 3의 `EXAMPLE_BOOK`(창세기 고정)을 지우고, `original/` 안의 모든 책 원어 파일에서 예문을 모은다. 예문 머리는 `${책 이름} ${장}:${절}`이다.
 - `runScenario`의 예시 장면: 그 책에 쓴 장면이 아직 없으면(새 책의 첫 장) 다듬어 둔 창세기 2장 장면을 예시로 쓴다. 그 책에 장면이 있으면 지금처럼 그 책의 장면을 쓴다.
@@ -897,7 +904,7 @@ it('장면 파일이 없는 장의 대체 장면 id와 제목에 책을 쓴다',
 
 - [ ] **Step 2: 구현**
 
-- `buildBundle(book, source, sceneFiles, canon, audio, catalog, extras)`: 책을 인자로 받는다(Task 3까지는 `source.book`으로 찾았다). `bookId: book`을 넣고, `fallbackScene`은 `fallbackSceneIdOf(book, chapter)`와 `${getBook(book).name} ${chapter}장`. 설정집 항목은 `parseRef(firstAppearance)?.book === book`인 것만(시대는 `range.from`, 물건은 첫 `sources`) 넣고, 넣는 항목의 인용은 `localRef(text, book)`로 바꾸며 `null`(다른 책)은 뺀다.
+- `buildBundle(book, source, sceneFiles, canon, audio, catalog, extras)`: 책을 인자로 받는다(Task 3까지는 `source.book`으로 찾았다). `bookId: book`을 넣고, `fallbackScene`은 `fallbackSceneIdOf(book, chapter)`와 `${getBook(book).name} ${chapter}장`. 설정집 항목은 `parseRef(firstAppearance)?.book === book`인 것만(시대는 `range.from`, 물건은 첫 `sources`) 넣고, 넣는 항목의 인용은 `localRef(text, book)`로 바꾸며(Task 5에서 `?? text`로 넣어 두었다) `null`(다른 책)은 뺀다.
 - `writeBundles(books)`(Task 3에서 만든 것): 책마다 `buildBundle(book, …)`의 결과를 `<book>.json`으로 쓴다.
 - `buildSources(book, style)`: 개역한글판 출처를 책 이름으로 만든다.
 - `docs/content-bundle.md`: 맨 위 키 표에 `bookId`(책 id, `reader-core`의 `books.ts`)를 더한다.
