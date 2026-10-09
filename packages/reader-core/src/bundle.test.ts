@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fillMissing } from './bundle.ts'
+import { fillMissing, validateBundle } from './bundle.ts'
 import type { Bundle } from './types.ts'
 
 describe('fillMissing', () => {
@@ -34,5 +34,32 @@ describe('fillMissing', () => {
     expect(filled.things).toEqual([{ id: 'ark' }])
     expect(filled.chapters[0].verses[0].audioMs).toBe(1200)
     expect(filled.chapters[0].scenes[0].characters).toEqual(['adam'])
+  })
+})
+
+describe('묶음의 책', () => {
+  // bookId가 없는 옛 창세기 묶음
+  const oldBundle = {
+    schemaVersion: 1,
+    book: '창세기',
+    translation: '개역한글',
+    places: [],
+    imageVersions: [],
+    defaultImageVersion: null,
+    chapters: [{ chapter: 1, verses: [], scenes: [] }],
+  }
+
+  it('bookId가 없는 옛 묶음은 책 이름으로 책을 찾는다', () => {
+    const filled = fillMissing(validateBundle(oldBundle))
+    expect(filled.bookId).toBe('genesis')
+  })
+
+  it('책을 알 수 없는 묶음은 받지 않는다', () => {
+    expect(() => validateBundle({ ...oldBundle, book: '없는 책' })).toThrow('묶음의 책을 알 수 없습니다')
+  })
+
+  it('bookId가 있으면 그대로 쓴다', () => {
+    const exodus = { ...oldBundle, book: '출애굽기', bookId: 'exodus' }
+    expect(fillMissing(validateBundle(exodus)).bookId).toBe('exodus')
   })
 })

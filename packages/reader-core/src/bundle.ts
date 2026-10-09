@@ -1,3 +1,4 @@
+import { bookByName, findBook, type BookId } from './books.ts'
 import type { Bundle } from './types.ts'
 
 // 묶음 본체가 이 앱이 읽을 수 있는 형식인지 본다. 아니면 오류를 던진다. 형식은 docs/content-bundle.md에 있다.
@@ -6,13 +7,18 @@ export function validateBundle(value: unknown): Bundle {
   const bundle = value as Bundle
   if (bundle.schemaVersion !== 1) throw new Error(`묶음 형식이 다릅니다 (schemaVersion ${String(bundle.schemaVersion)})`)
   if (!Array.isArray(bundle.chapters) || bundle.chapters.length === 0) throw new Error('묶음에 장이 없습니다')
+  // bookId가 없는 옛 묶음은 book(한국어 이름)으로 책을 찾는다. 찾지 못하면 받지 않는다.
+  const bookId = typeof bundle.bookId === 'string' ? bundle.bookId : bookByName(bundle.book)?.id
+  if (!bookId || !findBook(bookId)) throw new Error('묶음의 책을 알 수 없습니다')
   return bundle
 }
 
 // 인물·시대·물건·낭독 길이·장면 낭독·원어·사전·퀴즈·출처는 나중에 더한 키라 옛 묶음에는 없다. 없으면 빈 값으로 채워 화면이 그대로 그려지게 한다.
+// 책 id(bookId)도 옛 묶음에는 없어서 book(한국어 이름)으로 찾아 채운다. 책을 받을 수 있는지는 validateBundle이 본다.
 export function fillMissing(bundle: Bundle): Bundle {
   return {
     ...bundle,
+    bookId: typeof bundle.bookId === 'string' ? bundle.bookId : (bookByName(bundle.book)?.id as BookId),
     characters: Array.isArray(bundle.characters) ? bundle.characters : [],
     eras: Array.isArray(bundle.eras) ? bundle.eras : [],
     things: Array.isArray(bundle.things) ? bundle.things : [],

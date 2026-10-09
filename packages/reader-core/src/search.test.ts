@@ -5,6 +5,7 @@ import type { Bundle } from './types.ts'
 const bundle = {
   schemaVersion: 1,
   book: '창세기',
+  bookId: 'genesis',
   translation: '개역한글',
   places: [{ id: 'eden', name: '에덴', description: '동방의 동산', estimated: true, lat: 31, lng: 47 }],
   characters: [

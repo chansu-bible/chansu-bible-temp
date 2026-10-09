@@ -1,3 +1,5 @@
+import type { BookId } from './books.ts'
+
 // audio: 사이트 루트 기준 절 낭독 파일 경로(예: content/audio/genesis-01-001.mp3). 없으면 null이다.
 // audioMs: 낭독 길이(ms). 옛 묶음에는 없어서 불러올 때 null로 채운다.
 export type Verse = { verse: number; text: string; audio: string | null; audioMs?: number | null }
@@ -106,6 +108,8 @@ export type Bundle = {
   // 묶음 형식 버전. 이 앱은 1만 읽는다. 형식은 docs/content-bundle.md에 있다.
   schemaVersion: number
   book: string
+  // 책 id(books.ts). 옛 묶음에는 없어서 불러올 때 book(한국어 이름)으로 채운다.
+  bookId: BookId
   translation: string
   places: Place[]
   // 옛 묶음에는 없어서 불러올 때 []로 채운다.

@@ -1,5 +1,6 @@
 import type { Character, Gloss, Place } from './types.ts'
 import { splitByGlosses } from './glossary.ts'
+import { chapterOfReference, verseOfReference } from './people.ts'
 
 export type Entity = { kind: 'character' | 'place'; id: string }
 
@@ -25,16 +26,6 @@ function atBoundary(text: string, start: number, end: number): boolean {
   return particles.some((particle) => text.startsWith(particle, end))
 }
 
-function chapterOf(reference: string): number {
-  const chapter = Number.parseInt(reference.split(':')[0] ?? '', 10)
-  return Number.isNaN(chapter) ? 0 : chapter
-}
-
-function verseOf(reference: string): number {
-  const verse = Number.parseInt(reference.split(':')[1] ?? '', 10)
-  return Number.isNaN(verse) ? 0 : verse
-}
-
 type Candidate = { name: string; entity: Entity }
 
 // 그 장에서 찾을 이름들. 인물은 이 장까지 처음 나온 인물만 넣고, 같은 이름이면 가장 늦게 처음 나온 인물을 고른다.
@@ -42,7 +33,7 @@ type Candidate = { name: string; entity: Entity }
 function candidatesFor(chapter: number, characters: Character[], places: Place[]): Candidate[] {
   const byName = new Map<string, Character>()
   for (const character of characters) {
-    if (!character.name || chapterOf(character.firstAppearance) > chapter) continue
+    if (!character.name || chapterOfReference(character.firstAppearance) > chapter) continue
     const chosen = byName.get(character.name)
     if (!chosen || compareAppearance(character, chosen) > 0) byName.set(character.name, character)
   }
@@ -58,8 +49,8 @@ function candidatesFor(chapter: number, characters: Character[], places: Place[]
 
 function compareAppearance(a: Character, b: Character): number {
   return (
-    chapterOf(a.firstAppearance) - chapterOf(b.firstAppearance) ||
-    verseOf(a.firstAppearance) - verseOf(b.firstAppearance)
+    chapterOfReference(a.firstAppearance) - chapterOfReference(b.firstAppearance) ||
+    verseOfReference(a.firstAppearance) - verseOfReference(b.firstAppearance)
   )
 }
 

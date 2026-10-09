@@ -5,7 +5,7 @@ const chapter = { chapter: 1, verses: [{ verse: 1, text: '태초에', audio: nul
 
 describe('validateBundle', () => {
   it('형식 버전이 1이고 장이 있으면 그대로 준다', () => {
-    const bundle = { schemaVersion: 1, chapters: [chapter] }
+    const bundle = { schemaVersion: 1, bookId: 'genesis', chapters: [chapter] }
     expect(validateBundle(bundle)).toBe(bundle)
   })
 

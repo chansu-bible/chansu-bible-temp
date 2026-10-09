@@ -1,3 +1,4 @@
+import { parseRef } from './refs.ts'
 import type { Character } from './types.ts'
 
 export type FamilyNode = { id: string; spouses: string[]; children: FamilyNode[] }
@@ -6,8 +7,8 @@ const CHILD_TYPES = new Set(['아들', '딸'])
 const SPOUSE_TYPES = new Set(['아내', '남편'])
 
 function appearance(character: Character): number {
-  const [chapter, verse] = character.firstAppearance.split(':').map((part) => Number.parseInt(part, 10))
-  return (Number.isNaN(chapter) || chapter === undefined ? 999 : chapter) * 1000 + (Number.isNaN(verse) || verse === undefined ? 0 : verse)
+  const ref = parseRef(character.firstAppearance)
+  return ref ? ref.chapter * 1000 + ref.verse : 999_000
 }
 
 // 부모·자식 관계로 가계 나무를 만든다. visible에 든 인물만 넣는다(아직 읽지 않은 장의 인물은 가린다).

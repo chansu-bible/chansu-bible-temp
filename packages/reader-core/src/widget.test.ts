@@ -22,6 +22,7 @@ const scene = (id: string, verseStart: number, verseEnd: number, title: string):
 const bundle = {
   schemaVersion: 1,
   book: '창세기',
+  bookId: 'genesis',
   translation: '개역한글',
   places: [],
   characters: [],
