@@ -10,7 +10,8 @@
     "ios": "expo start --ios",
     "content": "node scripts/sync-content.mjs",
     "basemap": "tsx scripts/build-basemap.mts",
-    "typecheck": "node scripts/sync-content.mjs && tsc --noEmit"
+    "typecheck": "node scripts/sync-content.mjs && tsc --noEmit",
+    "eas-build-post-install": "cd .. && npm run pipeline -- build && npm run content -w mobile"
   },
   "dependencies": {
     "@bacons/apple-targets": "^5.0.0",
@@ -22,6 +23,7 @@
     "expo-auth-session": "~57.0.14",
     "expo-constants": "~57.0.21",
     "expo-crypto": "~57.0.3",
+    "expo-dev-client": "~57.0.19",
     "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
     "expo-image": "~57.0.5",
