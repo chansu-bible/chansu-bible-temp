@@ -1,10 +1,11 @@
+import { getBook, type BookId } from 'reader-core'
 import { verseLines } from '../scenario/prompt.ts'
 import type { Scene, SourceChapter } from '../schema.ts'
 
 export type QuizPrompt = { system: string; user: string }
 export type QuizDraft = { question: string; options: string[]; answer: number; explanation: string; verse: number }
 
-const WRITE_SYSTEM = `너는 성경 읽기 앱의 이해 확인 문제를 쓰는 사람이다. 창세기 한 장을 다 읽은 독자에게 내는 4지선다 문제 다섯을 쓴다. 독자는 성경을 처음 읽는 한국어 사용자다.
+const WRITE_SYSTEM = `너는 성경 읽기 앱의 이해 확인 문제를 쓰는 사람이다. 성경 한 장을 다 읽은 독자에게 내는 4지선다 문제 다섯을 쓴다. 독자는 성경을 처음 읽는 한국어 사용자다.
 
 규칙:
 - 본문(개역한글)과 주어진 장면 해설에 있는 것만 묻는다. 본문 밖의 지식, 교파마다 다른 해석, 해설의 의견은 묻지 않는다.
@@ -15,7 +16,7 @@ const WRITE_SYSTEM = `너는 성경 읽기 앱의 이해 확인 문제를 쓰는
 - question은 "~나요?"로 끝나는 쉬운 말로 쓴다. explanation은 왜 그 답인지 두세 문장, "~해요" 체로 쓴다.
 - 한국어로 쓴다.`
 
-const REVIEW_SYSTEM = `너는 성경 읽기 앱의 이해 확인 문제를 검수한다. 창세기 한 장의 본문과, 작성 모델이 쓴 4지선다 문제들을 본다.
+const REVIEW_SYSTEM = `너는 성경 읽기 앱의 이해 확인 문제를 검수한다. 성경 한 장의 본문과, 작성 모델이 쓴 4지선다 문제들을 본다.
 
 문제마다 볼 것:
 1. 정답이 근거 절(verse)의 본문으로 확인되는가.
@@ -31,7 +32,7 @@ const REVIEW_SYSTEM = `너는 성경 읽기 앱의 이해 확인 문제를 검�
 - 한국어로 쓴다.`
 
 // 작성: 장 본문 전체와 검수된 장면 해설
-export function buildQuizPrompt(chapter: SourceChapter, scenes: Scene[]): QuizPrompt {
+export function buildQuizPrompt(book: BookId, chapter: SourceChapter, scenes: Scene[]): QuizPrompt {
   const sceneLines = scenes.flatMap((scene) => [
     `### 장면 "${scene.title}" (${chapter.chapter}:${scene.verseStart}~${scene.verseEnd})`,
     ...(scene.commentary ? [scene.commentary] : []),
@@ -39,7 +40,7 @@ export function buildQuizPrompt(chapter: SourceChapter, scenes: Scene[]): QuizPr
     '',
   ])
   const user = [
-    `창세기 ${chapter.chapter}장`,
+    `${getBook(book).name} ${chapter.chapter}장`,
     '',
     '## 본문',
     ...verseLines(chapter),
@@ -51,9 +52,9 @@ export function buildQuizPrompt(chapter: SourceChapter, scenes: Scene[]): QuizPr
 }
 
 // 검수: 장 본문 전체와 문제들(정답 표시)
-export function buildQuizReviewPrompt(chapter: SourceChapter, questions: QuizDraft[]): QuizPrompt {
+export function buildQuizReviewPrompt(book: BookId, chapter: SourceChapter, questions: QuizDraft[]): QuizPrompt {
   const user = [
-    `창세기 ${chapter.chapter}장`,
+    `${getBook(book).name} ${chapter.chapter}장`,
     '',
     '## 본문',
     ...verseLines(chapter),

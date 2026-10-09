@@ -109,7 +109,7 @@ export async function runReviewText(
       log('검수할 장면이 없습니다')
       return result
     }
-    const prompt = buildReviewTextPrompt(sourceChapter, canon, style, sceneFile.scenes[first]!)
+    const prompt = buildReviewTextPrompt(book, sourceChapter, canon, style, sceneFile.scenes[first]!)
     log('=== system ===')
     log(prompt.system)
     log('=== user ===')
@@ -142,7 +142,7 @@ export async function runReviewText(
         verdict = { verdict: 'fail', issues }
         log(`코드 검사 불합격 (${issues.length}개)`)
       } else {
-        const prompt = buildReviewTextPrompt(sourceChapter, canon, style, scene)
+        const prompt = buildReviewTextPrompt(book, sourceChapter, canon, style, scene)
         verdict = await reviewLlm.parse(TextVerdictSchema, { ...prompt, model: reviewerModel(), name: 'review_text' })
       }
 
@@ -157,7 +157,7 @@ export async function runReviewText(
       }
 
       log(`다시 쓰는 중 (${scene.review.attempts + 1}/${maxAttempts}): ${writerModel()}`)
-      const revisePrompt = buildRevisePrompt(sourceChapter, canon, style, scene, verdict.issues)
+      const revisePrompt = buildRevisePrompt(book, sourceChapter, canon, style, scene, verdict.issues)
       const output = await writeLlm.parse(ReviseOutputSchema, { ...revisePrompt, name: 'revise' })
       const revision = assembleRevision(sourceChapter, scene, output.scene, canon)
       for (const warning of revision.warnings) log(`경고: ${warning}`)

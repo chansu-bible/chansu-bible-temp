@@ -65,7 +65,7 @@ export async function runQuiz(
   const sourceChapter = await readSourceChapter(book, chapter, options.sourceDir ?? defaultSourceDir)
   const sceneFile = await readSceneFile(book, chapter, options.scenesDir ?? defaultScenesDir)
   const scenes = (sceneFile?.scenes ?? []).filter((scene) => scene.review.status === 'reviewed' || scene.review.status === 'approved')
-  const prompt = buildQuizPrompt(sourceChapter, scenes)
+  const prompt = buildQuizPrompt(book, sourceChapter, scenes)
   if (dryRun) {
     log(prompt.user)
     return { chapter, skipped: false, dryRun, written: 0, reviewed: 0, flagged: 0 }
@@ -82,7 +82,7 @@ export async function runQuiz(
     verse: question.verse,
   }))
   const review = await reviewer.parse(QuizReviewSchema, {
-    ...buildQuizReviewPrompt(sourceChapter, drafts),
+    ...buildQuizReviewPrompt(book, sourceChapter, drafts),
     name: 'quiz_review',
     model: reviewerModel(),
   })

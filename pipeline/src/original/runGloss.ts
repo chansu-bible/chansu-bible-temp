@@ -1,12 +1,17 @@
-import { readFile, writeFile } from 'node:fs/promises'
-import type { BookId } from 'reader-core'
+import { existsSync } from 'node:fs'
+import { readdir, readFile, writeFile } from 'node:fs/promises'
+import { bookOrder, findBook, getBook, type BookId } from 'reader-core'
 import { createLlm, type Llm } from '../llm/client.ts'
-import { lexiconFile as defaultLexiconFile, originalFilePath, sourceFilePath } from '../paths.ts'
-import { LexiconFileSchema, OriginalFileSchema, SourceSchema, type OriginalFile, type Source } from '../schema.ts'
+import {
+  lexiconFile as defaultLexiconFile,
+  originalDir as defaultOriginalDir,
+  originalFilePath,
+  sourceDir as defaultSourceDir,
+  sourceFilePath,
+} from '../paths.ts'
+import { LexiconFileSchema, OriginalFileSchema, type OriginalFile, type Source } from '../schema.ts'
+import { readSource } from '../source/files.ts'
 import { buildGlossPrompt, GlossOutputSchema } from './glossPrompt.ts'
-
-// 사전은 책을 가리지 않지만, 작성 모델에 보여 줄 예문은 아직 창세기 원어·본문에서 모은다.
-const EXAMPLE_BOOK: BookId = 'genesis'
 
 export type GlossOptions = {
   // 이번에 쓸 항목 수. 비우면 남은 것 모두
@@ -19,15 +24,26 @@ export type GlossOptions = {
   // 시험용
   llm?: Llm
   lexiconFile?: string
-  originalFile?: string
-  sourceFile?: string
+  // 예문을 모으는 원어 폴더(<책 id>.json)와 본문 폴더
+  originalDir?: string
+  sourceDir?: string
 }
 
 export type GlossResult = { selected: number; written: number; missing: string[]; dryRun: boolean }
 
-// 사전 항목마다 이 책에서 처음 나오는 절 둘의 개역한글 본문(작성 모델이 문맥을 보게)
-function examplesFor(original: OriginalFile, source: Source): Map<string, string[]> {
-  const examples = new Map<string, string[]>()
+// 원어 파일(<책 id>.json)이 있는 책을 성경 순서로 돌려준다. lexicon.json과 README.md처럼 책이 아닌 파일은 건너뛴다.
+async function originalBooks(dir: string): Promise<BookId[]> {
+  if (!existsSync(dir)) return []
+  const books = (await readdir(dir)).flatMap((name) => {
+    const book = name.endsWith('.json') ? findBook(name.slice(0, -'.json'.length)) : undefined
+    return book ? [book] : []
+  })
+  return books.sort((a, b) => bookOrder(a.id) - bookOrder(b.id)).map((book) => book.id)
+}
+
+// 한 책의 원어 낱말마다 그 낱말이 나온 절의 개역한글 본문을 예문으로 더한다. 번호마다 둘까지, 찾은 차례대로다.
+function addExamples(examples: Map<string, string[]>, book: BookId, original: OriginalFile, source: Source): void {
+  const { name } = getBook(book)
   for (const chapter of original.chapters) {
     const verses = source.chapters.find((item) => item.chapter === chapter.chapter)?.verses ?? []
     for (const verse of chapter.verses) {
@@ -36,11 +52,29 @@ function examplesFor(original: OriginalFile, source: Source): Map<string, string
       for (const word of verse.words) {
         if (!word.strong) continue
         const lines = examples.get(word.strong) ?? []
-        const line = `창세기 ${chapter.chapter}:${verse.verse} ${text}`
+        const line = `${name} ${chapter.chapter}:${verse.verse} ${text}`
         if (lines.length < 2 && !lines.includes(line)) lines.push(line)
         examples.set(word.strong, lines)
       }
     }
+  }
+}
+
+// 사전 항목마다 원어가 있는 책들에서 처음 나오는 절 둘의 개역한글 본문(작성 모델이 문맥을 보게). 성경 순서로 모으므로 앞 책의 절이 먼저다.
+// 원어는 있는데 본문이 없는 책은 오류 없이 예문에서 뺀다.
+async function collectExamples(
+  originalDir: string,
+  sourceDir: string,
+  log: (line: string) => void,
+): Promise<Map<string, string[]>> {
+  const examples = new Map<string, string[]>()
+  for (const book of await originalBooks(originalDir)) {
+    if (!existsSync(sourceFilePath(book, sourceDir))) {
+      log(`${getBook(book).name} 원어는 있지만 본문이 없어 예문에서 뺍니다`)
+      continue
+    }
+    const original = OriginalFileSchema.parse(JSON.parse(await readFile(originalFilePath(book, originalDir), 'utf8')))
+    addExamples(examples, book, original, await readSource(book, sourceDir))
   }
   return examples
 }
@@ -55,9 +89,7 @@ export async function runGloss(options: GlossOptions = {}, log: (line: string) =
     .slice(0, options.limit ?? Number.POSITIVE_INFINITY)
   if (options.dryRun || targets.length === 0) return { selected: targets.length, written: 0, missing: [], dryRun: options.dryRun === true }
 
-  const original = OriginalFileSchema.parse(JSON.parse(await readFile(options.originalFile ?? originalFilePath(EXAMPLE_BOOK), 'utf8')))
-  const source = SourceSchema.parse(JSON.parse(await readFile(options.sourceFile ?? sourceFilePath(EXAMPLE_BOOK), 'utf8')))
-  const examples = examplesFor(original, source)
+  const examples = await collectExamples(options.originalDir ?? defaultOriginalDir, options.sourceDir ?? defaultSourceDir, log)
   const llm = options.llm ?? createLlm({ stage: 'original-gloss', book: null, chapter: null, log })
   const batchSize = options.batchSize ?? 40
 

@@ -2,10 +2,14 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { approvedCanon } from '../src/canon/approved.ts'
 import type { Llm, ParseRequest } from '../src/llm/client.ts'
 import { listQuizChapters, readQuizFile, writeQuizFile } from '../src/quiz/files.ts'
+import { buildQuizPrompt, buildQuizReviewPrompt } from '../src/quiz/prompt.ts'
 import { runQuiz } from '../src/quiz/runQuiz.ts'
+import { assembleScenes } from '../src/scenario/assemble.ts'
 import { QuizQuestionSchema, type QuizFile, type QuizQuestion } from '../src/schema.ts'
+import { canon, chapter3, outScene } from './scenarioFixtures.ts'
 
 const source = {
   book: '창세기',
@@ -126,6 +130,67 @@ describe('runQuiz', () => {
     const saved = JSON.parse(await readFile(path.join(files.quizDir, 'exodus-04.json'), 'utf8')) as QuizFile
     expect(saved.questions.map((item) => item.id)).toEqual(['exodus-04-q1'])
     expect(await readQuizFile('genesis', 4, files.quizDir)).toBeNull()
+    // 쓰기와 검수 프롬프트 모두 그 책의 이름으로 시작한다.
+    expect(writer.requests[0]!.user.split('\n')[0]).toBe('출애굽기 4장')
+    expect(reviewer.requests[0]!.user.split('\n')[0]).toBe('출애굽기 4장')
+  })
+
+  it('dry-run이면 쓰기 프롬프트의 user만 출력하고 아무것도 쓰지 않는다', async () => {
+    const files = await setup()
+    await writeFile(path.join(files.sourceDir, 'exodus.json'), JSON.stringify({ ...source, book: '출애굽기' }))
+    const lines: string[] = []
+    const result = await runQuiz('exodus', 4, { ...files, dryRun: true }, (line) => lines.push(line))
+    expect(result).toMatchObject({ dryRun: true, skipped: false, written: 0 })
+    expect(lines).toHaveLength(1)
+    expect(lines[0]!.startsWith('출애굽기 4장\n\n## 본문\n4:1 아담이 그 아내 하와와 동침하매')).toBe(true)
+    expect(await readQuizFile('exodus', 4, files.quizDir)).toBeNull()
+  })
+})
+
+describe('퀴즈 프롬프트', () => {
+  const verses = [
+    '3:1 여호와 하나님의 지으신 들짐승 중에 뱀이 가장 간교하더라',
+    '3:2 여자가 뱀에게 말하되 동산 나무의 실과를 우리가 먹을 수 있으나',
+    '3:3 동산 중앙에 있는 나무의 실과는 하나님의 말씀에 너희는 먹지도 말고',
+    '3:4 뱀이 여자에게 이르되 너희가 결코 죽지 아니하리라',
+  ]
+  const [scene] = assembleScenes('genesis', chapter3, { scenes: [outScene()] }, approvedCanon(canon)).scenes
+  const drafts = [{ question: '뱀은 어떤 짐승이었나요?', options: ['간교한 짐승', '순한 짐승', '큰 짐승', '작은 짐승'], answer: 0, explanation: '간교하다고 해요.', verse: 1 }]
+
+  it('쓰기: 창세기로 부르면 책 이름을 붙이기 전과 같은 글이다', () => {
+    const empty = buildQuizPrompt('genesis', chapter3, [])
+    expect(empty.user).toBe(
+      ['창세기 3장', '', '## 본문', ...verses, '', '## 검수된 장면 해설', '(이 장에는 아직 검수된 해설이 없다. 본문에서만 낸다.)'].join('\n'),
+    )
+    const withScene = buildQuizPrompt('genesis', chapter3, [scene!])
+    expect(withScene.user).toBe(
+      ['창세기 3장', '', '## 본문', ...verses, '', '## 검수된 장면 해설', '### 장면 "간교한 뱀" (3:1~4)', '뱀이 여자에게 말을 걸어요.', ''].join('\n'),
+    )
+    expect(empty.system).toContain('성경 한 장을 다 읽은 독자에게 내는 4지선다 문제 다섯을 쓴다')
+    expect(empty.system).not.toContain('창세기')
+  })
+
+  it('쓰기: 다른 책이면 머리에 그 책 이름을 쓴다', () => {
+    const { system, user } = buildQuizPrompt('exodus', chapter3, [])
+    expect(user.split('\n').slice(0, 3)).toEqual(['출애굽기 3장', '', '## 본문'])
+    expect(user).not.toContain('창세기')
+    expect(system).toBe(buildQuizPrompt('genesis', chapter3, []).system)
+  })
+
+  it('검수: 창세기로 부르면 책 이름을 붙이기 전과 같은 글이다', () => {
+    const { system, user } = buildQuizReviewPrompt('genesis', chapter3, drafts)
+    expect(user).toBe(
+      ['창세기 3장', '', '## 본문', ...verses, '', '## 검수할 문제', '```json', JSON.stringify([{ index: 0, ...drafts[0] }], null, 2), '```'].join('\n'),
+    )
+    expect(system).toContain('성경 한 장의 본문과, 작성 모델이 쓴 4지선다 문제들을 본다')
+    expect(system).not.toContain('창세기')
+  })
+
+  it('검수: 다른 책이면 머리에 그 책 이름을 쓴다', () => {
+    const { system, user } = buildQuizReviewPrompt('exodus', chapter3, drafts)
+    expect(user.split('\n').slice(0, 3)).toEqual(['출애굽기 3장', '', '## 본문'])
+    expect(user).not.toContain('창세기')
+    expect(system).toBe(buildQuizReviewPrompt('genesis', chapter3, drafts).system)
   })
 })
 

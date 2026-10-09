@@ -189,6 +189,26 @@ describe('runReviewText', () => {
     expect(lines.join('\n')).not.toContain('genesis-03-02 "')
   })
 
+  it('다른 책이면 검수와 다시 쓰기 프롬프트 머리에 그 책 이름을 쓴다', async () => {
+    await writeFile(path.join(dir, 'exodus.json'), JSON.stringify({ ...source, book: '출애굽기' }), 'utf8')
+    const { scenes } = assembleScenes('exodus', chapter3, { scenes: [outScene({ verseEnd: 2 }), outScene({ verseStart: 3, glossary: [] })] }, approvedCanon(canon))
+    await writeSceneFile('exodus', { chapter: 3, scenes }, paths.scenesDir)
+
+    await runReviewText('exodus', 3, { ...paths, dryRun: true }, log)
+    expect(lines.join('\n')).toContain('출애굽기 3장, 검수할 장면 exodus-03-01 "간교한 뱀" (3:1~2)')
+
+    const reviewerCalls: ParseRequest[] = []
+    const writerCalls: ParseRequest[] = []
+    await runReviewText(
+      'exodus',
+      3,
+      { ...paths, sceneIds: ['exodus-03-01'], reviewer: fake([FAIL, PASS], reviewerCalls), writer: fake([revised], writerCalls) },
+      log,
+    )
+    expect(reviewerCalls[0]!.user.split('\n')[0]).toBe('출애굽기 3장, 검수할 장면 exodus-03-01 "간교한 뱀" (3:1~2)')
+    expect(writerCalls[0]!.user.split('\n')[0]).toBe('출애굽기 3장 (1~4절)')
+  })
+
   it('장면 파일이 없거나 없는 장면을 고르면 오류', async () => {
     await expect(runReviewText('genesis', 3, { ...paths, dryRun: true }, log)).rejects.toThrow('장면 파일이 없습니다')
     await saveScenes()

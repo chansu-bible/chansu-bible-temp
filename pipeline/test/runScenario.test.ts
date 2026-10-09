@@ -1,12 +1,17 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import type { BookId } from 'reader-core'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { approvedCanon } from '../src/canon/approved.ts'
 import type { Llm, ParseRequest } from '../src/llm/client.ts'
+import { sceneFilePath } from '../src/paths.ts'
+import { assembleScenes } from '../src/scenario/assemble.ts'
 import type { ScenarioOutput } from '../src/scenario/output.ts'
 import { runScenario } from '../src/scenario/runScenario.ts'
+import type { SourceChapter } from '../src/schema.ts'
 import { readSceneFile } from '../src/scenes/files.ts'
-import { outScene, source, storedCanon, style } from './scenarioFixtures.ts'
+import { canon, chapter3, outScene, source, storedCanon, style } from './scenarioFixtures.ts'
 
 describe('runScenario', () => {
   let dir: string
@@ -84,6 +89,89 @@ describe('runScenario', () => {
     expect(result.prompt.user).toContain('본보기1')
     expect(result.prompt.user).not.toContain('본보기2')
     expect(result.prompt.user).toContain('본보기3')
+  })
+
+  // 본보기 장면 파일을 쓴다. 장면 셋의 제목은 `${label}1`~`${label}3`이다.
+  async function writeExamples(book: BookId, chapter: number, label: string): Promise<void> {
+    const [scene] = assembleScenes('genesis', chapter3, { scenes: [outScene()] }, approvedCanon(canon)).scenes
+    const scenes = [1, 2, 3].map((n) => ({ ...scene!, id: `${book}-${chapter}-0${n}`, chapter, title: `${label}${n}` }))
+    await mkdir(paths.scenesDir, { recursive: true })
+    await writeFile(sceneFilePath(book, chapter, paths.scenesDir), JSON.stringify({ chapter, scenes }), 'utf8')
+  }
+
+  // 같은 폴더에 다른 책의 본문을 쓴다.
+  async function writeBookSource(book: BookId, name: string, chapters: SourceChapter[] = [chapter3]): Promise<void> {
+    await writeFile(path.join(dir, `${book}.json`), JSON.stringify({ ...source, book: name, chapters }), 'utf8')
+  }
+
+  const noExamples = '## 본보기 장면\n(없음)\n\n## 쓸 것'
+
+  it('그 책에 본보기로 볼 장면 파일이 없으면 창세기 2장 장면을 본보기로 쓴다', async () => {
+    await writeBookSource('exodus', '출애굽기')
+    const none = await runScenario('exodus', 3, { ...paths, dryRun: true }, log)
+    expect(none.prompt.user).toContain('출애굽기 3장 (1~4절)')
+    expect(none.prompt.user).toContain(noExamples)
+
+    await writeExamples('genesis', 2, '창세기 본보기')
+    const result = await runScenario('exodus', 3, { ...paths, dryRun: true }, log)
+    expect(result.prompt.user).toContain('출애굽기 3장 (1~4절)')
+    expect(result.prompt.user).toContain('"title": "창세기 본보기1"')
+    expect(result.prompt.user).not.toContain('"title": "창세기 본보기2"')
+    expect(result.prompt.user).toContain('"title": "창세기 본보기3"')
+  })
+
+  it('한 장뿐인 책(오바댜)에도 창세기 2장 장면을 본보기로 쓴다', async () => {
+    await writeBookSource('obadiah', '오바댜', [{ ...chapter3, chapter: 1 }])
+    await writeExamples('genesis', 2, '창세기 본보기')
+    const result = await runScenario('obadiah', 1, { ...paths, dryRun: true }, log)
+    expect(result.prompt.user).toContain('오바댜 1장 (1~4절)')
+    expect(result.prompt.user).toContain('"title": "창세기 본보기1"')
+  })
+
+  it('그 책에 2장 장면 파일이 있으면 창세기 2장 대신 그 파일을 쓴다', async () => {
+    await writeBookSource('exodus', '출애굽기')
+    await writeExamples('genesis', 2, '창세기 본보기')
+    await writeExamples('exodus', 2, '출애굽기 본보기')
+    const result = await runScenario('exodus', 3, { ...paths, dryRun: true }, log)
+    expect(result.prompt.user).toContain('"title": "출애굽기 본보기1"')
+    expect(result.prompt.user).toContain('"title": "출애굽기 본보기3"')
+    expect(result.prompt.user).not.toContain('창세기 본보기')
+  })
+
+  it('2장을 쓸 때는 그 책의 1장 파일을 쓰고, 없으면 창세기 2장 파일을 쓴다', async () => {
+    await writeBookSource('exodus', '출애굽기', [{ ...chapter3, chapter: 2 }])
+    await writeExamples('genesis', 2, '창세기 본보기')
+    const fallback = await runScenario('exodus', 2, { ...paths, dryRun: true }, log)
+    expect(fallback.prompt.user).toContain('"title": "창세기 본보기1"')
+
+    await writeExamples('exodus', 1, '출애굽기 본보기')
+    const own = await runScenario('exodus', 2, { ...paths, dryRun: true }, log)
+    expect(own.prompt.user).toContain('"title": "출애굽기 본보기1"')
+    expect(own.prompt.user).not.toContain('창세기 본보기')
+  })
+
+  it('창세기 2장을 쓸 때는 2장 파일을 본보기로 삼지 않고, 1장 파일이 있으면 그것을 쓴다', async () => {
+    await writeFile(path.join(dir, 'genesis.json'), JSON.stringify({ ...source, chapters: [{ ...chapter3, chapter: 2 }, chapter3] }), 'utf8')
+    await writeExamples('genesis', 2, '창세기 2장 본보기')
+    const none = await runScenario('genesis', 2, { ...paths, dryRun: true }, log)
+    expect(none.prompt.user).toContain(noExamples)
+
+    await writeExamples('genesis', 1, '창세기 1장 본보기')
+    const result = await runScenario('genesis', 2, { ...paths, dryRun: true }, log)
+    expect(result.prompt.user).toContain('"title": "창세기 1장 본보기1"')
+    expect(result.prompt.user).not.toContain('창세기 2장 본보기')
+  })
+
+  it('examplesFile을 주면 그 파일이 우선한다', async () => {
+    await writeBookSource('exodus', '출애굽기')
+    await writeExamples('genesis', 2, '창세기 본보기')
+    await writeExamples('exodus', 2, '출애굽기 본보기')
+    await writeExamples('exodus', 1, '지정한 본보기')
+    const examplesFile = sceneFilePath('exodus', 1, paths.scenesDir)
+    const result = await runScenario('exodus', 3, { ...paths, dryRun: true, examplesFile }, log)
+    expect(result.prompt.user).toContain('"title": "지정한 본보기1"')
+    expect(result.prompt.user).not.toContain('창세기 본보기')
+    expect(result.prompt.user).not.toContain('출애굽기 본보기')
   })
 
   it('장면 파일이 있으면 force 없이 덮어쓰지 않는다', async () => {

@@ -1,4 +1,4 @@
-import { formatRef, parseRef } from 'reader-core'
+import { formatRef, getBook, localRef, parseRef, type BookId } from 'reader-core'
 import type { Canon, Character, Scene, SourceChapter, Style } from '../schema.ts'
 import { toScenarioScene } from './output.ts'
 
@@ -9,11 +9,11 @@ const EXAMPLE_GLOSSARY_LIMIT = 6
 // 인물 메모는 앞에서 이만큼만 넣는다.
 const NOTES_LIMIT = 300
 
-const SYSTEM = `너는 성경 읽기 앱의 장면 작가다. 창세기 한 장을 읽고 장면으로 나눈 뒤, 장면마다 제목, 해설, 낱말 풀이, 역사 배경, 그림 지시를 쓴다.
+const SYSTEM = `너는 성경 읽기 앱의 장면 작가다. 성경 한 장을 읽고 장면으로 나눈 뒤, 장면마다 제목, 해설, 낱말 풀이, 역사 배경, 그림 지시를 쓴다.
 독자는 성경을 처음 읽는 한국어 사용자다. 앱은 본문 옆에 해설과 낱말 풀이를 보여 주고, 그림 지시로 장면마다 그림 한 장을 그린다. 쓴 글은 검수 모델과 사람이 다시 본다.
 
 규칙:
-1. 장면 나누기: 한 장을 보통 4~8개 장면으로 나눈다. 족보가 대부분인 장(5장, 10장)은 3~5개로 나눈다.
+1. 장면 나누기: 한 장을 보통 4~8개 장면으로 나눈다. 족보가 대부분인 장(창세기 5장, 10장 등)은 3~5개로 나눈다.
    절 범위는 1절에서 시작해 마지막 절까지 빠짐없이, 겹치지 않고 차례로 이어져야 한다(앞 장면의 verseEnd + 1이 다음 장면의 verseStart).
    한 장면은 한 사건이고, 그림 한 장으로 그릴 수 있는 단위다.
 2. 제목(title): 10자 안팎의 명사구. 예: "일곱째 날", "에덴 동산과 네 강".
@@ -29,7 +29,7 @@ const SYSTEM = `너는 성경 읽기 앱의 장면 작가다. 창세기 한 장�
    certainty는 "확실", "추정", "견해 갈림" 중 하나다. 근거보다 강하게 적지 않는다.
    연도, 거리, 크기 같은 수치를 지어내지 않는다. 수치를 쓰면 certainty를 "추정"이나 "견해 갈림"으로 두고, basis에 그 수치가 어떤 성격의 자료에서 나왔는지 적는다.
    sources에는 확실히 아는 문헌이나 URL만 넣고, 모르면 []로 둔다. 그럴듯한 출처를 지어내지 않는다.
-   예: 5장의 900년이 넘는 나이는 고대 근동 문헌(수메르 왕 명부)에 나오는 아주 긴 재위 기간과 견주어 설명하고, 이 숫자를 어떻게 읽을지는 견해가 갈린다고 적는다.
+   예: 창세기 5장의 900년이 넘는 나이는 고대 근동 문헌(수메르 왕 명부)에 나오는 아주 긴 재위 기간과 견주어 설명하고, 이 숫자를 어떻게 읽을지는 견해가 갈린다고 적는다.
 6. 그림 지시(visual.description): 한국어로, 그림에 보이는 것만 적는다. 생각, 감정, 뜻, 소리처럼 보이지 않는 것은 적지 않는다.
    그림은 손으로 그린 수채화다. 사람은 작고 멀리 두고, 수풀·그림자·뒷모습으로 가린다.
    하나님은 어떤 모습으로도 그리지 않는다(사람, 얼굴, 손, 빛나는 형체 모두 안 된다). 하나님이 말하거나 일하시는 장면은 그 결과나 듣는 사람 쪽을 그린다.
@@ -62,10 +62,13 @@ function verseCount(chapter: SourceChapter): number {
 
 const oneLine = (text: string) => text.replace(/\s*\n\s*/g, ' ').trim()
 
-// 설정집 인용("genesis 3:21")을 책 없이("3:21") 보인다. 읽을 수 없는 글은 그대로 둔다.
-function bareRef(text: string): string {
+// 설정집 인용("genesis 3:21")을 보인다. 이 책의 절이면 책 없이("3:21"), 다른 책의 절이면 책 이름을 붙여("창세기 3:21") 보인다.
+// 읽을 수 없는 글은 그대로 둔다.
+function refText(text: string, book: BookId): string {
+  const local = localRef(text, book)
+  if (local !== null) return local
   const ref = parseRef(text)
-  return ref ? formatRef(ref, 'bare') : text
+  return ref ? formatRef(ref, 'name') : text
 }
 
 function clip(text: string, limit: number): string {
@@ -87,7 +90,7 @@ function designLine(character: Character): string {
   return parts.length > 0 ? parts.join(' / ') : '정하지 않음'
 }
 
-function characterLines(character: Character): string[] {
+function characterLines(character: Character, book: BookId): string[] {
   const { facts } = character
   const aliases = character.aliases.length > 0 ? ` (별칭: ${character.aliases.join(', ')})` : ''
   const lines = [`- ${character.id} ${character.name}${aliases}, 성별 ${facts.gender}`]
@@ -95,7 +98,7 @@ function characterLines(character: Character): string[] {
     lines.push(`  관계: ${facts.relations.map((relation) => `${relation.type} ${relation.to}`).join(', ')}`)
   }
   if (facts.attire.length > 0) {
-    lines.push(`  옷차림: ${facts.attire.map((item) => `${bareRef(item.from)}부터 ${oneLine(item.description)}`).join(' / ')}`)
+    lines.push(`  옷차림: ${facts.attire.map((item) => `${refText(item.from, book)}부터 ${oneLine(item.description)}`).join(' / ')}`)
   }
   if (facts.notes.trim() !== '') lines.push(`  메모: ${clip(facts.notes, NOTES_LIMIT)}`)
   lines.push(`  외모: ${designLine(character)}`)
@@ -104,14 +107,14 @@ function characterLines(character: Character): string[] {
 
 const orNone = (lines: string[]) => (lines.length > 0 ? lines : ['(없음)'])
 
-// 승인된 설정집 요약. 장면 작성·다시 쓰기·검수가 같이 쓴다.
-export function canonSummary(canon: Canon): string {
+// 승인된 설정집 요약. 장면 작성·다시 쓰기·검수가 같이 쓴다. book은 지금 쓰는 책이고, 옷차림 절과 시대 범위의 인용을 보일 때 같은 책인지 가른다.
+export function canonSummary(canon: Canon, book: BookId): string {
   return [
     '## 승인된 설정집',
     '참조 id는 여기 있는 것만 쓴다.',
     '',
     '### 인물 (id 이름, 성별 / 관계: 관계 대상 id / 옷차림: 그 절부터 / 메모 / 외모)',
-    ...orNone(canon.characters.flatMap(characterLines)),
+    ...orNone(canon.characters.flatMap((character) => characterLines(character, book))),
     '',
     '### 장소 (id 이름: 설명)',
     ...orNone(canon.places.map((place) => `- ${place.id} ${place.name}: ${oneLine(place.facts.description)}`)),
@@ -119,7 +122,7 @@ export function canonSummary(canon: Canon): string {
     '### 시대 (id 이름 (절 범위) / 있는 것 / 없는 것)',
     ...orNone(
       canon.eras.flatMap((era) => [
-        `- ${era.id} ${era.name} (${bareRef(era.range.from)}~${bareRef(era.range.to)})`,
+        `- ${era.id} ${era.name} (${refText(era.range.from, book)}~${refText(era.range.to, book)})`,
         `  있는 것: ${era.facts.present.join(', ') || '(적힌 것 없음)'}`,
         `  없는 것: ${era.facts.absent.join(', ') || '(적힌 것 없음)'}`,
       ]),
@@ -134,23 +137,29 @@ export function styleSection(style: Style): string {
   return ['## 표현 기준 (그림 모델에 함께 보내는 규칙)', style.promptRules].join('\n')
 }
 
-function chapterHeader(chapter: SourceChapter): string {
-  return `창세기 ${chapter.chapter}장 (1~${verseCount(chapter)}절)`
+function chapterHeader(book: BookId, chapter: SourceChapter): string {
+  return `${getBook(book).name} ${chapter.chapter}장 (1~${verseCount(chapter)}절)`
 }
 
 const json = (value: unknown) => ['```json', JSON.stringify(value, null, 2), '```'].join('\n')
 
-// scenario 단계 프롬프트. user에는 장 번호, 절 번호가 붙은 본문 전체, 승인된 설정집 요약, 표현 기준, 본보기 장면이 들어간다.
+// scenario 단계 프롬프트. user에는 책 이름과 장 번호, 절 번호가 붙은 본문 전체, 승인된 설정집 요약, 표현 기준, 본보기 장면이 들어간다.
 // canon은 승인된 항목만 넘긴다. examples는 말투와 형식의 본보기로 넣을 기존 장면이다.
-export function buildScenarioPrompt(chapter: SourceChapter, canon: Canon, style: Style, examples: Scene[]): ScenarioPrompt {
+export function buildScenarioPrompt(
+  book: BookId,
+  chapter: SourceChapter,
+  canon: Canon,
+  style: Style,
+  examples: Scene[],
+): ScenarioPrompt {
   const last = verseCount(chapter)
   const user = [
-    chapterHeader(chapter),
+    chapterHeader(book, chapter),
     '',
     '## 본문',
     ...verseLines(chapter),
     '',
-    canonSummary(canon),
+    canonSummary(canon, book),
     '',
     styleSection(style),
     '',
@@ -164,13 +173,14 @@ export function buildScenarioPrompt(chapter: SourceChapter, canon: Canon, style:
       : ['(없음)']),
     '',
     '## 쓸 것',
-    `창세기 ${chapter.chapter}장 전체를 장면으로 나눠 scenes 배열로 낸다. 첫 장면은 ${chapter.chapter}:1에서 시작하고 마지막 장면은 ${chapter.chapter}:${last}에서 끝난다.`,
+    `${getBook(book).name} ${chapter.chapter}장 전체를 장면으로 나눠 scenes 배열로 낸다. 첫 장면은 ${chapter.chapter}:1에서 시작하고 마지막 장면은 ${chapter.chapter}:${last}에서 끝난다.`,
   ].join('\n')
   return { system: SYSTEM, user }
 }
 
 // 다시 쓰기 프롬프트. 장면 하나와 검수 지적 사항을 주고 그 장면만 고쳐 쓰게 한다.
 export function buildRevisePrompt(
+  book: BookId,
   chapter: SourceChapter,
   canon: Canon,
   style: Style,
@@ -179,12 +189,12 @@ export function buildRevisePrompt(
 ): ScenarioPrompt {
   const range = `${chapter.chapter}:${scene.verseStart}~${scene.verseEnd}`
   const user = [
-    chapterHeader(chapter),
+    chapterHeader(book, chapter),
     '',
     '## 본문',
     ...verseLines(chapter),
     '',
-    canonSummary(canon),
+    canonSummary(canon, book),
     '',
     styleSection(style),
     '',

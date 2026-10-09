@@ -30,7 +30,7 @@ export type ScenarioRunOptions = {
   sourceDir?: string
   scenesDir?: string
   styleFile?: string
-  // 본보기 장면 파일이다. 비우면 장면 폴더에 있는 그 책의 2장 파일(2장을 쓸 때는 1장 파일)을 쓴다.
+  // 본보기 장면 파일이다. 비우면 장면 폴더에 있는 그 책의 2장 파일(2장을 쓸 때는 1장 파일)을 쓰고, 그 책에 없으면 창세기 2장 파일을 쓴다.
   examplesFile?: string
 }
 
@@ -47,6 +47,15 @@ async function readExamples(file: string | null): Promise<Scene[]> {
   if (file === null || !existsSync(file)) return []
   const sceneFile = SceneFileSchema.parse(JSON.parse(await readFile(file, 'utf8')))
   return [sceneFile.scenes[0], sceneFile.scenes[2]].filter((scene): scene is Scene => scene !== undefined)
+}
+
+// 본보기로 볼 장면 파일: 그 책의 2장(2장을 쓸 때는 1장) 파일이 있으면 그것이다.
+// 그 책에 아직 없으면(새 책의 첫 장, 한 장뿐인 책) 다듬어 둔 창세기 2장 파일이다. 창세기 2장을 쓸 때는 자기 자신을 본보기로 삼지 않는다.
+function defaultExamplesFile(book: BookId, chapter: number, scenesDir: string): string | null {
+  const exampleChapter = chapter === 2 ? 1 : 2
+  const own = hasChapter(book, exampleChapter) ? sceneFilePath(book, exampleChapter, scenesDir) : null
+  if (own !== null && existsSync(own)) return own
+  return book === 'genesis' && chapter === 2 ? null : sceneFilePath('genesis', 2, scenesDir)
 }
 
 function rangeLabel(scene: Scene): string {
@@ -79,11 +88,8 @@ export async function runScenario(
 
   const canon = approvedCanon(await readCanon(storyBibleDir, { sourceDir }))
   const style = await readStyle(styleFile, { requireFiles: false })
-  // 한 장뿐인 책(오바댜 등)에는 본보기로 볼 다른 장이 없다.
-  const exampleChapter = chapter === 2 ? 1 : 2
-  const defaultExamples = hasChapter(book, exampleChapter) ? sceneFilePath(book, exampleChapter, scenesDir) : null
-  const examples = await readExamples(examplesFile ?? defaultExamples)
-  const prompt = buildScenarioPrompt(sourceChapter, canon, style, examples)
+  const examples = await readExamples(examplesFile ?? defaultExamplesFile(book, chapter, scenesDir))
+  const prompt = buildScenarioPrompt(book, sourceChapter, canon, style, examples)
 
   if (dryRun) {
     log('=== system ===')
