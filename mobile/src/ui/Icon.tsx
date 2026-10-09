@@ -27,6 +27,7 @@ export type IconName =
   | 'tree'
   | 'book'
   | 'check'
+  | 'account'
 
 // 웹 목업(app/src/components/Icon.tsx)과 같은 선 아이콘
 const shapes: Record<IconName, ReactNode> = {
@@ -110,6 +111,13 @@ const shapes: Record<IconName, ReactNode> = {
     </>
   ),
   check: <Path d="M4 12l5 5L20 6" />,
+  account: (
+    <>
+      <Circle cx={12} cy={12} r={9} />
+      <Circle cx={12} cy={10} r={3} />
+      <Path d="M6.5 18.5a6.5 6.5 0 0 1 11 0" />
+    </>
+  ),
 }
 
 // filled: 안을 칠한다(즐겨찾기, 불꽃)

@@ -5,7 +5,9 @@ import { useEffect } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { AuthProvider } from '../auth/AuthContext'
 import { SettingsProvider, useSettings } from '../settings/SettingsContext'
+import { SyncProvider } from '../sync/SyncContext'
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({ NanumMyeongjo_400Regular, NanumMyeongjo_700Bold })
@@ -22,7 +24,11 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <SettingsProvider>
-          <Frame />
+          <AuthProvider>
+            <SyncProvider>
+              <Frame />
+            </SyncProvider>
+          </AuthProvider>
         </SettingsProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

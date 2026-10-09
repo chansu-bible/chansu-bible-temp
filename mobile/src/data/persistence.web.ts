@@ -13,19 +13,39 @@ function read(): RecordRow[] {
   }
 }
 
+function put(row: RecordRow): void {
+  const index = rows.findIndex((item) => item.collection === row.collection && item.id === row.id)
+  if (index >= 0) rows[index] = row
+  else rows.push(row)
+}
+
+function flush(): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(rows))
+  } catch {
+    // 저장소를 쓸 수 없는 환경에서는 이번 세션 동안만 기억한다.
+  }
+}
+
 export const persistence: Persistence = {
   load: () => {
     rows = read()
     return rows
   },
   save: (row) => {
-    const index = rows.findIndex((item) => item.collection === row.collection && item.id === row.id)
-    if (index >= 0) rows[index] = row
-    else rows.push(row)
+    put(row)
+    flush()
+  },
+  saveMany: (many) => {
+    for (const row of many) put(row)
+    flush()
+  },
+  clear: () => {
+    rows = []
     try {
-      localStorage.setItem(key, JSON.stringify(rows))
+      localStorage.removeItem(key)
     } catch {
-      // 저장소를 쓸 수 없는 환경에서는 이번 세션 동안만 기억한다.
+      // 위와 같다.
     }
   },
 }

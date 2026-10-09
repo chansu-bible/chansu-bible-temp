@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { MARK_COLORS, type MarkColor, type Verse } from 'reader-core'
+import { useAuth } from '../auth/AuthContext'
 import { getMark, saveMark } from '../data/reading'
 import { useSettings } from '../settings/SettingsContext'
 import { fonts, markColor } from '../theme/palette'
@@ -21,6 +22,7 @@ type Props = {
 // 절을 길게 눌러 여는 밑줄·메모·즐겨찾기 시트. 저장을 눌러야 바뀐다.
 export default function MarkSheet({ book, chapter, verse, onShare, onClose }: Props) {
   const { palette } = useSettings()
+  const signedIn = useAuth().state.status === 'signedIn'
   const existing = getMark(book, chapter, verse.verse)
   const [color, setColor] = useState<MarkColor | null>(existing?.color ?? null)
   const [note, setNote] = useState(existing?.note ?? '')
@@ -98,7 +100,9 @@ export default function MarkSheet({ book, chapter, verse, onShare, onClose }: Pr
       </View>
 
       <Text style={[sheetStyles.note, { color: palette.inkFaint }]}>
-        이 기기에 저장돼요. 로그인하면 다른 기기에서도 같은 메모를 볼 수 있어요.
+        {signedIn
+          ? '계정에 저장돼 다른 기기에서도 같은 메모를 봐요.'
+          : '이 기기에 저장돼요. 로그인하면 다른 기기에서도 같은 메모를 볼 수 있어요.'}
       </Text>
     </Sheet>
   )

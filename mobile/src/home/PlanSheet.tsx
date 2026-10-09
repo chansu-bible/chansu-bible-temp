@@ -1,5 +1,6 @@
 import { Text } from 'react-native'
 import { PER_DAY_CHOICES, type PlanKind, type ReadingPlan } from 'reader-core'
+import { useAuth } from '../auth/AuthContext'
 import { useSettings } from '../settings/SettingsContext'
 import { Segments, type SegmentOption } from '../ui/Segments'
 import { Sheet } from '../ui/Sheet'
@@ -15,6 +16,7 @@ const perDayOptions: SegmentOption<number>[] = PER_DAY_CHOICES.map((count) => ({
 
 export default function PlanSheet({ plan, onChange, onClose }: { plan: ReadingPlan; onChange: (plan: ReadingPlan) => void; onClose: () => void }) {
   const { palette } = useSettings()
+  const signedIn = useAuth().state.status === 'signedIn'
   return (
     <Sheet title="읽기 계획" closeLabel="읽기 계획 닫기" onClose={onClose}>
       <Segments label="계획" options={kindOptions} value={plan.kind} onChange={(kind) => onChange({ ...plan, kind })} />
@@ -22,7 +24,8 @@ export default function PlanSheet({ plan, onChange, onClose }: { plan: ReadingPl
         <Segments label="하루 장면 수" options={perDayOptions} value={plan.perDay} onChange={(perDay) => onChange({ ...plan, perDay })} />
       )}
       <Text style={[sheetStyles.note, { color: palette.inkFaint }]}>
-        오늘 읽을 곳과 남은 날은 읽은 장면으로 셉니다. 하루 동안은 오늘 분량이 바뀌지 않아요. 계획은 이 기기에 저장되고, 로그인하면 다른 기기와 같아져요.
+        오늘 읽을 곳과 남은 날은 읽은 장면으로 셉니다. 하루 동안은 오늘 분량이 바뀌지 않아요.{' '}
+        {signedIn ? '계획은 계정에 저장돼 다른 기기와 같아요.' : '계획은 이 기기에 저장되고, 로그인하면 다른 기기와 같아져요.'}
       </Text>
     </Sheet>
   )

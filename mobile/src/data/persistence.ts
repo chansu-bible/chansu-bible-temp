@@ -9,6 +9,13 @@ db.execSync(
 
 type Row = { collection: string; id: string; data: string; updated_at: number; deleted_at: number | null; dirty: number }
 
+function save(row: RecordRow): void {
+  db.runSync(
+    'INSERT OR REPLACE INTO records (collection, id, data, updated_at, deleted_at, dirty) VALUES (?, ?, ?, ?, ?, ?)',
+    [row.collection, row.id, JSON.stringify(row.data), row.updatedAt, row.deletedAt, row.dirty ? 1 : 0],
+  )
+}
+
 export const persistence: Persistence = {
   load: () =>
     db.getAllSync<Row>('SELECT collection, id, data, updated_at, deleted_at, dirty FROM records').map(
@@ -21,10 +28,14 @@ export const persistence: Persistence = {
         dirty: row.dirty === 1,
       }),
     ),
-  save: (row) => {
-    db.runSync(
-      'INSERT OR REPLACE INTO records (collection, id, data, updated_at, deleted_at, dirty) VALUES (?, ?, ?, ?, ?, ?)',
-      [row.collection, row.id, JSON.stringify(row.data), row.updatedAt, row.deletedAt, row.dirty ? 1 : 0],
-    )
+  save,
+  // 동기화로 받은 여러 줄은 트랜잭션 하나로 쓴다(줄마다 디스크에 쓰지 않게).
+  saveMany: (rows) => {
+    db.withTransactionSync(() => {
+      for (const row of rows) save(row)
+    })
+  },
+  clear: () => {
+    db.runSync('DELETE FROM records')
   },
 }

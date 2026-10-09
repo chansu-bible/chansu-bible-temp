@@ -24,12 +24,14 @@ import {
   type PlanSummary,
   type ReadingPlan,
 } from 'reader-core'
+import { useAuth } from '../auth/AuthContext'
 import { imageSource } from '../content/bundle'
 import { savePlan, useMarks, usePlan, useReadScenes, useSavedPosition } from '../data/reading'
 import { goToReader } from '../navigation'
 import { useSettings } from '../settings/SettingsContext'
 import { fonts, placeholderColors, type Palette } from '../theme/palette'
 import Icon, { type IconName } from '../ui/Icon'
+import { IconButton } from '../ui/IconButton'
 import PlanSheet from './PlanSheet'
 
 // 앱 첫 화면: 오늘의 읽기, 이어 읽기, 계획 진도, 바로 가기
@@ -38,6 +40,7 @@ export default function HomeScreen({ bundle }: { bundle: Bundle }) {
   const { palette } = useSettings()
   const insets = useSafeAreaInsets()
   const [planOpen, setPlanOpen] = useState(false)
+  const signedIn = useAuth().state.status === 'signedIn'
   const now = new Date()
   const today = localDay(now)
   const { ids: readIds, days } = useReadScenes()
@@ -93,12 +96,20 @@ export default function HomeScreen({ bundle }: { bundle: Bundle }) {
               오늘의 읽기
             </Text>
           </View>
-          {streak > 0 && (
-            <View style={[styles.streak, { backgroundColor: palette.warnSoft }]} accessibilityLabel={`연속 ${streak}일째 읽는 중`}>
-              <Icon name="flame" size={14} color={palette.warn} filled />
-              <Text style={[styles.streakText, { color: palette.warn }]}>{streak}일째</Text>
-            </View>
-          )}
+          <View style={styles.headerSide}>
+            {streak > 0 && (
+              <View style={[styles.streak, { backgroundColor: palette.warnSoft }]} accessibilityLabel={`연속 ${streak}일째 읽는 중`}>
+                <Icon name="flame" size={14} color={palette.warn} filled />
+                <Text style={[styles.streakText, { color: palette.warn }]}>{streak}일째</Text>
+              </View>
+            )}
+            <IconButton
+              name="account"
+              label={signedIn ? '계정과 동기화' : '로그인'}
+              color={signedIn ? palette.accent : palette.inkSoft}
+              onPress={() => router.push('/account')}
+            />
+          </View>
         </View>
 
         <Pressable
@@ -207,6 +218,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, gap: 16 },
   header: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
   headerText: { gap: 2 },
+  headerSide: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   date: { fontSize: 13 },
   heading: { fontFamily: fonts.serifBold, fontSize: 24 },
   streak: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },

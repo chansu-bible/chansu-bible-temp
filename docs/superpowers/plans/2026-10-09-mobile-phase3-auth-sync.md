@@ -18,6 +18,11 @@
 - 기기에서 고친 시각은 그 줄이 이미 가진 시각보다 늘 뒤로 둔다. 기기 시계가 늦어도 새로 고친 것이 이긴다.
 - 서버는 같은 사용자의 동기화를 차례로 처리한다(사용자별 잠금). 순번을 받아 간 뒤 그보다 앞 순번이 늦게 쓰여 빠지는 일이 없다.
 - 앱은 한 번에 500줄씩 나눠 올린다(서버 한도). 받은 줄은 한 번에 쓴다(SQLite 트랜잭션 하나, 구독자 알림 한 번).
+- (확인하며 바꿈) Expo 웹은 로그인 창을 팝업이 아니라 같은 창에서 연다. 팝업을 막거나 지원하지 않는 브라우저(앱의 미리 보기 창 포함)에서는 팝업 방식이 결과를 받지 못했다. 떠나기 전에 PKCE 검증값을 sessionStorage에 두고, `/auth`로 돌아오면 코드를 토큰으로 바꾼다. 앱(iOS, 안드로이드)은 그대로 앱 안 브라우저(promptAsync)를 쓴다.
+- (확인하며 바꿈) 지운 기록은 내용을 비운다(`data: null`). 지웠다는 것만 알리면 되므로 지운 메모의 글이 서버에 남지 않는다.
+- (확인하며 바꿈) 마지막으로 맞춘 때를 기기에 남긴다. 다른 날이면 날짜도 보인다.
+- (확인하며 바꿈) 밑줄·메모 시트와 계획 시트의 안내 글이 로그인 상태를 따른다("이 기기에 저장돼요…" / "계정에 저장돼…").
+- (확인하며 바꿈) `mobile/scripts/sync-content.mjs`는 바뀐 파일만 복사하고 필요 없어진 파일만 지운다. 형 검사가 먼저 이 스크립트를 부르는데, 모두 지우고 다시 복사하면 떠 있는 Metro가 파일을 잠깐 못 찾았다.
 
 **코드 블록 표기:** 정보 문자열에 `path=`가 붙은 코드 블록은 그 파일의 전체 내용이다. 백틱 네 개로 연 블록은 안에 코드 블록을 품는다.
 
@@ -458,7 +463,8 @@ export class RecordStore {
     const existing = this.rows.get(keyOf(collection, id))
     if (!existing || existing.deletedAt !== null) return
     const at = this.stamp(collection, id, now)
-    this.write([{ ...existing, updatedAt: at, deletedAt: at, dirty: true }])
+    // 지운 줄은 지웠다는 것만 알리면 되므로 내용(메모 등)은 남기지 않는다.
+    this.write([{ ...existing, data: null, updatedAt: at, deletedAt: at, dirty: true }])
   }
 
   // 아래는 동기화가 쓴다.
@@ -1188,8 +1194,8 @@ git commit -m "feat(server): 기록 동기화 서버(Hono, 키클락 토큰 검�
 ### Task 4: 앱 로그인과 동기화
 
 **Files:**
-- Create: `mobile/src/auth/{config.ts,tokenStore.ts,tokenStore.web.ts,jwt.ts,AuthContext.tsx}`, `mobile/src/sync/{syncOnce.ts,SyncContext.tsx}`, `mobile/src/account/AccountScreen.tsx`, `mobile/src/app/{account,auth}.tsx`
-- Modify: `mobile/src/data/persistence.ts`·`persistence.web.ts`(전체), `mobile/src/app/_layout.tsx`, `mobile/src/home/HomeScreen.tsx`, `mobile/src/ui/Icon.tsx`
+- Create: `mobile/src/auth/{config.ts,tokenStore.ts,tokenStore.web.ts,jwt.ts,redirect.ts,redirect.web.ts,AuthContext.tsx}`, `mobile/src/sync/{syncOnce.ts,SyncContext.tsx}`, `mobile/src/account/AccountScreen.tsx`, `mobile/src/app/{account,auth}.tsx`
+- Modify: `mobile/src/data/persistence.ts`·`persistence.web.ts`(전체), `mobile/src/app/_layout.tsx`, `mobile/src/home/HomeScreen.tsx`, `mobile/src/ui/Icon.tsx`, `mobile/src/reader/MarkSheet.tsx`, `mobile/src/home/PlanSheet.tsx`, `mobile/scripts/sync-content.mjs`
 
 - [ ] **Step 1: 모듈 설치**
 
@@ -1263,19 +1269,64 @@ export function readClaims(token: string): TokenClaims | null {
 }
 ```
 
+웹은 로그인 창을 같은 창에서 열고 돌아온다. 앱에는 이 일이 없다.
+
+```ts path=mobile/src/auth/redirect.ts
+// 앱(iOS, 안드로이드)은 로그인 창을 앱 안 브라우저로 열고 결과를 바로 받는다(promptAsync). 웹만 쓰는 창 이동은 없다.
+// 웹은 redirect.web.ts를 쓴다.
+export type ReturnedLogin = { code: string; codeVerifier: string; redirectUri: string } | { error: string }
+
+export const webRedirect = {
+  supported: false,
+  start(_url: string, _pending: { state: string; codeVerifier: string; redirectUri: string }): void {
+    // 앱에서는 부르지 않는다.
+  },
+  take(): ReturnedLogin | null {
+    return null
+  },
+}
+```
+
+```ts path=mobile/src/auth/redirect.web.ts
+import type { ReturnedLogin } from './redirect'
+
+// Expo 웹: 로그인 창을 팝업이 아니라 이 창에서 연다(팝업 차단이나, 팝업을 지원하지 않는 미리 보기 창에서도 되게).
+// 떠나기 전에 PKCE 검증값을 sessionStorage에 두고, /auth로 돌아오면 꺼내 코드를 토큰으로 바꾼다.
+const key = 'auth-pending'
+
+type Pending = { state: string; codeVerifier: string; redirectUri: string }
+
+export const webRedirect = {
+  supported: true,
+  start(url: string, pending: Pending): void {
+    sessionStorage.setItem(key, JSON.stringify(pending))
+    window.location.assign(url)
+  },
+  // 로그인 창에서 돌아왔으면 코드와 검증값을 꺼낸다(한 번만). 돌아온 것이 아니면 null.
+  take(): ReturnedLogin | null {
+    const params = new URLSearchParams(window.location.search)
+    const saved = sessionStorage.getItem(key)
+    if (saved === null || (!params.has('code') && !params.has('error'))) return null
+    sessionStorage.removeItem(key)
+    const pending = JSON.parse(saved) as Pending
+    // 이 창에서 시작한 로그인의 응답인지 state로 확인한다.
+    if (params.get('state') !== pending.state) return { error: 'state_mismatch' }
+    const error = params.get('error')
+    if (error !== null) return { error }
+    return { code: params.get('code') ?? '', codeVerifier: pending.codeVerifier, redirectUri: pending.redirectUri }
+  },
+}
+```
+
 - [ ] **Step 3: 로그인 상태**
 
 ```tsx path=mobile/src/auth/AuthContext.tsx
 import * as AuthSession from 'expo-auth-session'
-import * as WebBrowser from 'expo-web-browser'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { authConfig } from './config'
 import { readClaims } from './jwt'
+import { webRedirect } from './redirect'
 import { tokenStore } from './tokenStore'
-
-// 웹 미리 보기: 로그인 창(팝업)이 /auth로 돌아오면 결과를 연 창에 넘기고 닫는다.
-// 루트 레이아웃이 이 파일을 불러오므로 어느 경로로 열려도 화면을 그리기 전에 실행된다.
-WebBrowser.maybeCompleteAuthSession()
 
 export type AuthUser = { sub: string; name: string | null; username: string | null; email: string | null }
 
@@ -1299,6 +1350,7 @@ type Tokens = { access: string; refresh: string; expiresAt: number }
 const AuthContext = createContext<AuthValue | null>(null)
 
 const unreachable = '로그인 서버에 연결하지 못했어요'
+const failed = '로그인하지 못했어요'
 
 // 토큰은 받았지만 쓸 수 없을 때(사용자 정보나 갱신 토큰이 없음)
 class UnusableTokenError extends Error {}
@@ -1342,6 +1394,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState((current) => (current.status === 'signedIn' && sameUser(current.user, user) ? current : { status: 'signedIn', user }))
   }, [])
 
+  // 로그인 창이 돌려준 코드를 토큰으로 바꾼다(PKCE 검증값과 함께).
+  const exchange = useCallback(
+    async (code: string, codeVerifier: string | undefined, returnUri: string) => {
+      if (!discovery) throw new Error('발견 문서가 없습니다')
+      await keep(
+        await AuthSession.exchangeCodeAsync(
+          {
+            clientId: authConfig.clientId,
+            code,
+            redirectUri: returnUri,
+            extraParams: codeVerifier ? { code_verifier: codeVerifier } : undefined,
+          },
+          discovery,
+        ),
+      )
+    },
+    [discovery, keep],
+  )
+
   // 갱신 토큰으로 새 액세스 토큰을 받는다. invalid는 로그인이 끝난 것(다시 로그인해야 한다), offline은 연결 실패다.
   const refresh = useCallback(
     async (refreshToken: string): Promise<'ok' | 'invalid' | 'offline'> => {
@@ -1356,11 +1427,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [discovery, keep],
   )
 
-  // 앱을 열면 저장해 둔 갱신 토큰으로 조용히 다시 로그인한다.
+  // 앱을 열 때: 웹에서 로그인 창을 거쳐 돌아왔으면 코드를 토큰으로 바꾸고,
+  // 아니면 저장해 둔 갱신 토큰으로 조용히 다시 로그인한다.
   useEffect(() => {
     if (!discovery || restored.current) return
     restored.current = true
     void (async () => {
+      const returned = webRedirect.take()
+      if (returned !== null) {
+        if ('error' in returned) {
+          setState({ status: 'signedOut', message: failed })
+          return
+        }
+        try {
+          await exchange(returned.code, returned.codeVerifier, returned.redirectUri)
+        } catch {
+          setState({ status: 'signedOut', message: failed })
+        }
+        return
+      }
       const saved = await tokenStore.load().catch(() => null)
       if (saved === null) {
         setState({ status: 'signedOut', message: null })
@@ -1370,7 +1455,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (result === 'invalid') await tokenStore.clear().catch(() => undefined)
       if (result !== 'ok') setState({ status: 'signedOut', message: result === 'offline' ? unreachable : null })
     })()
-  }, [discovery, refresh])
+  }, [discovery, exchange, refresh])
 
   // 키클락에 닿지 않으면 확인 중에 머물지 않고 로그아웃 상태로 둔다.
   useEffect(() => {
@@ -1385,27 +1470,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setState({ status: 'signedOut', message: unreachable })
       return
     }
+    // 웹: 이 창에서 로그인 창으로 갔다가 /auth로 돌아온다. 돌아온 뒤의 일은 위의 '앱을 열 때'가 한다.
+    if (webRedirect.supported) {
+      const url = await request.makeAuthUrlAsync(discovery)
+      webRedirect.start(url, { state: request.state, codeVerifier: request.codeVerifier ?? '', redirectUri })
+      return
+    }
+    // 앱: 앱 안 브라우저로 열고 결과를 바로 받는다.
     const result = await promptAsync()
     if (result.type !== 'success') {
-      if (result.type === 'error') setState({ status: 'signedOut', message: '로그인하지 못했어요' })
+      if (result.type === 'error') setState({ status: 'signedOut', message: failed })
       return
     }
     try {
-      await keep(
-        await AuthSession.exchangeCodeAsync(
-          {
-            clientId: authConfig.clientId,
-            code: result.params.code ?? '',
-            redirectUri,
-            extraParams: request.codeVerifier ? { code_verifier: request.codeVerifier } : undefined,
-          },
-          discovery,
-        ),
-      )
+      await exchange(result.params.code ?? '', request.codeVerifier, redirectUri)
     } catch {
-      setState({ status: 'signedOut', message: '로그인하지 못했어요' })
+      setState({ status: 'signedOut', message: failed })
     }
-  }, [request, discovery, promptAsync, redirectUri, keep])
+  }, [request, discovery, promptAsync, redirectUri, exchange])
 
   const signOut = useCallback(async () => {
     const current = tokens.current
@@ -1501,9 +1583,10 @@ import { store } from '../data/store'
 import { kv } from '../storage/kv'
 import { SyncHttpError, syncOnce } from './syncOnce'
 
-// 어디까지 받아 갔는지(서버 순번)와, 기기 기록이 어느 계정 것인지
+// 어디까지 받아 갔는지(서버 순번), 기기 기록이 어느 계정 것인지, 마지막으로 맞춘 때
 const sinceKey = 'sync-since'
 const ownerKey = 'sync-owner'
+const lastKey = 'sync-last-at'
 
 function readKv(key: string): string | null {
   try {
@@ -1538,13 +1621,14 @@ export function clearLocalRecords(): void {
   store.clear()
   writeKv(sinceKey, '0')
   writeKv(ownerKey, '')
+  writeKv(lastKey, '')
 }
 
 // 로그인해 있으면 기록을 맞춘다: 로그인한 때, 앱이 앞으로 올 때, 기록이 바뀌고 3초 뒤.
 export function SyncProvider({ children }: { children: ReactNode }) {
   const { state, accessToken } = useAuth()
   const userSub = state.status === 'signedIn' ? state.user.sub : null
-  const [status, setStatus] = useState<SyncStatus>({ state: 'idle', lastAt: null, message: null })
+  const [status, setStatus] = useState<SyncStatus>(() => ({ state: 'idle', lastAt: Number(readKv(lastKey)) || null, message: null }))
   const [pending, setPending] = useState(() => store.dirtyRows().length)
   const inflight = useRef<Promise<number> | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1565,9 +1649,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         } else {
           const since = readKv(ownerKey) === sub ? Number(readKv(sinceKey) ?? 0) || 0 : 0
           const result = await syncOnce(store, apiUrl, token, since)
+          const at = Date.now()
           writeKv(sinceKey, String(result.since))
           writeKv(ownerKey, sub)
-          setStatus({ state: 'idle', lastAt: Date.now(), message: null })
+          writeKv(lastKey, String(at))
+          setStatus({ state: 'idle', lastAt: at, message: null })
           ok = true
         }
       } catch (error) {
@@ -1753,10 +1839,13 @@ import { clearLocalRecords, useSync } from '../sync/SyncContext'
 import { fonts, type Palette } from '../theme/palette'
 import { ScreenHeader } from '../ui/ScreenHeader'
 
+// 오늘이면 시각만, 다른 날이면 날짜도 붙인다.
 function syncedLabel(at: number | null): string {
   if (at === null) return '아직 맞추지 않았어요'
   const date = new Date(at)
-  return `${date.getHours()}시 ${String(date.getMinutes()).padStart(2, '0')}분에 맞췄어요`
+  const time = `${date.getHours()}시 ${String(date.getMinutes()).padStart(2, '0')}분`
+  const today = date.toDateString() === new Date().toDateString()
+  return today ? `${time}에 맞췄어요` : `${date.getMonth() + 1}월 ${date.getDate()}일 ${time}에 맞췄어요`
 }
 
 type ButtonKind = 'primary' | 'danger' | 'outline' | 'plain'
@@ -1772,7 +1861,7 @@ function Button({ label, kind, palette, onPress, disabled = false }: { label: st
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor: background, borderColor: kind === 'outline' ? palette.line : 'transparent', opacity: disabled ? 0.5 : pressed ? 0.75 : 1 },
+        { backgroundColor: background, borderColor: kind === 'outline' ? palette.inkFaint : 'transparent', opacity: disabled ? 0.5 : pressed ? 0.75 : 1 },
       ]}
     >
       <Text style={[styles.buttonText, { color }]}>{label}</Text>
@@ -1915,18 +2004,21 @@ export default function AccountRoute() {
 import { useRouter } from 'expo-router'
 import { useEffect } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { useAuth } from '../auth/AuthContext'
 import { useSettings } from '../settings/SettingsContext'
 
 // 로그인 창(키클락)이 돌아오는 주소(앱 chansubible://auth, 웹 /auth).
-// 결과는 로그인을 연 쪽(AuthContext의 promptAsync)이 받는다. 앱이 이 주소로 열리면 앞 화면으로 돌아간다.
-// 웹 미리 보기의 로그인 창은 AuthContext를 불러올 때 결과를 넘기고 스스로 닫힌다.
+// 웹은 이 창으로 돌아오므로 AuthContext가 코드를 토큰으로 바꿀 때까지 기다렸다가 계정 화면으로 간다.
+// 앱은 결과를 promptAsync가 받으므로, 이 주소로 열리면 앞 화면으로 돌아가기만 한다.
 export default function AuthRoute() {
   const router = useRouter()
   const { palette } = useSettings()
+  const { state } = useAuth()
   useEffect(() => {
+    if (state.status === 'loading') return
     if (router.canGoBack()) router.back()
     else router.replace('/account')
-  }, [router])
+  }, [router, state.status])
   return (
     <View style={[styles.root, { backgroundColor: palette.paper }]}>
       <ActivityIndicator color={palette.accent} />
@@ -1968,6 +2060,8 @@ import { SyncProvider } from '../sync/SyncContext'
   ),
 ```
 
+`mobile/src/reader/MarkSheet.tsx`, `mobile/src/home/PlanSheet.tsx`: 끝의 안내 글을 `useAuth().state.status === 'signedIn'`에 따라 "계정에 저장돼 다른 기기에서도 같은 메모를 봐요." / "계획은 계정에 저장돼 다른 기기와 같아요."로 바꾼다.
+
 `mobile/src/home/HomeScreen.tsx`: 머리 오른쪽(연속 읽기 표시 옆)에 계정 단추를 둔다. 로그인해 있으면 강조색이다.
 
 ```tsx
@@ -2005,12 +2099,13 @@ git commit -m "feat(mobile): 키클락 로그인(PKCE, 갱신 토큰 보관)과 
 - [ ] **Step 1: 두 기기처럼 확인**
 
 인프라와 서버(`npm run server`)를 띄우고 Expo 웹을 연다(새 모듈을 설치했으니 Metro를 다시 띄운다).
-1. 로그인 전에 밑줄·메모를 하나 남긴다. 홈의 계정 단추 → "로그인 / 회원 가입" → 키클락 로그인 창(한국어)에서 시험 계정으로 로그인 → 계정 화면에 이름과 "…에 맞췄어요"가 보인다.
+1. 로그인 전에 밑줄·메모를 하나 남긴다. 홈의 계정 단추 → "로그인 / 회원 가입" → (같은 창에서) 키클락 로그인 창(한국어)에서 시험 계정으로 로그인 → `/auth`로 돌아와 계정 화면에 이름과 "…에 맞췄어요"가 보인다.
 2. 시험 토큰으로 `/sync`(since 0)를 불러, 로그인 전 기록(밑줄·메모, 읽던 곳, 읽은 장면)이 서버에 올라갔는지 본다.
 3. 다른 기기를 흉내 내어 시험 토큰으로 다른 절의 메모 줄을 `/sync`로 올린다. 앱에서 "지금 맞추기"를 누르면 내 메모 목록과 본문에 그 메모가 나타난다.
 4. 앱에서 그 메모를 지우면(밑줄·메모 시트에서 모두 비우고 저장) 3초 뒤 서버의 그 줄에 `deletedAt`이 생긴다.
 5. 페이지를 새로 고치면 저장해 둔 갱신 토큰으로 다시 로그인된다(토큰 갱신과 키클락 CORS 확인).
-6. 로그아웃(확인 단계 포함) → 기기 기록이 빈다(홈의 이어 읽기가 1장 1절). 다시 로그인하면 받아 온다.
+6. 로그아웃(확인 단계 포함) → 기기 기록이 비고 키클락의 갱신 토큰이 물러진다(`/revoke` 200). 다시 로그인하면 받아 온다.
+7. 서버를 끄고 기록을 하나 바꾼 뒤 로그아웃하면 "올리지 못했어요… 그래도 로그아웃" 단계가 나오고 기록은 남는다. 서버를 다시 켜고 "지금 맞추기"를 누르면 올라간다.
 
 - [ ] **Step 2: 문서**
 
