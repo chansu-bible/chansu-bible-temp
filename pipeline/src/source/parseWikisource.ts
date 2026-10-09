@@ -7,8 +7,8 @@ const chapterHeading = /^==\s*(\d+)장\s*==$/
 const verseLine = /^\{\{절\|(\d*)\|(\d*)\}\}\s*(.+)$/
 // 요한계시록은 한 절이 여러 줄이다. 앞 절에 이어지는 줄은 <br>로 시작한다: <br> &nbsp;&nbsp;그 천사를 …
 const continuationTag = /^<br\s*\/?>/
-// 위키 글에 남은 표지: 태그의 <, 틀의 {{ }}, &amp; 같은 HTML 개체
-const leftoverMarkup = /<|\{\{|\}\}|&[a-z#0-9]+;/i
+// 위키 글에 남은 표지: 태그(< >), 틀({{ }}), 링크([[ ]]), 굵은 글·기울임(''), 표(|), 매직워드(__NOTOC__), &amp; 같은 HTML 개체
+const leftoverMarkup = /[<>|]|\{\{|\}\}|\[\[|\]\]|''|__[a-z]+__|&[a-z#0-9]+;/i
 
 // 절 글의 &nbsp;를 빈칸으로 바꾸고, 이어진 빈칸은 하나로 줄이고, 앞뒤를 자른다.
 function cleanText(text: string): string {

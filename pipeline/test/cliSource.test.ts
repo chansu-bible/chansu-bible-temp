@@ -9,10 +9,15 @@ const blockFetch = `data:text/javascript,${encodeURIComponent(
   "globalThis.fetch = async (url) => { console.error('fetch 호출: ' + decodeURIComponent(String(url))); throw new Error('fetch blocked') }",
 )}`
 
+const cliTimeoutMs = 30_000
+
 function runCli(args: string[]): Promise<{ exitCode: number; stderr: string }> {
-  return new Promise((resolve) => {
-    execFile(process.execPath, ['--import', 'tsx', '--import', blockFetch, cli, ...args], { cwd: pipelineDir }, (error, _stdout, stderr) => {
-      resolve({ exitCode: error ? Number(error.code ?? 1) : 0, stderr })
+  return new Promise((resolve, reject) => {
+    const command = ['--import', 'tsx', '--import', blockFetch, cli, ...args]
+    execFile(process.execPath, command, { cwd: pipelineDir, timeout: cliTimeoutMs }, (error, _stdout, stderr) => {
+      // 시간이 지나 죽인 것은 종료 코드 1로 끝난 것과 구별한다.
+      if (error?.killed) reject(new Error(`CLI가 ${cliTimeoutMs / 1000}초 안에 끝나지 않아 멈췄습니다: ${args.join(' ')}`))
+      else resolve({ exitCode: error ? Number(error.code ?? 1) : 0, stderr })
     })
   })
 }
@@ -35,7 +40,8 @@ describe.concurrent('CLI source', () => {
   }, 60_000)
 
   it('--chapters는 받으러 간다(시험에서는 fetch가 막혀 있어 받지 못한다)', async () => {
-    const result = await runCli(['source', '--book', 'genesis', '--chapters', '3'])
+    // 이 시험은 일부러 받는 길로 들어간다. fetch를 막은 것이 뚫려도 커밋된 genesis.json(1~10장)을 같은 글로 다시 쓰는 데 그치게 1~10장으로 받는다.
+    const result = await runCli(['source', '--book', 'genesis', '--chapters', '1-10'])
     expect(result.exitCode).toBe(1)
     expect(result.stderr).toContain('fetch 호출: https://ko.wikisource.org/w/index.php?title=개역한글판/창세기&action=raw')
     expect(result.stderr).toContain('창세기 본문을 가져오지 못했습니다: 개역한글판/창세기 (fetch blocked)')

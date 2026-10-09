@@ -225,6 +225,24 @@ describe('fetchSource', () => {
       expect(await readdir(dir)).toEqual([])
     })
 
+    it('오류에 원인이 들어 있으면 그것도 적고, cause에는 원래 오류를 남긴다(undici는 진짜 이유를 cause에 담는다)', async () => {
+      const error = new TypeError('fetch failed', { cause: new Error('getaddrinfo ENOTFOUND ko.wikisource.org') })
+      vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(error)))
+      const thrown = await fetchSource('ruth', {}, dir).then(
+        () => undefined,
+        (reason: unknown) => reason,
+      )
+      expect((thrown as Error).message).toBe('룻기 본문을 가져오지 못했습니다: 개역한글판/룻기 (fetch failed: getaddrinfo ENOTFOUND ko.wikisource.org)')
+      expect((thrown as Error).cause).toBe(error)
+    })
+
+    it('원인에 글이 없으면 오류 부호를 적는다', async () => {
+      // 주소가 여럿인 곳(localhost)에 연결하지 못하면 원인이 글 없는 AggregateError이고 부호만 있다.
+      const cause = Object.assign(new AggregateError([], ''), { code: 'ECONNREFUSED' })
+      vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new TypeError('fetch failed', { cause }))))
+      await expectRejection(fetchSource('ruth', {}, dir), '룻기 본문을 가져오지 못했습니다: 개역한글판/룻기 (fetch failed: ECONNREFUSED)')
+    })
+
     it('본문을 읽다가 끊겨도 같다', async () => {
       const cause = new Error('연결이 끊겼습니다')
       vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, text: async () => Promise.reject(cause) })))

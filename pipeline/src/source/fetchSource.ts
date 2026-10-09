@@ -19,6 +19,15 @@ export function wikisourcePageTitle(book: BookId): string {
   return `개역한글판/${pageNames[book] ?? getBook(book).name}`
 }
 
+// 받기 오류의 이유 글. undici는 진짜 이유를 error.cause에 담으므로(fetch failed: getaddrinfo ENOTFOUND ko.wikisource.org) 같이 적는다.
+// 원인에 글이 없으면(주소가 여럿인 곳에 연결하지 못한 AggregateError) 오류 부호(ECONNREFUSED)를 적는다.
+function reasonOf(error: unknown): string {
+  if (!(error instanceof Error)) return String(error)
+  const cause = error.cause
+  const detail = cause instanceof Error ? cause.message || String((cause as NodeJS.ErrnoException).code ?? '') : ''
+  return detail === '' ? error.message : `${error.message}: ${detail}`
+}
+
 // 장 범위 글을 읽는다. 3-7은 3~7장, 3은 3장 하나다. 책에 그 장이 있는지는 fetchSource가 본다.
 export function parseChapterRange(text: string): ChapterRange {
   const range = /^(\d+)-(\d+)$/.exec(text)
@@ -47,8 +56,7 @@ export async function fetchSource(book: BookId, range: Partial<ChapterRange> = {
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
     text = await response.text()
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
-    throw new Error(`${name} 본문을 가져오지 못했습니다: ${title} (${reason})`, { cause: error })
+    throw new Error(`${name} 본문을 가져오지 못했습니다: ${title} (${reasonOf(error)})`, { cause: error })
   }
   if (text.trim() === '') throw new Error(`${name} 본문이 비어 있습니다: ${title}`)
 

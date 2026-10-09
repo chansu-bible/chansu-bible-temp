@@ -254,7 +254,26 @@ describe('findSourceProblems', () => {
     expect(findSourceProblems(chapters, { from: 1, to: 3 })).toEqual(['2장이 두 번 있습니다'])
   })
 
-  it.each(['<ref>각주</ref>', '가 {{각주|1}}', '가 }}', '가 &amp; 나', '가 &#160; 나', '가 < 나'])('위키 문법이 남은 절을 알려준다: %s', (text) => {
+  it.each([
+    // 태그, 틀
+    '<ref>각주</ref>',
+    '가 < 나',
+    '가 > 나',
+    '가 {{각주|1}}',
+    '가 }}',
+    // 링크
+    '가 [[링크]] 나',
+    '가 [[분류:성경]]',
+    '가 ]] 나',
+    // 굵은 글, 기울임
+    "가 ''기울임'' 나",
+    "가 '''굵게''' 나",
+    // 표, 매직워드, HTML 개체
+    '가 | 나',
+    '가 __NOTOC__ 나',
+    '가 &amp; 나',
+    '가 &#160; 나',
+  ])('위키 문법이 남은 절을 알려준다: %s', (text) => {
     const verses = [
       { verse: 1, text: '본문' },
       { verse: 2, text },
@@ -263,7 +282,15 @@ describe('findSourceProblems', () => {
   })
 
   it('[없음]과 [25절과 같음]과 괄호는 위키 문법이 아니다', () => {
-    const texts = ['[없음]', '[25절과 같음]', '바울이 (실라를) 택하고', '[성전에 올라가는 노래] 여호와를']
+    const texts = [
+      '[없음]',
+      '[25절과 같음]',
+      '바울이 (실라를) 택하고',
+      '[성전에 올라가는 노래] 여호와를',
+      // 따옴표 하나와 밑줄은 위키 문법이 아니다.
+      "가 '나' 다",
+      '가 _ 나 __ 다',
+    ]
     const verses = texts.map((text, index) => ({ verse: index + 1, text }))
     expect(findSourceProblems([{ chapter: 1, verses }], { from: 1, to: 1 })).toEqual([])
   })
