@@ -2,7 +2,9 @@ import { existsSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { writeBundle } from './build/writeBundle.ts'
 import { runCanon } from './canon/runCanon.ts'
+import { runGloss } from './original/runGloss.ts'
 import { runOriginal } from './original/runOriginal.ts'
+import { runQuiz } from './quiz/runQuiz.ts'
 import { generateImages } from './images/generateImages.ts'
 import { createOpenAiDraw } from './images/openaiDraw.ts'
 import { envFile } from './paths.ts'
@@ -114,6 +116,28 @@ const commands: Record<string, (flags: Flags) => Promise<void>> = {
     console.log(
       `원어 저장 완료: ${result.chapters}장, 낱말 ${result.words}개, 사전 항목 ${result.entries}개(한국어 뜻 있음 ${result.withKorean}개)`,
     )
+  },
+  async 'original-gloss'(flags) {
+    const result = await runGloss(
+      { limit: positiveInteger(flags.limit, 'limit'), force: flags.force, dryRun: flags['dry-run'] },
+      console.log,
+    )
+    if (result.dryRun) {
+      console.log(`한국어 뜻을 쓸 사전 항목 ${result.selected}개 (dry-run이라 API를 부르지 않았습니다)`)
+      return
+    }
+    console.log(`한국어 뜻 초안: ${result.written}/${result.selected}개. 관리 도구의 "원어 뜻"에서 검수하세요.`)
+    if (result.missing.length > 0) {
+      console.error(`돌려받지 못한 항목: ${result.missing.join(', ')}`)
+      process.exitCode = 1
+    }
+  },
+  async quiz(flags) {
+    const chapter = positiveInteger(flags.chapter, 'chapter')
+    if (chapter === undefined) throw new Error('--chapter <장 번호>가 필요합니다')
+    const result = await runQuiz(chapter, { force: flags.force, dryRun: flags['dry-run'] }, console.log)
+    if (result.skipped || result.dryRun) return
+    console.log(`${chapter}장 퀴즈: ${result.written}문제(검수 통과 ${result.reviewed}, 지적 ${result.flagged}). 관리 도구의 "퀴즈"에서 승인하세요.`)
   },
   async build() {
     const bundle = await writeBundle()
