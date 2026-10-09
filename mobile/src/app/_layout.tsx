@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { AuthProvider } from '../auth/AuthContext'
 import { content } from '../content/bundle'
 import { NarrationProvider } from '../narration/NarrationContext'
+import { WidgetSync } from '../widgets/WidgetSync'
 import { SettingsProvider, useSettings } from '../settings/SettingsContext'
 import { SyncProvider } from '../sync/SyncContext'
 
@@ -23,6 +24,7 @@ export default function RootLayout() {
             <SyncProvider>
               <NarrationProvider bundle={content.bundle}>
                 <Frame />
+                <WidgetSync />
               </NarrationProvider>
             </SyncProvider>
           </AuthProvider>
