@@ -671,7 +671,7 @@ Expected: 통과
 - [ ] **Step 9: 창세기 결과가 그대로인지 본다**
 
 ```bash
-npm run pipeline -- build --book genesis
+npm run pipeline -- build
 node -e "const fs=require('fs'),os=require('os'),path=require('path');console.log(fs.readFileSync('app/public/content/genesis.json','utf8')===fs.readFileSync(path.join(os.tmpdir(),'genesis.before.json'),'utf8')?'same':'DIFFERENT')"
 ```
 
@@ -753,6 +753,10 @@ git commit -m "feat(pipeline): source 단계가 책마다 위키문헌 본문을
 - Create: `pipeline/src/canon/migrateRefs.ts`, `pipeline/test/migrateRefs.test.ts`
 - Modify: `pipeline/src/cli.ts`(`migrate-canon-refs`), `pipeline/src/index.ts`
 - Data: `content/story-bible/{characters,places,eras,things,proposals}.json`
+
+- [ ] **Step 0: 고치기 전 묶음을 남긴다**
+
+이 작업이 설정집 인용에 `genesis `를 붙이면, Task 7이 묶음에서 책을 다시 떼기 전까지 묶음 출력이 달라진다. 그래서 Task 7 끝에서 비교할 기준은 이 작업을 시작하기 전에 남긴다. `npm run pipeline -- build` 뒤 `genesis.json`을 시스템 임시 폴더(`genesis.before.json`)에 복사한다(Task 3 Step 0과 같은 명령).
 
 - [ ] **Step 1: 스키마**
 
@@ -842,7 +846,7 @@ export function oshbUrl(book: BookId): string {
 `runOriginal(book, options, log)`:
 1. 신약 책이면 `신약 원어 자료는 아직 정하지 않았어요(${책 이름})`로 멈춘다.
 2. 그 책의 OSHB를 받아 `original/<book>.json`에 쓴다(지금처럼 본문과 절 수를 맞춰 본다).
-3. 사전은 `original/` 안의 모든 책 파일에서 번호마다 나온 횟수를 다시 세고, 그 번호들로 스트롱 사전 항목을 만든다. 이미 있는 한국어 뜻은 지킨다.
+3. 사전은 `original/` 안의 모든 책 파일에서 번호마다 나온 횟수를 다시 세고, 그 번호들로 스트롱 사전 항목을 만든다. 이미 있는 한국어 뜻은 지킨다. Task 3 검토 뒤에 넣은 보호 장치(다른 책 원어가 있으면 멈춘다)는 지운다.
 
 시험(`pipeline/test/original.test.ts`에 더한다): 가짜 `fetchText`로 창세기·출애굽기 원어 파일을 차례로 만들면, 사전 항목의 `count`가 두 책을 합친 횟수이고 창세기만 돌린 뒤의 한국어 뜻이 남는지 본다. 신약 책은 오류인지 본다.
 
@@ -862,9 +866,9 @@ git commit -m "feat(pipeline): 프롬프트에 책 이름을 쓰고 원어를 �
 **Files:**
 - Modify: `pipeline/src/build/{buildBundle,writeBundle,sources}.ts`, `pipeline/src/schema.ts`(`BundleSchema.bookId`), `pipeline/test/buildBundle.test.ts`, `pipeline/test/sources.test.ts`, `docs/content-bundle.md`
 
-- [ ] **Step 0: 고치기 전 묶음을 다시 남긴다**
+- [ ] **Step 0: 비교할 사본을 확인한다**
 
-Task 3의 사본은 지웠으므로, 이 작업을 시작하기 전 상태로 `npm run pipeline -- build`를 돌려 `genesis.json`을 시스템 임시 폴더(`genesis.before.json`)에 다시 남긴다(Task 3 Step 0과 같은 명령).
+Task 5 Step 0에서 남긴 `genesis.before.json`과 비교한다. 이 작업 바로 전의 묶음은 설정집 인용에 `genesis `가 붙어 있어 기준이 될 수 없으므로 다시 만들지 않는다.
 
 - [ ] **Step 1: 시험을 쓴다**
 
@@ -905,7 +909,7 @@ npm run pipeline -- build
 node -e "const fs=require('fs'),os=require('os'),path=require('path');const a=JSON.parse(fs.readFileSync(path.join(os.tmpdir(),'genesis.before.json'),'utf8'));const b=JSON.parse(fs.readFileSync('app/public/content/genesis.json','utf8'));delete b.bookId;console.log(JSON.stringify(a)===JSON.stringify(b)?'same':'DIFFERENT')"
 ```
 
-Expected: `same` (사본은 Task 3 Step 0에서 남긴 것). 확인한 뒤 사본을 지운다.
+Expected: `same` (사본은 Task 5 Step 0에서 남긴 것). 확인한 뒤 사본을 지운다.
 
 - [ ] **Step 4: 확인과 커밋**
 
