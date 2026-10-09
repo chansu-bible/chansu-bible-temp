@@ -1,4 +1,4 @@
-import { parseRef } from 'reader-core'
+import { formatRef, parseRef } from 'reader-core'
 import { z } from 'zod'
 
 // 본문
@@ -20,9 +20,11 @@ export const SourceSchema = z.object({
 
 // 설정집
 // 절 인용. "책 장:절" 또는 "책 장:절-절" (예: "genesis 1:26", "genesis 2:7-8")
-export const CitationSchema = z
-  .string()
-  .refine((value) => parseRef(value)?.book != null, '절 인용은 "책 장:절" 모양이어야 합니다(예: "genesis 2:7")')
+// formatRef가 쓰는 표준 모양만 받는다(앞뒤 공백, "02:07", 끝이 시작과 같은 "2:7-7"은 안 된다).
+export const CitationSchema = z.string().refine((value) => {
+  const ref = parseRef(value)
+  return ref?.book != null && formatRef(ref) === value
+}, '절 인용은 "책 장:절" 모양이어야 합니다(예: "genesis 2:7")')
 export const ReviewStateSchema = z.enum(['draft', 'approved', 'rejected'])
 export const CanonIdSchema = z.string().regex(/^[a-z][a-z0-9-]*$/)
 

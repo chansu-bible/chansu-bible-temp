@@ -101,8 +101,12 @@ describe('canonForm', () => {
     era['range.from'] = '6:9'
     expect(formToEntry('eras', era, flood).range).toEqual({ from: 'genesis 6:9', to: 'genesis 8:22' })
 
-    // 인용이 아닌 글은 바꾸지 않는다(형식 검사는 checkForm과 서버가 한다)
+    // 책 없는 인용은 서버가 받는 표준 모양으로 쓴다
     expect(withBook('2:7')).toBe('genesis 2:7')
+    expect(withBook('2:7-8')).toBe('genesis 2:7-8')
+    expect(withBook('02:07')).toBe('genesis 2:7')
+    expect(withBook('2:7-7')).toBe('genesis 2:7')
+    // 책이 붙은 인용과 인용이 아닌 글은 바꾸지 않는다(형식 검사는 checkForm과 서버가 한다)
     expect(withBook('genesis 2:7')).toBe('genesis 2:7')
     expect(withBook('3장')).toBe('3장')
     expect(withBook('')).toBe('')

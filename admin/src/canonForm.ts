@@ -324,15 +324,21 @@ export function formToEntry<K extends CanonKind>(kind: K, form: FormState, base:
   return out as unknown as CanonEntryMap[K]
 }
 
-const BARE_CITATION = /^\d{1,2}:\d{1,3}(-\d{1,3})?$/
+const BARE_CITATION = /^(\d{1,2}):(\d{1,3})(?:-(\d{1,3}))?$/
 // 책 id가 붙은 인용("genesis 2:7", "1-samuel 3:4")이나 책 없는 인용("2:7")
 const CITATION = /^(?:[a-z0-9-]+ )?\d{1,2}:\d{1,3}(-\d{1,3})?$/
 const CANON_ID = /^[a-z][a-z0-9-]*$/
 
-// 책 없는 절 인용("2:7")에 창세기를 붙인다. 책이 붙은 인용과 인용이 아닌 글은 그대로 둔다.
+// 책 없는 절 인용("2:7")에 창세기를 붙이고, 서버가 받는 표준 모양으로 쓴다("02:07"과 "2:7-7"은 "genesis 2:7").
+// 책이 붙은 인용과 인용이 아닌 글은 그대로 둔다.
 // Task 8에서 고른 책으로 바꾼다.
 export function withBook(citation: string): string {
-  return BARE_CITATION.test(citation) ? `genesis ${citation}` : citation
+  const match = BARE_CITATION.exec(citation)
+  if (!match) return citation
+  const chapter = Number(match[1])
+  const verse = Number(match[2])
+  const end = match[3] === undefined ? verse : Number(match[3])
+  return `genesis ${chapter}:${verse}${end === verse ? '' : `-${end}`}`
 }
 
 // 저장 전에 화면에서 먼저 잡는 문제. 최종 검증은 서버가 한다.

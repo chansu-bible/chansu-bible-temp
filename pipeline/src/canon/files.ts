@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
 import { displayPath, storyBibleDir } from '../paths.ts'
@@ -103,17 +103,32 @@ export async function readCanonRaw(dir: string = storyBibleDir): Promise<Canon> 
 
 const fileText = (items: unknown[]) => `${JSON.stringify(items, null, 2)}\n`
 
+// 목록들을 임시 파일(<파일>.tmp)에 모두 쓴 뒤 이름을 바꿔 제자리에 둔다. 중간에 끊겨도 파일이 반쯤 쓰이지 않는다.
+// 도중에 실패하면 이 호출이 쓰던 임시 파일을 치우고 오류를 다시 던진다.
+async function replaceFiles(dir: string, lists: { key: FileKey; items: unknown[] }[]): Promise<void> {
+  await mkdir(dir, { recursive: true })
+  const temps: string[] = []
+  try {
+    for (const { key, items } of lists) {
+      const temp = `${canonFilePath(key, dir)}.tmp`
+      temps.push(temp)
+      await writeFile(temp, fileText(items), 'utf8')
+    }
+    // 이름을 바꾸다 실패하면 이미 바꾼 파일은 새 것, 나머지는 옛 것으로 섞여 남는다. 이전(migrate-canon-refs)을 다시 돌리면 맞춰진다.
+    for (const { key } of lists) await rename(`${canonFilePath(key, dir)}.tmp`, canonFilePath(key, dir))
+  } catch (error) {
+    // 이름을 바꾼 것은 이미 없다. 치우다 난 오류는 원래 오류를 가리지 않게 버린다(임시 파일 자리에 폴더가 있으면 rm은 지우지 않고 실패한다).
+    await Promise.all(temps.map((temp) => rm(temp, { force: true }).catch(() => undefined)))
+    throw error
+  }
+}
+
 // 쓰기 전에 바뀐 설정집 전체를 검증한다(지금 파일의 문제를 고치는 쓰기도 되게, 바꾼 뒤의 상태만 본다).
-// 중간에 끊겨도 파일이 반쯤 쓰이지 않게 임시 파일을 거친다.
 async function writeList(key: FileKey, items: unknown[], dir: string, sourceDir: string | undefined): Promise<void> {
   const parsed = listSchemas[key].parse(items)
   const canon = { ...(await readLists(dir)), [key]: parsed } as Canon
   assertValid(canon, dir, await readVerseCounts(sourceDir))
-
-  const file = canonFilePath(key, dir)
-  await mkdir(dir, { recursive: true })
-  await writeFile(`${file}.tmp`, fileText(parsed), 'utf8')
-  await rename(`${file}.tmp`, file)
+  await replaceFiles(dir, [{ key, items: parsed }])
 }
 
 export async function writeCanonKind<K extends CanonKind>(
@@ -135,12 +150,8 @@ export async function writeProposals(
 
 // 다섯 파일을 한 번에 쓴다. 다섯 목록의 스키마와 설정집 전체를 먼저 검증하고, 하나라도 틀리면 아무것도 쓰지 않는다.
 // 지금 파일은 읽지 않으므로 지금 파일이 옛 형식이어도 통째로 바꿀 수 있다(목록마다 쓰면 아직 옮기지 않은 파일에서 걸린다).
-// 임시 파일을 모두 쓴 뒤에 이름을 바꾼다.
 export async function writeCanon(canon: Canon, dir: string = storyBibleDir, { sourceDir }: SourceOptions = {}): Promise<void> {
   const parsed = Object.fromEntries(fileKeys.map((key) => [key, parseList(key, canon[key], dir)])) as Canon
   assertValid(parsed, dir, await readVerseCounts(sourceDir))
-
-  await mkdir(dir, { recursive: true })
-  for (const key of fileKeys) await writeFile(`${canonFilePath(key, dir)}.tmp`, fileText(parsed[key]), 'utf8')
-  for (const key of fileKeys) await rename(`${canonFilePath(key, dir)}.tmp`, canonFilePath(key, dir))
+  await replaceFiles(dir, fileKeys.map((key) => ({ key, items: parsed[key] })))
 }

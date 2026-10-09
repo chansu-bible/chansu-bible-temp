@@ -262,4 +262,16 @@ describe('설정집 파일', () => {
     expect(await readdir(dir)).toEqual(['places.json'])
     expect(await readText('places')).toBe('old')
   })
+
+  it('writeCanon은 쓰다가 실패하면 이 호출의 임시 파일을 치우고 옛 파일을 그대로 둔다', async () => {
+    const names = ['characters', 'places', 'eras', 'things', 'proposals']
+    await writeCanon(canon({ places: [eden] }), dir, { sourceDir })
+    const before = await Promise.all(names.map(readText))
+    // 세 번째(eras) 임시 파일 자리에 폴더를 두어 쓰기가 실패하게 한다. 앞의 두 임시 파일은 이미 쓴 뒤다.
+    await mkdir(path.join(dir, 'eras.json.tmp'))
+    await expect(writeCanon(canon({ places: [eden], eras: [era({})] }), dir, { sourceDir })).rejects.toThrow('eras.json.tmp')
+    // 남은 .tmp는 시험이 둔 폴더뿐이다
+    expect((await readdir(dir)).sort()).toEqual([...names.map((name) => `${name}.json`), 'eras.json.tmp'].sort())
+    expect(await Promise.all(names.map(readText))).toEqual(before)
+  })
 })
