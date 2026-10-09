@@ -39,12 +39,16 @@ function requireBook(flags: Flags): BookId {
   return flags.book
 }
 
-// --book이 없으면 본문이 있는 모든 책(성경 순서)
-async function booksOrAll(flags: Flags): Promise<BookId[]> {
-  if (flags.book !== undefined) return [requireBook(flags)]
+// 본문이 있는 모든 책(성경 순서). 하나도 없으면 오류
+async function allSourceBooks(): Promise<BookId[]> {
   const books = await listSourceBooks()
   if (books.length === 0) throw new Error('본문이 있는 책이 없습니다. 먼저 source --book <책 id>를 실행하세요.')
   return books
+}
+
+// --book이 없으면 본문이 있는 모든 책
+async function booksOrAll(flags: Flags): Promise<BookId[]> {
+  return flags.book === undefined ? allSourceBooks() : [requireBook(flags)]
 }
 
 function requireChapter(flags: Flags): number {
@@ -163,7 +167,9 @@ const commands: Record<string, (flags: Flags) => Promise<void>> = {
     console.log(`${chapter}장 퀴즈: ${result.written}문제(검수 통과 ${result.reviewed}, 지적 ${result.flagged}). 관리 도구의 "퀴즈"에서 승인하세요.`)
   },
   async build(flags) {
-    const bundles = await writeBundles(await booksOrAll(flags))
+    // 앱 콘텐츠 폴더를 비우고 다시 쓰므로 한 책만 만들면 다른 책 묶음이 지워진다.
+    if (flags.book !== undefined) throw new Error('build는 본문이 있는 모든 책을 함께 만듭니다. --book은 받지 않습니다.')
+    const bundles = await writeBundles(await allSourceBooks())
     for (const bundle of bundles) {
       const sceneCount = bundle.chapters.reduce((sum, chapter) => sum + chapter.scenes.length, 0)
       // 책이 여럿이면 어느 책인지 앞에 적는다.
