@@ -378,7 +378,7 @@ export const LexiconEntrySchema = z.object({
   pos: z.string(),
   definition: z.string(),
   usage: z.string(),
-  // 이 묶음의 장(창세기 1~10장)에 나오는 횟수
+  // 모든 책 원어에 나오는 횟수
   count: z.number().int().nonnegative(),
   korean: KoreanGlossSchema.nullable(),
 })

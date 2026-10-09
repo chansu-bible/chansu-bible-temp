@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { parseArgs } from 'node:util'
-import { isBookId, type BookId } from 'reader-core'
+import { getBook, isBookId, type BookId } from 'reader-core'
 import { writeBundles } from './build/writeBundle.ts'
 import { readCanonRaw, writeCanon } from './canon/files.ts'
 import { migrateCanonRefs } from './canon/migrateRefs.ts'
@@ -163,6 +163,9 @@ const commands: Record<string, (flags: Flags) => Promise<void>> = {
       console.log(
         `원어 저장 완료: ${result.chapters}장, 낱말 ${result.words}개, 사전 항목 ${result.entries}개(한국어 뜻 있음 ${result.withKorean}개)`,
       )
+      if (result.skipped.length > 0) {
+        console.log(`원어 없이 둔 장: ${getBook(book).name} ${result.skipped.map((chapter) => `${chapter}장`).join(', ')}`)
+      }
     }
   },
   async 'original-gloss'(flags) {

@@ -1,13 +1,17 @@
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { getBook } from 'reader-core'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanHebrew, strongOf } from '../src/original/hebrew.ts'
 import { posLabel } from '../src/original/morph.ts'
 import { parseOshb } from '../src/original/oshb.ts'
-import { oshbUrl, runOriginal, STRONGS_URL } from '../src/original/runOriginal.ts'
+import { oshbUrl, runOriginal } from '../src/original/runOriginal.ts'
 import { parseStrongs } from '../src/original/strongs.ts'
+import { STRONGS_URL } from '../src/original/urls.ts'
+import { OSHB_VERSE_MAP_URL } from '../src/original/verseMap.ts'
+import type { LexiconFile, OriginalFile } from '../src/schema.ts'
 
 const oshb = `<chapter osisID="Gen.1">
 <verse osisID="Gen.1.1">
@@ -84,56 +88,139 @@ describe('parseOshb', () => {
       { chapter: 4, verses: [{ verse: 15, words: [{ text: 'לוֹ', strong: null, morph: 'HR/Sp3ms' }] }] },
     ])
   })
+
+  it('장을 고르지 않으면 모든 장을 읽는다', () => {
+    expect(parseOshb(oshb).map((chapter) => chapter.chapter)).toEqual([1, 4, 11])
+  })
 })
+
+// 출애굽기 OSHB. 아래 대응표(시험용으로 지어낸 것)로 WLC 2:1이 KJV 1:3이 된다.
+const exodusOshb = `<chapter osisID="Exod.1">
+<verse osisID="Exod.1.1"><w lemma="1" morph="HNcmsc" id="e1">אֲבִי</w><w lemma="b/7225" morph="HR/Ncfsa" id="e2">בְּ/רֵאשִׁית</w></verse>
+<verse osisID="Exod.1.2"><w lemma="1" morph="HNcmsc" id="e3">אֲבִי</w></verse>
+</chapter>
+<chapter osisID="Exod.2">
+<verse osisID="Exod.2.1"><w lemma="7225" morph="HNcfsa" id="e4">רֵאשִׁית</w></verse>
+<verse osisID="Exod.2.2"><w lemma="1" morph="HNcmsc" id="e5">אֲבִי</w></verse>
+<verse osisID="Exod.2.3"><w lemma="1" morph="HNcmsc" id="e6">אֲבִי</w></verse>
+</chapter>`
+
+const verseMap = `<verseMap>
+	<book osisID="Gen"/>
+	<book osisID="Exod">
+		<verse wlc="Exod.2.1" kjv="Exod.1.3" type="full"/>
+	</book>
+</verseMap>`
 
 describe('runOriginal', () => {
   let dir: string
   let urls: string[]
+  const texts: Record<string, string> = {
+    [oshbUrl('genesis')]: oshb,
+    [oshbUrl('exodus')]: exodusOshb,
+    [OSHB_VERSE_MAP_URL]: verseMap,
+    [STRONGS_URL]: strongs,
+  }
   const fetchText = async (url: string) => {
     urls.push(url)
-    return url === STRONGS_URL ? strongs : oshb
+    const text = texts[url]
+    if (text === undefined) throw new Error(`시험에 없는 주소: ${url}`)
+    return text
   }
-  const chapterOne = { chapter: 1, verses: [{ verse: 1, text: '태초에' }] }
-  const optionsOf = () => ({ fetchText, sourceDir: dir, originalDir: path.join(dir, 'original'), lexiconFile: path.join(dir, 'lexicon.json') })
+  // 사전은 실제처럼 원어 폴더 안에 둔다.
+  const optionsOf = () => {
+    const originalDir = path.join(dir, 'original')
+    return { fetchText, sourceDir: dir, originalDir, lexiconFile: path.join(originalDir, 'lexicon.json') }
+  }
+  // 장마다 절 수를 받아 그 책의 본문 파일을 쓴다.
+  const writeSource = (book: 'genesis' | 'exodus', verseCounts: number[]) =>
+    writeFile(
+      path.join(dir, `${book}.json`),
+      JSON.stringify({
+        book: getBook(book).name,
+        translation: '개역한글',
+        chapters: verseCounts.map((count, index) => ({
+          chapter: index + 1,
+          verses: Array.from({ length: count }, (_, verse) => ({ verse: verse + 1, text: '본문' })),
+        })),
+      }),
+    )
+  const readJson = async <T>(file: string): Promise<T> => JSON.parse(await readFile(file, 'utf8')) as T
+  // 장마다 절의 스트롱 번호
+  const strongsOf = (original: OriginalFile) =>
+    original.chapters.map((chapter) => [chapter.chapter, chapter.verses.map((verse) => verse.words.map((word) => word.strong))])
 
   beforeEach(async () => {
     urls = []
     dir = await mkdtemp(path.join(tmpdir(), 'original-'))
-    await writeFile(path.join(dir, 'genesis.json'), JSON.stringify({ book: '창세기', translation: '개역한글', chapters: [chapterOne] }))
-    await writeFile(path.join(dir, 'exodus.json'), JSON.stringify({ book: '출애굽기', translation: '개역한글', chapters: [chapterOne] }))
+    await writeSource('genesis', [1])
   })
 
   afterEach(async () => {
     await rm(dir, { recursive: true, force: true })
   })
 
-  it('책의 OSIS 이름으로 OSHB를 받아 original/<책 id>.json과 사전을 쓴다', async () => {
+  it('책의 OSIS 이름으로 OSHB와 절 대응표를 받아 original/<책 id>.json과 사전을 쓴다', async () => {
     const lines: string[] = []
     const options = optionsOf()
     const result = await runOriginal('genesis', options, (line) => lines.push(line))
 
     expect(urls).toEqual([
       'https://raw.githubusercontent.com/openscriptures/morphhb/3d15126fb1ef74867fc1434be1942e837932691f/wlc/Gen.xml',
+      'https://raw.githubusercontent.com/openscriptures/morphhb/3d15126fb1ef74867fc1434be1942e837932691f/wlc/VerseMap.xml',
       STRONGS_URL,
     ])
     expect(lines[0]).toBe('OSHB 창세기를 받는 중…')
-    expect(result).toMatchObject({ chapters: 1, words: 4, entries: 1 })
-    const original = JSON.parse(await readFile(path.join(options.originalDir, 'genesis.json'), 'utf8'))
-    expect(original.chapters.map((chapter: { chapter: number }) => chapter.chapter)).toEqual([1])
+    expect(result).toEqual({ chapters: 1, words: 4, entries: 1, withKorean: 0, skipped: [] })
+    // 본문에 있는 장만 쓴다.
+    const original = await readJson<OriginalFile>(path.join(options.originalDir, 'genesis.json'))
+    expect(original.chapters.map((chapter) => chapter.chapter)).toEqual([1])
     expect(existsSync(options.lexiconFile)).toBe(true)
 
     // 같은 책은 다시 만들 수 있다.
     await expect(runOriginal('genesis', options)).resolves.toMatchObject({ chapters: 1 })
   })
 
-  it('다른 책 원어가 이미 있으면 받기 전에 멈춘다(사전이 아직 한 책으로만 세므로)', async () => {
+  it('다른 책 원어가 있어도 만들고, 사전 횟수는 모든 책을 합치며 한국어 뜻은 남는다', async () => {
     const options = optionsOf()
-    await mkdir(options.originalDir, { recursive: true })
-    await writeFile(path.join(options.originalDir, 'genesis.json'), JSON.stringify({ chapters: [] }))
-    await writeFile(path.join(options.originalDir, 'lexicon.json'), JSON.stringify({ entries: [] }))
-    await expect(runOriginal('exodus', options)).rejects.toThrow(
-      '원어 사전은 아직 한 책으로만 만듭니다. 창세기 원어가 이미 있어 출애굽기 원어를 만들 수 없습니다.',
-    )
+    await writeSource('exodus', [3])
+    await runOriginal('genesis', options)
+    await writeFile(path.join(options.originalDir, 'README.md'), '# 원어 자료\n')
+    const genesis = await readFile(path.join(options.originalDir, 'genesis.json'), 'utf8')
+    // 사람이 검수한 한국어 뜻
+    const lexicon = await readJson<LexiconFile>(options.lexiconFile)
+    expect(lexicon.entries.map((entry) => [entry.strong, entry.count])).toEqual([['H7225', 1]])
+    lexicon.entries[0]!.korean = { meaning: '처음', note: '', status: 'approved' }
+    await writeFile(options.lexiconFile, JSON.stringify(lexicon))
+
+    const result = await runOriginal('exodus', options)
+
+    expect(result).toEqual({ chapters: 1, words: 4, entries: 2, withKorean: 1, skipped: [] })
+    // H7225는 창세기 1:1에 한 번, 출애굽기 1:1과 1:3(WLC 2:1)에 두 번. H1은 출애굽기 1:1, 1:2
+    const saved = await readJson<LexiconFile>(options.lexiconFile)
+    expect(saved.entries.map((entry) => [entry.strong, entry.count, entry.korean])).toEqual([
+      ['H1', 2, null],
+      ['H7225', 3, { meaning: '처음', note: '', status: 'approved' }],
+    ])
+    // 앞 책 원어는 그대로다.
+    expect(await readFile(path.join(options.originalDir, 'genesis.json'), 'utf8')).toBe(genesis)
+  })
+
+  it('히브리어 절 번호를 개역한글 절 번호로 옮기고, 절 나눔이 본문과 다른 장은 원어 없이 두고 알린다', async () => {
+    const lines: string[] = []
+    const options = optionsOf()
+    await writeSource('exodus', [3, 3])
+    const result = await runOriginal('exodus', options, (line) => lines.push(line))
+
+    // WLC 2:1이 KJV 1:3으로 가서 1장은 1~3절이 되고, 2장에는 2~3절만 남는다.
+    expect(result).toMatchObject({ chapters: 1, skipped: [2] })
+    expect(lines).toContain('출애굽기 2장은 히브리어와 개역한글의 절 나눔이 달라 원어를 넣지 않았습니다(본문 3절, 원어 2절)')
+    const original = await readJson<OriginalFile>(path.join(options.originalDir, 'exodus.json'))
+    expect(strongsOf(original)).toEqual([[1, [['H1', 'H7225'], ['H1'], ['H7225']]]])
+  })
+
+  it('신약 책은 본문을 읽거나 받기 전에 멈춘다', async () => {
+    await expect(runOriginal('matthew', optionsOf())).rejects.toThrow('신약 원어 자료는 아직 정하지 않았어요(마태복음)')
     expect(urls).toEqual([])
   })
 
