@@ -1,0 +1,38 @@
+# 개발용 Postgres(동기화 서버)와 키클락(로그인). 둘 다 이 컴퓨터(127.0.0.1)에만 연다. 운영용이 아니다.
+# 띄우기: npm run infra:up  /  멈추기: npm run infra:down
+name: chansu-bible
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: chansu
+      POSTGRES_PASSWORD: chansu-dev
+      POSTGRES_DB: chansu
+    ports:
+      - '127.0.0.1:5433:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U chansu -d chansu']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8
+    # 개발 모드: http로 열고, 요청한 주소로 발급자(iss)를 정한다. realm이 아직 없을 때만 import 폴더의 realm 파일을 읽는다.
+    command: ['start-dev', '--import-realm']
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin-dev
+    ports:
+      - '127.0.0.1:8080:8080'
+    volumes:
+      # 키클락의 개발용 DB(H2). 가입한 계정이 여기 남는다.
+      - keycloak-data:/opt/keycloak/data
+      - ./keycloak:/opt/keycloak/data/import:ro
+
+volumes:
+  db-data:
+  keycloak-data:

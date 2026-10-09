@@ -14,6 +14,9 @@
     "dev": "npm run pipeline -- build && npm run dev -w app",
     "build": "npm run pipeline -- build && npm run build -w app",
     "test": "npm test -w reader-core && npm test -w pipeline && npm test -w app && npm test -w admin",
-    "admin": "npm run dev -w admin"
+    "admin": "npm run dev -w admin",
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker-compose.yml down",
+    "server": "npm run dev -w server"
   }
 }
