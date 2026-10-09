@@ -201,8 +201,10 @@ export function NarrationProvider({ bundle, children }: { bundle: Bundle | null;
 
   const seekMs = useCallback(
     (ms: number) => {
+      if (!Number.isFinite(ms)) return
       stopAt.current = null
-      void player.seekTo(Math.max(0, ms) / 1000)
+      const limit = trackRef.current?.durationMs ?? ms
+      void player.seekTo(Math.min(Math.max(0, ms), limit) / 1000)
     },
     [player],
   )
@@ -246,7 +248,8 @@ export function NarrationProvider({ bundle, children }: { bundle: Bundle | null;
     () => ({ track, verse, playing, sleep, start, playTrack, toggle, pause, seekMs, stepVerse, setSleep, close }),
     [track, verse, playing, sleep, start, playTrack, toggle, pause, seekMs, stepVerse, setSleep, close],
   )
-  const durationMs = track ? (status.duration > 0 ? status.duration * 1000 : track.durationMs) : 0
+  // 장면 길이는 묶음 값(프레임으로 잰 정확한 값)을 쓴다. 재생기의 길이는 파일을 바꾼 직전에 앞 파일 값일 수 있다.
+  const durationMs = track ? track.durationMs : 0
   const clock = useMemo(() => ({ positionMs, durationMs }), [positionMs, durationMs])
 
   return (

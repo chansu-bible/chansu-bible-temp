@@ -1057,8 +1057,10 @@ export function NarrationProvider({ bundle, children }: { bundle: Bundle | null;
 
   const seekMs = useCallback(
     (ms: number) => {
+      if (!Number.isFinite(ms)) return
       stopAt.current = null
-      void player.seekTo(Math.max(0, ms) / 1000)
+      const limit = trackRef.current?.durationMs ?? ms
+      void player.seekTo(Math.min(Math.max(0, ms), limit) / 1000)
     },
     [player],
   )
@@ -1102,7 +1104,8 @@ export function NarrationProvider({ bundle, children }: { bundle: Bundle | null;
     () => ({ track, verse, playing, sleep, start, playTrack, toggle, pause, seekMs, stepVerse, setSleep, close }),
     [track, verse, playing, sleep, start, playTrack, toggle, pause, seekMs, stepVerse, setSleep, close],
   )
-  const durationMs = track ? (status.duration > 0 ? status.duration * 1000 : track.durationMs) : 0
+  // 장면 길이는 묶음 값(프레임으로 잰 정확한 값)을 쓴다. 재생기의 길이는 파일을 바꾼 직전에 앞 파일 값일 수 있다.
+  const durationMs = track ? track.durationMs : 0
   const clock = useMemo(() => ({ positionMs, durationMs }), [positionMs, durationMs])
 
   return (
@@ -1301,9 +1304,18 @@ export default function PlayerScreen({ bundle }: { bundle: Bundle }) {
           <Pressable
             accessibilityRole="adjustable"
             accessibilityLabel={`재생 위치 ${clockLabel(clock.positionMs)}, 전체 ${clockLabel(clock.durationMs)}`}
+            accessibilityActions={[
+              { name: 'increment', label: '10초 앞으로' },
+              { name: 'decrement', label: '10초 뒤로' },
+            ]}
+            onAccessibilityAction={(event) =>
+              narration.seekMs(clock.positionMs + (event.nativeEvent.actionName === 'increment' ? 10_000 : -10_000))
+            }
             onLayout={(event) => setRailWidth(event.nativeEvent.layout.width)}
             onPress={(event) => {
-              if (railWidth > 0) narration.seekMs((event.nativeEvent.locationX / railWidth) * clock.durationMs)
+              // 좌표 없이 눌린 경우(키보드 등)는 무시한다.
+              const x = event.nativeEvent.locationX
+              if (railWidth > 0 && Number.isFinite(x)) narration.seekMs((x / railWidth) * clock.durationMs)
             }}
             style={styles.railHit}
           >
@@ -1461,22 +1473,25 @@ export function MiniPlayer({ bundle, bottom }: { bundle: Bundle; bottom: number 
   const scene = bundle.chapters.find((item) => item.chapter === track.chapter)?.scenes[track.sceneIndex]
   if (!scene) return null
   const image = imageSource(bundle.defaultImageVersion ? scene.images[bundle.defaultImageVersion] : undefined)
+  // 단추 안에 단추를 두지 않는다(웹에서 button 안의 button은 잘못된 HTML이다). 여는 곳과 재생·닫기 단추를 나란히 둔다.
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`낭독 플레이어 열기. ${scene.title}`}
-      onPress={() => router.push('/player')}
-      style={[styles.bar, { bottom, backgroundColor: palette.surface, borderColor: palette.line }]}
-    >
-      <View style={[styles.thumb, { backgroundColor: placeholderColors(hueOf(scene.id), palette).background }]}>
-        {image !== null && <Image source={image} style={StyleSheet.absoluteFill} contentFit="cover" accessible={false} />}
-      </View>
-      <View style={styles.text}>
-        <Text style={[styles.title, { color: palette.ink }]} numberOfLines={1}>
-          {scene.title}
-        </Text>
-        <Text style={[styles.meta, { color: palette.inkSoft }]}>{`${bundle.book} ${track.chapter}장 ${narration.verse ?? scene.verseStart}절`}</Text>
-      </View>
+    <View style={[styles.bar, { bottom, backgroundColor: palette.surface, borderColor: palette.line }]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`낭독 플레이어 열기. ${scene.title}`}
+        onPress={() => router.push('/player')}
+        style={({ pressed }) => [styles.open, { opacity: pressed ? 0.7 : 1 }]}
+      >
+        <View style={[styles.thumb, { backgroundColor: placeholderColors(hueOf(scene.id), palette).background }]}>
+          {image !== null && <Image source={image} style={StyleSheet.absoluteFill} contentFit="cover" accessible={false} />}
+        </View>
+        <View style={styles.text}>
+          <Text style={[styles.title, { color: palette.ink }]} numberOfLines={1}>
+            {scene.title}
+          </Text>
+          <Text style={[styles.meta, { color: palette.inkSoft }]}>{`${bundle.book} ${track.chapter}장 ${narration.verse ?? scene.verseStart}절`}</Text>
+        </View>
+      </Pressable>
       <IconButton
         name={narration.playing ? 'pause' : 'play'}
         label={narration.playing ? '낭독 일시정지' : '낭독 이어 듣기'}
@@ -1484,7 +1499,7 @@ export function MiniPlayer({ bundle, bottom }: { bundle: Bundle; bottom: number 
         onPress={narration.toggle}
       />
       <IconButton name="close" label="낭독 닫기" color={palette.inkSoft} onPress={narration.close} />
-    </Pressable>
+    </View>
   )
 }
 
@@ -1505,6 +1520,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
+  open: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   thumb: { width: 44, height: 44, borderRadius: 10, overflow: 'hidden' },
   text: { flex: 1, gap: 2 },
   title: { fontSize: 14, fontWeight: '600' },

@@ -27,7 +27,9 @@ import {
 import { useAuth } from '../auth/AuthContext'
 import { imageSource } from '../content/bundle'
 import { savePlan, useMarks, usePlan, useReadScenes, useSavedPosition } from '../data/reading'
+import { useNarration } from '../narration/NarrationContext'
 import { goToReader } from '../navigation'
+import { MiniPlayer } from '../player/MiniPlayer'
 import { useSettings } from '../settings/SettingsContext'
 import { fonts, placeholderColors, type Palette } from '../theme/palette'
 import Icon, { type IconName } from '../ui/Icon'
@@ -41,6 +43,7 @@ export default function HomeScreen({ bundle }: { bundle: Bundle }) {
   const insets = useSafeAreaInsets()
   const [planOpen, setPlanOpen] = useState(false)
   const signedIn = useAuth().state.status === 'signedIn'
+  const narration = useNarration()
   const now = new Date()
   const today = localDay(now)
   const { ids: readIds, days } = useReadScenes()
@@ -60,6 +63,14 @@ export default function HomeScreen({ bundle }: { bundle: Bundle }) {
   const placeholder = placeholderColors(hueOf(scene.id), palette)
   const first = bundle.chapters[0]!.chapter
   const last = bundle.chapters.at(-1)!.chapter
+
+  // 오늘 읽을 첫 장면부터 듣는다.
+  function listenToday() {
+    const first = summary.today[0]
+    if (!first) return
+    narration.start({ chapter: first.chapter, verse: first.scene.verseStart })
+    router.push('/player')
+  }
 
   const shortcuts: { icon: IconName; title: string; detail: string; onPress: () => void }[] = [
     {
@@ -88,7 +99,13 @@ export default function HomeScreen({ bundle }: { bundle: Bundle }) {
   return (
     <View style={[styles.root, { backgroundColor: palette.paper }]}>
       <StatusBar style={palette.dark ? 'light' : 'dark'} />
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 24 }]}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          // 낭독 중이면 아래의 작은 재생 막대에 가리지 않게 여백을 더 둔다.
+          { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 24 + (narration.track !== null ? 72 : 0) },
+        ]}
+      >
         <View style={styles.header}>
           <View style={styles.headerText}>
             <Text style={[styles.date, { color: palette.inkSoft }]}>{koreanDateLabel(now)}</Text>
@@ -146,6 +163,16 @@ export default function HomeScreen({ bundle }: { bundle: Bundle }) {
             ))}
           </View>
           <Text style={[styles.planNote, { color: palette.inkSoft }]}>{todayNote(plan, summary)}</Text>
+          {summary.today.length > 0 && summary.todayAudioMs > 0 && (
+            <Pressable
+              accessibilityRole="button"
+              onPress={listenToday}
+              style={({ pressed }) => [styles.listen, { backgroundColor: palette.accentSoft, opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Icon name="headphones" size={16} color={palette.accent} />
+              <Text style={[styles.listenText, { color: palette.accent }]}>오늘 분량 듣기</Text>
+            </Pressable>
+          )}
         </View>
 
         <View style={styles.grid}>
@@ -167,6 +194,7 @@ export default function HomeScreen({ bundle }: { bundle: Bundle }) {
         </View>
       </ScrollView>
 
+      <MiniPlayer bundle={bundle} bottom={insets.bottom + 12} />
       {planOpen && <PlanSheet plan={plan} onChange={savePlan} onClose={() => setPlanOpen(false)} />}
     </View>
   )
@@ -248,6 +276,8 @@ const styles = StyleSheet.create({
   square: { width: 28, height: 28, borderRadius: 8, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   squareText: { fontSize: 11 },
   planNote: { fontSize: 12, lineHeight: 18 },
+  listen: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, height: 34, paddingHorizontal: 14, borderRadius: 17 },
+  listenText: { fontSize: 13, fontWeight: '600' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   tile: { width: '48%', flexGrow: 1, padding: 14, borderRadius: 16, gap: 6 },
   tileTitle: { fontSize: 14, fontWeight: '700' },

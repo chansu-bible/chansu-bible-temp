@@ -31,6 +31,7 @@ export function Segments<T extends string | number>({
               key={String(option.value)}
               accessibilityRole="radio"
               accessibilityState={{ checked }}
+              aria-checked={checked}
               accessibilityLabel={option.accessibilityLabel ?? option.label}
               onPress={() => onChange(option.value)}
               style={[styles.segment, checked && { backgroundColor: palette.surface }]}
