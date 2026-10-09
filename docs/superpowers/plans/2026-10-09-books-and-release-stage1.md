@@ -829,7 +829,7 @@ git commit -m "data(canon): 설정집 절 인용에 genesis를 붙임(migrate-ca
 
 - [ ] **Step 1: 프롬프트**
 
-프롬프트 함수가 책 이름을 받는다. 시스템 글의 "창세기 한 장"은 "성경 한 장", 사용자 글의 머리는 `${getBook(book).name} ${chapter}장`이다.
+프롬프트 함수가 책 이름을 받는다. 시스템 글의 "창세기 한 장"은 "성경 한 장", 사용자 글의 머리는 `${getBook(book).name} ${chapter}장`이다. 장면 시스템 글에 든 창세기 예("족보가 대부분인 장(5장, 10장)", "5장의 900년이 넘는 나이")는 "창세기 5장"처럼 책 이름을 붙여 다른 책을 쓸 때도 맞게 한다.
 - `buildScenarioPrompt(book, chapter, canon, style, examples)`, `buildRevisePrompt(book, …)`, `verseLines`는 그대로
 - `buildReviewTextPrompt(book, chapter, canon, style, scene)`
 - `canonSummary(canon, book)`: 옷차림 절과 시대 범위는 같은 책 인용이면 `localRef`(4:1), 다른 책이면 `formatRef(ref, 'name')`(창세기 4:1)로 보인다(Task 5까지는 모두 책 없이 보였다).
