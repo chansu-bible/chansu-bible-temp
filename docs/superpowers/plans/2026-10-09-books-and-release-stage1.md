@@ -15,7 +15,7 @@
 **설계에서 정하거나 바꾸는 것:**
 - 책 id는 영어 소문자이고, 번호가 붙은 책은 `1-samuel`처럼 쓴다. 장면 id·파일 이름은 오른쪽부터 읽는다(`1-samuel-01-03` → 책 `1-samuel`, 1장, 3번 장면).
 - 묶음에 `bookId`를 더한다(키 추가라 `schemaVersion`은 1 그대로). 옛 묶음은 `book`(한국어 이름)으로 책을 찾는다.
-- 책 묶음에는 그 책에서 처음 나오는 설정집 항목만 넣고, 참조는 책을 떼어 지금과 같은 `장:절`로 쓴다. 다른 책을 가리키는 근거 절은 그 책 묶음에서 뺀다.
+- 책 묶음에는 그 책과 앞 책들에서 처음 나오는 설정집 항목(그 책을 다 읽은 독자가 아는 것)을 넣는다. 같은 책 참조는 책을 떼어 지금과 같은 `장:절`로, 앞 책 참조는 책 이름을 붙여(`창세기 37:3`, 앱은 이미 만난 것으로 읽는다) 쓰고, 뒤 책 참조는 뺀다(시대의 끝이 뒤 책이면 그 책의 마지막 절로 둔다). 3단계의 앱은 묶음 대신 공용 설정집을 쓰므로 이 규칙은 묶음(웹 목업, 3단계 전 앱)에만 쓰인다.
 - 장을 다루는 단계(canon, scenario, review-text, images, tts, quiz)는 `--book`이 꼭 있어야 한다. `original`은 `--book`이 없으면 본문이 있는 모든 책을 돈다. `build`는 언제나 본문이 있는 모든 책을 함께 만들고 `--book`을 받지 않는다(한 책만 만들면 앱 콘텐츠 폴더를 비우면서 다른 책 묶음이 사라진다). 그래서 Pages 배포 워크플로는 그대로다. `original-gloss`는 모든 책이 함께 쓰는 사전을 채우므로 책을 받지 않는다.
 - `source`는 `--book`이 꼭 있어야 하고, `--chapters 1-10`처럼 범위를 줄 수 있다(없으면 책 전체).
 - LLM 실행 기록에 `book`을 더한다(옛 줄은 `null`).
@@ -902,14 +902,22 @@ Task 5 Step 0에서 남긴 `genesis.before.json`과 비교한다. 이 작업 바
 `buildBundle.test.ts`에 더한다:
 
 ```ts
-it('책 id를 넣고, 그 책에서 처음 나오는 설정집 항목만 책 없는 참조로 넣는다', () => {
-  // 설정집 고정값에 인물 둘: 아담(firstAppearance 'genesis 2:7', sources ['genesis 2:7', 'exodus 1:1'])
-  // 모세(firstAppearance 'exodus 2:10')
-  const bundle = buildBundle('genesis', source, sceneFiles, canonWithMoses, audio, catalog)
-  expect(bundle.bookId).toBe('genesis')
-  expect(bundle.characters.map((item) => item.id)).toEqual(['adam'])
-  expect(bundle.characters[0]!.firstAppearance).toBe('2:7')
-  expect(bundle.characters[0]!.sources).toEqual(['2:7'])
+it('책 id를 넣고, 그 책까지 나온 설정집 항목을 넣는다(같은 책은 책 없이, 앞 책은 책 이름으로, 뒤 책은 뺀다)', () => {
+  // 설정집 고정값: 아담(firstAppearance 'genesis 2:7', sources ['genesis 2:7', 'exodus 1:1']),
+  // 모세(firstAppearance 'exodus 2:10'), 시대(range 'genesis 12:1' ~ 'exodus 1:7')
+  const genesis = buildBundle('genesis', source, sceneFiles, canonWithMoses, audio, catalog)
+  expect(genesis.bookId).toBe('genesis')
+  expect(genesis.characters.map((item) => item.id)).toEqual(['adam'])
+  expect(genesis.characters[0]!.firstAppearance).toBe('2:7')
+  expect(genesis.characters[0]!.sources).toEqual(['2:7'])
+  // 시대의 끝이 뒤 책이면 이 책 본문의 마지막 절로 둔다
+  expect(genesis.eras[0]!.range).toEqual({ from: '12:1', to: lastVerseOf(source) })
+
+  const exodus = buildBundle('exodus', exodusSource, [], canonWithMoses, audio, catalog)
+  expect(exodus.characters.map((item) => item.id)).toEqual(['adam', 'moses'])
+  expect(exodus.characters[0]!.firstAppearance).toBe('창세기 2:7')
+  expect(exodus.characters[0]!.sources).toEqual(['창세기 2:7', '1:1'])
+  expect(exodus.eras[0]!.range).toEqual({ from: '창세기 12:1', to: '1:7' })
 })
 
 it('장면 파일이 없는 장의 대체 장면 id와 제목에 책을 쓴다', () => {
@@ -924,11 +932,11 @@ it('장면 파일이 없는 장의 대체 장면 id와 제목에 책을 쓴다',
 
 - [ ] **Step 2: 구현**
 
-- `buildBundle(book, source, sceneFiles, canon, audio, catalog, extras)`: 책을 인자로 받는다(Task 3까지는 `source.book`으로 찾았다). `bookId: book`을 넣고, `fallbackScene`은 `fallbackSceneIdOf(book, chapter)`와 `${getBook(book).name} ${chapter}장`. 설정집 항목은 `parseRef(firstAppearance)?.book === book`인 것만(시대는 `range.from`, 물건은 첫 `sources`) 넣고, 넣는 항목의 인용은 `localRef(text, book)`로 바꾸며(Task 5에서 `?? text`로 넣어 두었다) `null`(다른 책)은 뺀다.
+- `buildBundle(book, source, sceneFiles, canon, audio, catalog, extras)`: 책을 인자로 받는다(Task 3까지는 `source.book`으로 찾았다). `bookId: book`을 `schemaVersion` 바로 뒤에 넣고, 본문의 책 이름이 그 책이 아니면 오류다. `fallbackScene`은 `fallbackSceneIdOf(book, chapter)`와 `${getBook(book).name} ${chapter}장`. 설정집 항목은 처음 나오는 곳(인물·장소는 `firstAppearance`, 시대는 `range.from`, 물건은 가장 앞선 `sources`)이 그 책이거나 앞 책인 것을 넣는다. 넣는 항목의 인용은 같은 책이면 `localRef`, 앞 책이면 `formatRef(ref, 'name')`, 뒤 책이면 `sources`·`attire`에서 빼고, 시대의 `range.to`가 뒤 책이면 그 책 본문의 마지막 `장:절`로 둔다.
 - `writeBundles(books)`(Task 3에서 만든 것): 책마다 `buildBundle(book, …)`의 결과를 `<book>.json`으로 쓴다.
 - 묶음의 사전 `count`는 그 책 묶음의 원어에서 센다(Task 6b 뒤 `lexicon.json`의 `count`는 모든 책 합계다). 창세기만 있으면 지금 값과 같다.
-- `buildSources(book, style)`: 개역한글판 출처를 책 이름으로 만든다.
-- `docs/content-bundle.md`: 맨 위 키 표에 `bookId`(책 id, `reader-core`의 `books.ts`)를 더한다.
+- `buildSources(book, style)`: 개역한글판 출처를 `wikisourcePageTitle(book)`(Task 4)로 만든다(요한일서는 `개역한글판/요한1서`).
+- `docs/content-bundle.md`: 맨 위 키 표에 `bookId`(책 id, `reader-core`의 `books.ts`)를 더하고, 묶음에 드는 설정집 항목과 인용 모양을 적는다.
 
 - [ ] **Step 3: 창세기 묶음이 `bookId` 말고는 그대로인지 본다**
 
@@ -945,7 +953,7 @@ Run: `npm test -w pipeline && npm run typecheck -w pipeline && npm test -w app`
 
 ```bash
 git add pipeline docs/content-bundle.md
-git commit -m "feat(pipeline): 책마다 묶음(bookId, 그 책의 설정집, 책 없는 참조)"
+git commit -m "feat(pipeline): 책마다 묶음(bookId, 그 책까지의 설정집, 책 없는 참조)"
 ```
 
 ---
@@ -966,16 +974,20 @@ git commit -m "feat(pipeline): 책마다 묶음(bookId, 그 책의 설정집, �
 - 퀴즈 저장(`PUT …/quiz/:chapter`)에서 `writeQuizFile`이 내는 검사 오류(문제 id가 그 책·그 장 것이 아님)는 장면 저장처럼 400으로 돌려준다.
 - `admin/server/book.ts`(`ADMIN_BOOK`, Task 3의 임시 상수)를 지우고, `admin/server/status.ts`에 남은 음성 파일 이름 규칙(`genesis-NN-VVV.mp3` 정규식)은 `reader-core`의 `verseAudioName`·`parseChapterStem`으로 바꾼다.
 - 화면: 머리(내비)에 책 고르기를 두고 고른 책을 `localStorage`에 기억한다. 책을 가리는 화면의 주소는 `#/<book>/dashboard`, `#/<book>/scenes/4`, `#/<book>/quiz/4`이고, 옛 주소(`#/scenes/4`, `#/quiz/4`, `#/`)는 고른 책(없으면 첫 책) 주소로 넘긴다.
-- 설정집 화면의 인용은 `formatRef(parseRef(text), 'name')`으로 보인다(창세기 2:7). 고칠 때 넣는 인용은 `genesis 2:7`이나 책 없는 `2:7`(고르고 있는 책을 붙인다)을 받는다.
-- 시험: 지금 시험을 새 주소로 옮기고, 알 수 없는 책 404, `GET /api/books`, `book` 없는 단계 작업 400을 더한다.
+- 설정집 화면의 인용은 `formatRef(parseRef(text), 'name')`으로 보인다(창세기 2:7). 고칠 때 넣는 인용은 `genesis 2:7`, `창세기 2:7`, 책 없는 `2:7`(고르고 있는 책을 붙인다)을 받고 `genesis 2:7`로 저장한다(Task 5 뒤의 임시 조치, 책 없는 인용에 `genesis`를 붙이던 것을 바꾼다).
+- 퀴즈 저장의 409는 같은 책·같은 장의 퀴즈 작업이 돌 때만 낸다(원어 뜻은 모든 책이 함께 쓰므로 지금처럼 전체).
+- 작업 폼: 책 고르기(장 단계와 `source`는 꼭, `original`은 "모든 책"도, `build`·`original-gloss`는 없음), `source`의 장 범위 칸. 작업 목록에 책 이름을 보인다. `build`와 `original-gloss`에 `book`이 오면 400(CLI와 같은 글).
+- 시험: 지금 시험을 새 주소로 옮기고, 알 수 없는 책 404, `GET /api/books`, `book` 없는 단계 작업 400, 잘못된 장 범위 400, 퀴즈 저장 검사 400, 같은 책·같은 장에서만 409, 다른 책의 음성 이름을 더한다. 화면 주소와 인용 바꾸기는 `logic.test.ts`에.
 
-- [ ] **Step 1:** 하위 에이전트가 위 계약대로 고친다(`admin/`만).
-- [ ] **Step 2:** `npm test -w admin && npm run typecheck -w admin && npm run lint -w admin` 통과, 관리 도구를 띄워 대시보드·장면·퀴즈·작업 폼이 창세기로 그대로 동작하는지 본다.
+- [ ] **Step 1:** 하위 에이전트가 위 계약대로 고친다(`admin/`만). 서버와 시험을 먼저 커밋하고 화면을 다음 커밋으로 한다.
+- [ ] **Step 2:** `npm test -w admin && npm run typecheck -w admin && npm run lint -w admin` 통과, 관리 도구를 띄워 대시보드·장면·퀴즈·작업 폼·설정집 편집이 창세기로 그대로 동작하는지 브라우저에서 본다.
 - [ ] **Step 3: 커밋**
 
 ```bash
-git add admin
-git commit -m "feat(admin): 책 고르기와 책을 가리는 API(/api/books/:book/…)"
+git add admin/server admin/test admin/package.json package-lock.json
+git commit -m "feat(admin): 책을 가리는 API(/api/books/:book/…)와 책을 받는 작업"
+git add admin/src
+git commit -m "feat(admin): 책 고르기와 책이 든 주소, 설정집 인용을 책 이름으로 보이고 받기"
 ```
 
 ---
