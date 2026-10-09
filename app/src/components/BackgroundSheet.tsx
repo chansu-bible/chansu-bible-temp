@@ -1,4 +1,4 @@
-import type { Scene } from '../content/types.ts'
+import type { Scene } from 'reader-core'
 import Icon from './Icon.tsx'
 
 export default function BackgroundSheet({ scene, onClose }: { scene: Scene; onClose: () => void }) {

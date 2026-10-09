@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "workspaces": [
+    "packages/reader-core",
     "pipeline",
     "app",
     "admin"
@@ -11,7 +12,7 @@
     "pipeline": "npm run cli -w pipeline --",
     "dev": "npm run pipeline -- build && npm run dev -w app",
     "build": "npm run pipeline -- build && npm run build -w app",
-    "test": "npm test -w pipeline && npm test -w app && npm test -w admin",
+    "test": "npm test -w reader-core && npm test -w pipeline && npm test -w app && npm test -w admin",
     "admin": "npm run dev -w admin"
   }
 }

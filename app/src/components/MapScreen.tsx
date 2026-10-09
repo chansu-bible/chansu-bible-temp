@@ -1,8 +1,8 @@
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEffect, useRef, useState } from 'react'
-import { flashTiming, type PlaceChange } from '../reader/placeChange.ts'
-import type { MappedPlace, Route } from '../reader/route.ts'
+import { flashTiming, type PlaceChange } from 'reader-core'
+import type { MappedPlace, Route } from 'reader-core'
 import Icon from './Icon.tsx'
 
 // 아직 지나온 장소가 없을 때 보여줄 범위: 고대 근동 일대

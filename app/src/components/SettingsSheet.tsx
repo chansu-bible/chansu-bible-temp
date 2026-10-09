@@ -1,5 +1,5 @@
-import type { Verse } from '../content/types.ts'
-import type { FontScale, Settings, Speed, Theme } from '../reader/settings.ts'
+import type { Verse } from 'reader-core'
+import type { FontScale, Settings, Speed, Theme } from 'reader-core'
 import Icon from './Icon.tsx'
 
 type Props = {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Verse } from '../content/types.ts'
+import type { Verse } from 'reader-core'
 
 export function verseAudioUrl(verse: Verse | undefined): string | null {
   // 낭독 파일 필드가 아직 없는 묶음도 있으므로 값이 없으면 null로 본다.

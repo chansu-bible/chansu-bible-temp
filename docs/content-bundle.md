@@ -1,6 +1,6 @@
 # 콘텐츠 묶음 형식 (schemaVersion 1)
 
-읽기 앱(웹, 나중의 iOS/Android)이 읽는 것은 이 묶음뿐이다. 묶음은 `npm run pipeline -- build`가 `content/`에서 만들며, 앱은 설정집·장면 파일·파이프라인을 직접 읽지 않는다. 형식의 기준은 `pipeline/src/schema.ts`의 `BundleSchema`이고, 웹 앱의 타입은 `app/src/content/types.ts`에 있다.
+읽기 앱(웹, 나중의 iOS/Android)이 읽는 것은 이 묶음뿐이다. 묶음은 `npm run pipeline -- build`가 `content/`에서 만들며, 앱은 설정집·장면 파일·파이프라인을 직접 읽지 않는다. 형식의 기준은 `pipeline/src/schema.ts`의 `BundleSchema`이고, 앱의 타입은 웹·네이티브가 함께 쓰는 `packages/reader-core/src/types.ts`에 있다.
 
 ## 파일 배치
 

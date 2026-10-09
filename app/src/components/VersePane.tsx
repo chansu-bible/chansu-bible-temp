@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Chapter, Character, Gloss, Place } from '../content/types.ts'
-import { findActiveIndex } from '../reader/activeScene.ts'
-import { splitVerse, type Entity } from '../reader/names.ts'
+import type { Chapter, Character, Gloss, Place } from 'reader-core'
+import { findActiveIndex } from 'reader-core'
+import { splitVerse, type Entity } from 'reader-core'
 import Icon from './Icon.tsx'
-import { findSceneIndex } from '../reader/readingPosition.ts'
+import { findSceneIndex } from 'reader-core'
 
 // 스크롤 영역의 위에서 이만큼 내려온 곳이 기준선이다.
 const lineOffset = 24
