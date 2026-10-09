@@ -386,8 +386,9 @@ export type LexiconFile = z.infer<typeof LexiconFileSchema>
 
 // 이해 확인 문제. reviewed는 검수 모델 통과, flagged는 검수 모델이나 코드 검사가 지적한 것,
 // approved는 사람이 관리 도구에서 승인한 것(이것만 앱에 나간다), rejected는 버린 것
+// id는 reader-core의 quizQuestionId 모양이다(genesis-04-q1, psalms-119-q2).
 export const QuizQuestionSchema = z.object({
-  id: z.string().regex(/^genesis-\d{2}-q\d+$/),
+  id: z.string().regex(/^[a-z0-9-]+-\d{1,3}-q\d+$/),
   question: z.string().min(1),
   options: z.array(z.string().min(1)).length(4),
   answer: z.number().int().min(0).max(3),

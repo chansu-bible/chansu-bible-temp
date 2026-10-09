@@ -1,19 +1,22 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
+import type { BookId } from 'reader-core'
 import { approvedCanon } from '../canon/approved.ts'
 import { readCanon } from '../canon/files.ts'
 import { readStyle } from '../images/style.ts'
 import { createLlm, type Llm } from '../llm/client.ts'
 import { writerModel } from '../llm/models.ts'
 import {
+  hasChapter,
   sceneFilePath,
   scenesDir as defaultScenesDir,
-  sourceFile as defaultSourceFile,
+  sourceDir as defaultSourceDir,
   storyBibleDir as defaultStoryBibleDir,
   styleFile as defaultStyleFile,
 } from '../paths.ts'
-import { SceneFileSchema, SourceSchema, type Scene, type SourceChapter } from '../schema.ts'
+import { SceneFileSchema, type Scene } from '../schema.ts'
 import { writeSceneFile } from '../scenes/files.ts'
+import { readSourceChapter } from '../source/files.ts'
 import { assembleScenes } from './assemble.ts'
 import { ScenarioOutputSchema } from './output.ts'
 import { buildScenarioPrompt, type ScenarioPrompt } from './prompt.ts'
@@ -25,10 +28,10 @@ export type ScenarioRunOptions = {
   // 시험용. 비우면 작성 모델로 부른다.
   llm?: Llm
   storyBibleDir?: string
-  sourceFile?: string
+  sourceDir?: string
   scenesDir?: string
   styleFile?: string
-  // 본보기 장면 파일. 비우면 장면 폴더의 2장 파일(2장을 쓸 때는 1장 파일)
+  // 본보기 장면 파일. 비우면 장면 폴더에 있는 그 책의 2장 파일(2장을 쓸 때는 1장 파일)
   examplesFile?: string
 }
 
@@ -40,17 +43,9 @@ export type ScenarioRunResult = {
   warnings: string[]
 }
 
-// 본문 파일에서 한 장을 읽는다. 없으면 오류.
-export async function readSourceChapter(chapter: number, file: string = defaultSourceFile): Promise<SourceChapter> {
-  const source = SourceSchema.parse(JSON.parse(await readFile(file, 'utf8')))
-  const sourceChapter = source.chapters.find((item) => item.chapter === chapter)
-  if (!sourceChapter) throw new Error(`본문에 ${chapter}장이 없습니다. 먼저 source 단계를 실행하세요.`)
-  return sourceChapter
-}
-
 // 본보기 장면: 파일의 1번째·3번째 장면. 파일이 없으면 본보기 없이 간다.
-async function readExamples(file: string): Promise<Scene[]> {
-  if (!existsSync(file)) return []
+async function readExamples(file: string | null): Promise<Scene[]> {
+  if (file === null || !existsSync(file)) return []
   const sceneFile = SceneFileSchema.parse(JSON.parse(await readFile(file, 'utf8')))
   return [sceneFile.scenes[0], sceneFile.scenes[2]].filter((scene): scene is Scene => scene !== undefined)
 }
@@ -63,28 +58,32 @@ function rangeLabel(scene: Scene): string {
 
 // 장 본문과 승인된 설정집으로 장면을 쓴다. dryRun이면 프롬프트만 출력하고 모델을 부르지 않는다.
 export async function runScenario(
+  book: BookId,
   chapter: number,
   {
     dryRun = false,
     force = false,
     llm,
     storyBibleDir = defaultStoryBibleDir,
-    sourceFile = defaultSourceFile,
+    sourceDir = defaultSourceDir,
     scenesDir = defaultScenesDir,
     styleFile = defaultStyleFile,
     examplesFile,
   }: ScenarioRunOptions = {},
   log: (line: string) => void = console.log,
 ): Promise<ScenarioRunResult> {
-  const sourceChapter = await readSourceChapter(chapter, sourceFile)
+  const sourceChapter = await readSourceChapter(book, chapter, sourceDir)
   // dry-run은 아무것도 쓰지 않으므로 파일이 있어도 프롬프트를 보여 준다.
-  if (!dryRun && !force && existsSync(sceneFilePath(chapter, scenesDir))) {
+  if (!dryRun && !force && existsSync(sceneFilePath(book, chapter, scenesDir))) {
     throw new Error(`이미 ${chapter}장 장면 파일이 있습니다. 다시 쓰려면 --force를 붙이세요.`)
   }
 
   const canon = approvedCanon(await readCanon(storyBibleDir))
   const style = await readStyle(styleFile, { requireFiles: false })
-  const examples = await readExamples(examplesFile ?? sceneFilePath(chapter === 2 ? 1 : 2, scenesDir))
+  // 한 장뿐인 책(오바댜 등)에는 본보기로 볼 다른 장이 없다.
+  const exampleChapter = chapter === 2 ? 1 : 2
+  const defaultExamples = hasChapter(book, exampleChapter) ? sceneFilePath(book, exampleChapter, scenesDir) : null
+  const examples = await readExamples(examplesFile ?? defaultExamples)
   const prompt = buildScenarioPrompt(sourceChapter, canon, style, examples)
 
   if (dryRun) {
@@ -96,9 +95,9 @@ export async function runScenario(
     return { chapter, dryRun: true, prompt, scenes: [], warnings: [] }
   }
 
-  const model = llm ?? createLlm({ stage: 'scenario', chapter, log })
+  const model = llm ?? createLlm({ stage: 'scenario', book, chapter, log })
   log(`${chapter}장 장면 쓰기: ${writerModel()} 호출 중`)
-  let result = assembleScenes(sourceChapter, await model.parse(ScenarioOutputSchema, { ...prompt, name: 'scenario' }), canon)
+  let result = assembleScenes(book, sourceChapter, await model.parse(ScenarioOutputSchema, { ...prompt, name: 'scenario' }), canon)
 
   if (result.problems.length > 0) {
     log('절 범위가 맞지 않아 한 번 더 부릅니다:')
@@ -111,6 +110,7 @@ export async function runScenario(
       ...result.problems.map((problem) => `- ${problem}`),
     ].join('\n')
     result = assembleScenes(
+      book,
       sourceChapter,
       await model.parse(ScenarioOutputSchema, { system: prompt.system, user, name: 'scenario' }),
       canon,
@@ -120,7 +120,7 @@ export async function runScenario(
     }
   }
 
-  await writeSceneFile({ chapter, scenes: result.scenes }, scenesDir)
+  await writeSceneFile(book, { chapter, scenes: result.scenes }, scenesDir)
 
   log(`장면 ${result.scenes.length}개를 썼습니다`)
   for (const scene of result.scenes) {

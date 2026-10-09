@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 import { zodTextFormat } from 'openai/helpers/zod'
 import type { Tool } from 'openai/resources/responses/responses'
+import type { BookId } from 'reader-core'
 import type { ZodType } from 'zod'
 import { writerModel } from './models.ts'
 import { appendRun, type Run } from './runs.ts'
@@ -36,6 +37,8 @@ export type Llm = {
 
 export type LlmOptions = {
   stage: string
+  // 책을 가리지 않는 단계(original-gloss)는 null
+  book: BookId | null
   chapter: number | null
   log?: (line: string) => void
   // 시험용. 비우면 OpenAI 클라이언트로 부르고 content/runs/에 기록한다.
@@ -62,7 +65,7 @@ function findRefusal(response: ResponsesResult): string | null {
 }
 
 // 단계 하나가 쓰는 LLM. 호출마다 모델, 토큰, 소요 시간을 기록한다.
-export function createLlm({ stage, chapter, log = () => {}, call, record = (run) => appendRun(run) }: LlmOptions): Llm {
+export function createLlm({ stage, book, chapter, log = () => {}, call, record = (run) => appendRun(run) }: LlmOptions): Llm {
   let send = call
 
   return {
@@ -78,6 +81,7 @@ export function createLlm({ stage, chapter, log = () => {}, call, record = (run)
           at,
           stage,
           model,
+          book,
           chapter,
           inputTokens: usage?.input_tokens ?? 0,
           outputTokens: usage?.output_tokens ?? 0,

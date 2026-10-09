@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { parseArgs } from 'node:util'
-import { writeBundle } from './build/writeBundle.ts'
+import { isBookId, type BookId } from 'reader-core'
+import { writeBundles } from './build/writeBundle.ts'
 import { runCanon } from './canon/runCanon.ts'
 import { runGloss } from './original/runGloss.ts'
 import { runOriginal } from './original/runOriginal.ts'
@@ -11,10 +12,12 @@ import { envFile } from './paths.ts'
 import { runReviewText } from './review/reviewText.ts'
 import { runScenario } from './scenario/runScenario.ts'
 import { fetchSource } from './source/fetchSource.ts'
+import { listSourceBooks } from './source/files.ts'
 import { generateSpeech } from './tts/generateSpeech.ts'
 import { createOpenAiSpeak } from './tts/openaiSpeak.ts'
 
 type Flags = {
+  book?: string
   chapter?: string
   limit?: string
   scene?: string[]
@@ -30,31 +33,48 @@ function positiveInteger(value: string | undefined, name: string): number | unde
   return number
 }
 
+function requireBook(flags: Flags): BookId {
+  if (flags.book === undefined) throw new Error('--book <책 id>가 필요합니다(예: --book genesis)')
+  if (!isBookId(flags.book)) throw new Error(`알 수 없는 책입니다: ${flags.book}. 책 id는 reader-core의 books.ts에 있습니다.`)
+  return flags.book
+}
+
+// --book이 없으면 본문이 있는 모든 책(성경 순서)
+async function booksOrAll(flags: Flags): Promise<BookId[]> {
+  if (flags.book !== undefined) return [requireBook(flags)]
+  const books = await listSourceBooks()
+  if (books.length === 0) throw new Error('본문이 있는 책이 없습니다. 먼저 source --book <책 id>를 실행하세요.')
+  return books
+}
+
+function requireChapter(flags: Flags): number {
+  const chapter = positiveInteger(flags.chapter, 'chapter')
+  if (chapter === undefined) throw new Error('--chapter <장 번호>가 필요합니다')
+  return chapter
+}
+
 const commands: Record<string, (flags: Flags) => Promise<void>> = {
-  async source() {
-    const source = await fetchSource()
+  async source(flags) {
+    const source = await fetchSource(requireBook(flags))
     const verseCount = source.chapters.reduce((sum, chapter) => sum + chapter.verses.length, 0)
     console.log(`본문 저장 완료: ${source.chapters.length}장 ${verseCount}절`)
   },
   async canon(flags) {
-    const chapter = positiveInteger(flags.chapter, 'chapter')
-    if (chapter === undefined) throw new Error('--chapter <장 번호>가 필요합니다')
-    await runCanon(chapter, { dryRun: flags['dry-run'] }, console.log)
+    const book = requireBook(flags)
+    await runCanon(book, requireChapter(flags), { dryRun: flags['dry-run'] }, console.log)
   },
   async scenario(flags) {
-    const chapter = positiveInteger(flags.chapter, 'chapter')
-    if (chapter === undefined) throw new Error('--chapter <장 번호>가 필요합니다')
-    await runScenario(chapter, { dryRun: flags['dry-run'], force: flags.force }, console.log)
+    const book = requireBook(flags)
+    await runScenario(book, requireChapter(flags), { dryRun: flags['dry-run'], force: flags.force }, console.log)
   },
   async 'review-text'(flags) {
-    const chapter = positiveInteger(flags.chapter, 'chapter')
-    if (chapter === undefined) throw new Error('--chapter <장 번호>가 필요합니다')
-    const result = await runReviewText(chapter, { dryRun: flags['dry-run'], sceneIds: flags.scene }, console.log)
+    const book = requireBook(flags)
+    const result = await runReviewText(book, requireChapter(flags), { dryRun: flags['dry-run'], sceneIds: flags.scene }, console.log)
     if (result.flagged.length > 0) console.log(`확인 필요: ${result.flagged.join(', ')}`)
   },
   async images(flags) {
-    const chapter = positiveInteger(flags.chapter, 'chapter')
-    if (chapter === undefined) throw new Error('--chapter <장 번호>가 필요합니다')
+    const book = requireBook(flags)
+    const chapter = requireChapter(flags)
     const dryRun = flags['dry-run']
     const draw = dryRun
       ? async () => {
@@ -64,6 +84,7 @@ const commands: Record<string, (flags: Flags) => Promise<void>> = {
 
     const result = await generateImages(
       {
+        book,
         chapter,
         allowDraft: flags['allow-draft'],
         force: flags.force,
@@ -88,8 +109,8 @@ const commands: Record<string, (flags: Flags) => Promise<void>> = {
     if (result.failed.length > 0) process.exitCode = 1
   },
   async tts(flags) {
-    const chapter = positiveInteger(flags.chapter, 'chapter')
-    if (chapter === undefined) throw new Error('--chapter <장 번호>가 필요합니다')
+    const book = requireBook(flags)
+    const chapter = requireChapter(flags)
     const dryRun = flags['dry-run']
     const speak = dryRun
       ? async () => {
@@ -98,7 +119,7 @@ const commands: Record<string, (flags: Flags) => Promise<void>> = {
       : createOpenAiSpeak()
 
     const result = await generateSpeech(
-      { chapter, force: flags.force, dryRun, limit: positiveInteger(flags.limit, 'limit') },
+      { book, chapter, force: flags.force, dryRun, limit: positiveInteger(flags.limit, 'limit') },
       speak,
       console.log,
     )
@@ -111,11 +132,13 @@ const commands: Record<string, (flags: Flags) => Promise<void>> = {
     for (const failure of result.failed) console.error(`- ${chapter}:${failure.verse} ${failure.reason}`)
     if (result.failed.length > 0) process.exitCode = 1
   },
-  async original() {
-    const result = await runOriginal({}, console.log)
-    console.log(
-      `원어 저장 완료: ${result.chapters}장, 낱말 ${result.words}개, 사전 항목 ${result.entries}개(한국어 뜻 있음 ${result.withKorean}개)`,
-    )
+  async original(flags) {
+    for (const book of await booksOrAll(flags)) {
+      const result = await runOriginal(book, {}, console.log)
+      console.log(
+        `원어 저장 완료: ${result.chapters}장, 낱말 ${result.words}개, 사전 항목 ${result.entries}개(한국어 뜻 있음 ${result.withKorean}개)`,
+      )
+    }
   },
   async 'original-gloss'(flags) {
     const result = await runGloss(
@@ -133,16 +156,20 @@ const commands: Record<string, (flags: Flags) => Promise<void>> = {
     }
   },
   async quiz(flags) {
-    const chapter = positiveInteger(flags.chapter, 'chapter')
-    if (chapter === undefined) throw new Error('--chapter <장 번호>가 필요합니다')
-    const result = await runQuiz(chapter, { force: flags.force, dryRun: flags['dry-run'] }, console.log)
+    const book = requireBook(flags)
+    const chapter = requireChapter(flags)
+    const result = await runQuiz(book, chapter, { force: flags.force, dryRun: flags['dry-run'] }, console.log)
     if (result.skipped || result.dryRun) return
     console.log(`${chapter}장 퀴즈: ${result.written}문제(검수 통과 ${result.reviewed}, 지적 ${result.flagged}). 관리 도구의 "퀴즈"에서 승인하세요.`)
   },
-  async build() {
-    const bundle = await writeBundle()
-    const sceneCount = bundle.chapters.reduce((sum, chapter) => sum + chapter.scenes.length, 0)
-    console.log(`묶음 생성 완료: ${bundle.chapters.length}장, 장면 ${sceneCount}개`)
+  async build(flags) {
+    const bundles = await writeBundles(await booksOrAll(flags))
+    for (const bundle of bundles) {
+      const sceneCount = bundle.chapters.reduce((sum, chapter) => sum + chapter.scenes.length, 0)
+      // 책이 여럿이면 어느 책인지 앞에 적는다.
+      const label = bundles.length > 1 ? `${bundle.book} ` : ''
+      console.log(`${label}묶음 생성 완료: ${bundle.chapters.length}장, 장면 ${sceneCount}개`)
+    }
   },
 }
 
@@ -153,6 +180,7 @@ try {
     args: process.argv.slice(2),
     allowPositionals: true,
     options: {
+      book: { type: 'string' },
       chapter: { type: 'string' },
       limit: { type: 'string' },
       scene: { type: 'string', multiple: true },

@@ -1,21 +1,33 @@
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { lexiconFile as defaultLexiconFile, originalFile as defaultOriginalFile, sourceFile as defaultSourceFile } from '../paths.ts'
-import { LexiconFileSchema, SourceSchema, type LexiconEntry, type OriginalFile } from '../schema.ts'
+import { getBook, josa, type BookId } from 'reader-core'
+import {
+  lexiconFile as defaultLexiconFile,
+  originalDir as defaultOriginalDir,
+  originalFilePath,
+  sourceDir as defaultSourceDir,
+} from '../paths.ts'
+import { LexiconFileSchema, type LexiconEntry, type OriginalFile } from '../schema.ts'
+import { readSource } from '../source/files.ts'
 import { parseOshb } from './oshb.ts'
 import { parseStrongs } from './strongs.ts'
 
 // 고정된 커밋에서 받는다(같은 자료로 다시 만들 수 있게).
 // OSHB: 본문은 WLC(퍼블릭 도메인), 원형과 형태 분석은 CC BY 4.0. 스트롱 사전 XML은 퍼블릭 도메인.
-export const OSHB_URL = 'https://raw.githubusercontent.com/openscriptures/morphhb/3d15126fb1ef74867fc1434be1942e837932691f/wlc/Gen.xml'
+export const OSHB_BASE = 'https://raw.githubusercontent.com/openscriptures/morphhb/3d15126fb1ef74867fc1434be1942e837932691f/wlc'
 export const STRONGS_URL =
   'https://raw.githubusercontent.com/openscriptures/strongs/0acd2f251c2d35ff8db2dece4e0593979d3ac223/hebrew/StrongHebrewG.xml'
 
+// 책의 OSHB 파일. 파일 이름은 책의 OSIS 코드다(창세기는 Gen.xml).
+export function oshbUrl(book: BookId): string {
+  return `${OSHB_BASE}/${getBook(book).osis}.xml`
+}
+
 export type OriginalOptions = {
   fetchText?: (url: string) => Promise<string>
-  sourceFile?: string
-  originalFile?: string
+  sourceDir?: string
+  originalDir?: string
   lexiconFile?: string
 }
 
@@ -26,16 +38,15 @@ async function defaultFetch(url: string): Promise<string> {
 }
 
 // 본문에 있는 장의 히브리어 낱말과 그 낱말들의 사전 항목을 만든다. 이미 있는 한국어 뜻(초안, 승인)은 그대로 둔다.
-export async function runOriginal(options: OriginalOptions = {}, log: (line: string) => void = () => {}) {
+export async function runOriginal(book: BookId, options: OriginalOptions = {}, log: (line: string) => void = () => {}) {
   const fetchText = options.fetchText ?? defaultFetch
-  const sourceFile = options.sourceFile ?? defaultSourceFile
-  const originalFile = options.originalFile ?? defaultOriginalFile
+  const originalFile = originalFilePath(book, options.originalDir ?? defaultOriginalDir)
   const lexiconFile = options.lexiconFile ?? defaultLexiconFile
 
-  const source = SourceSchema.parse(JSON.parse(await readFile(sourceFile, 'utf8')))
+  const source = await readSource(book, options.sourceDir ?? defaultSourceDir)
   const chapterNumbers = new Set(source.chapters.map((chapter) => chapter.chapter))
-  log('OSHB 창세기를 받는 중…')
-  const chapters = parseOshb(await fetchText(OSHB_URL), chapterNumbers)
+  log(`OSHB ${josa(getBook(book).name, '을를')} 받는 중…`)
+  const chapters = parseOshb(await fetchText(oshbUrl(book)), chapterNumbers)
   for (const chapter of source.chapters) {
     const found = chapters.find((item) => item.chapter === chapter.chapter)
     if (!found || found.verses.length !== chapter.verses.length) {

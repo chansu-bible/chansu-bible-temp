@@ -4,14 +4,16 @@ import {
   fetchSource,
   generateImages,
   generateSpeech,
+  listSourceBooks,
   runCanon,
   runGloss,
   runOriginal,
   runQuiz,
   runReviewText,
   runScenario,
-  writeBundle,
+  writeBundles,
 } from 'pipeline'
+import { ADMIN_BOOK } from './book.ts'
 import { STAGES, type JobOptions, type Runner, type Stage } from './jobs.ts'
 
 export class JobRequestError extends Error {
@@ -102,24 +104,24 @@ export function createRunner(stage: Stage, options: JobOptions): Runner {
     case 'source':
       return async (log) => {
         log('본문을 가져오는 중')
-        const source = await fetchSource()
+        const source = await fetchSource(ADMIN_BOOK)
         const verseCount = source.chapters.reduce((sum, item) => sum + item.verses.length, 0)
         log(`본문 저장 완료: ${source.chapters.length}장 ${verseCount}절`)
       }
 
     case 'canon':
       return async (log) => {
-        await runCanon(chapter, { dryRun }, log)
+        await runCanon(ADMIN_BOOK, chapter, { dryRun }, log)
       }
 
     case 'scenario':
       return async (log) => {
-        await runScenario(chapter, { dryRun, force: options.force ?? false }, log)
+        await runScenario(ADMIN_BOOK, chapter, { dryRun, force: options.force ?? false }, log)
       }
 
     case 'review-text':
       return async (log) => {
-        const result = await runReviewText(chapter, { dryRun, sceneIds: options.scenes }, log)
+        const result = await runReviewText(ADMIN_BOOK, chapter, { dryRun, sceneIds: options.scenes }, log)
         if (result.flagged.length > 0) log(`확인 필요: ${result.flagged.join(', ')}`)
       }
 
@@ -127,6 +129,7 @@ export function createRunner(stage: Stage, options: JobOptions): Runner {
       return async (log) => {
         const result = await generateImages(
           {
+            book: ADMIN_BOOK,
             chapter,
             allowDraft: options.allowDraft ?? false,
             force: options.force ?? false,
@@ -153,7 +156,7 @@ export function createRunner(stage: Stage, options: JobOptions): Runner {
     case 'tts':
       return async (log) => {
         const result = await generateSpeech(
-          { chapter, force: options.force ?? false, dryRun, limit: options.limit },
+          { book: ADMIN_BOOK, chapter, force: options.force ?? false, dryRun, limit: options.limit },
           dryRun ? noSpeak : createOpenAiSpeak(),
           log,
         )
@@ -168,7 +171,7 @@ export function createRunner(stage: Stage, options: JobOptions): Runner {
 
     case 'original':
       return async (log) => {
-        const result = await runOriginal({}, log)
+        const result = await runOriginal(ADMIN_BOOK, {}, log)
         log(
           `원어 저장 완료: ${result.chapters}장, 낱말 ${result.words}개, 사전 항목 ${result.entries}개(한국어 뜻 있음 ${result.withKorean}개)`,
         )
@@ -194,7 +197,7 @@ export function createRunner(stage: Stage, options: JobOptions): Runner {
 
     case 'quiz':
       return async (log) => {
-        const result = await runQuiz(chapter, { force: options.force ?? false, dryRun }, log)
+        const result = await runQuiz(ADMIN_BOOK, chapter, { force: options.force ?? false, dryRun }, log)
         if (result.skipped || result.dryRun) return
         log(
           `${chapter}장 퀴즈: ${result.written}문제(검수 통과 ${result.reviewed}, 지적 ${result.flagged}). "퀴즈" 화면에서 승인하세요.`,
@@ -204,9 +207,13 @@ export function createRunner(stage: Stage, options: JobOptions): Runner {
     case 'build':
       return async (log) => {
         log('묶음을 만드는 중')
-        const bundle = await writeBundle()
-        const sceneCount = bundle.chapters.reduce((sum, item) => sum + item.scenes.length, 0)
-        log(`묶음 생성 완료: ${bundle.chapters.length}장, 장면 ${sceneCount}개`)
+        // CLI build처럼 본문이 있는 모든 책을 만든다. 앱 콘텐츠 폴더를 비우고 다시 쓰므로 한 책만 만들면 다른 책 묶음이 지워진다.
+        const bundles = await writeBundles(await listSourceBooks())
+        for (const bundle of bundles) {
+          const sceneCount = bundle.chapters.reduce((sum, item) => sum + item.scenes.length, 0)
+          const label = bundles.length > 1 ? `${bundle.book} ` : ''
+          log(`${label}묶음 생성 완료: ${bundle.chapters.length}장, 장면 ${sceneCount}개`)
+        }
       }
   }
 }

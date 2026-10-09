@@ -33,7 +33,7 @@ export type StatusResponse = {
   imageVersions: ImageVersion[]
 }
 
-// 음성 파일 이름. pipeline/src/tts/select.ts의 audioName과 같은 규칙이다.
+// 음성 파일 이름. reader-core의 verseAudioName('genesis', …)과 같은 규칙이다.
 export function audioName(chapter: number, verse: number): string {
   return `genesis-${String(chapter).padStart(2, '0')}-${String(verse).padStart(3, '0')}.mp3`
 }

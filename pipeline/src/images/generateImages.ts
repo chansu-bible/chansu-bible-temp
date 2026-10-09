@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import type { BookId } from 'reader-core'
 import { readSceneFile, writeSceneFile } from '../scenes/files.ts'
 import { detectImageExtension } from './format.ts'
 import { buildImagePrompt } from './prompt.ts'
@@ -11,6 +12,7 @@ import { activeImageVersion, versionDir } from './versions.ts'
 export type DrawImage = (prompt: string, references: string[]) => Promise<Uint8Array>
 
 export type ImagesOptions = {
+  book: BookId
   chapter: number
   allowDraft: boolean
   force: boolean
@@ -26,7 +28,7 @@ export async function generateImages(
   draw: DrawImage,
   log: (line: string) => void,
 ): Promise<ImagesResult> {
-  const sceneFile = await readSceneFile(options.chapter)
+  const sceneFile = await readSceneFile(options.book, options.chapter)
   if (!sceneFile) throw new Error(`${options.chapter}장의 장면 파일이 없습니다`)
 
   // 참고 이미지 파일이 없으면 여기서 오류가 난다.
@@ -57,7 +59,7 @@ export async function generateImages(
       await writeFile(path.join(outDir, name), bytes)
       scene.image = name
       // 중간에 멈춰도 이어서 할 수 있게 장면마다 바로 저장한다.
-      await writeSceneFile(sceneFile)
+      await writeSceneFile(options.book, sceneFile)
       result.drawn.push(scene.id)
     } catch (error) {
       result.failed.push({ id: scene.id, reason: error instanceof Error ? error.message : String(error) })

@@ -1,7 +1,8 @@
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { repoRoot, sceneFilePath, scenesDir } from '../paths.ts'
+import { getBook, parseSceneId, sceneIdOf, type BookId } from 'reader-core'
+import { hasChapter, listChapterFiles, repoRoot, sceneFilePath, scenesDir } from '../paths.ts'
 import { SceneFileSchema, type SceneFile } from '../schema.ts'
 
 function displayName(file: string): string {
@@ -23,9 +24,10 @@ function parseSceneFile(value: unknown): SceneFile {
   return sceneFile
 }
 
-// 장면 파일 하나를 읽는다. 없으면 null, 검증에 걸리면 파일 이름과 함께 오류를 낸다.
-export async function readSceneFile(chapter: number, dir: string = scenesDir): Promise<SceneFile | null> {
-  const file = sceneFilePath(chapter, dir)
+// 장면 파일 하나를 읽는다. 없으면 null(책에 없는 장도), 검증에 걸리면 파일 이름과 함께 오류를 낸다.
+export async function readSceneFile(book: BookId, chapter: number, dir: string = scenesDir): Promise<SceneFile | null> {
+  if (!hasChapter(book, chapter)) return null
+  const file = sceneFilePath(book, chapter, dir)
   if (!existsSync(file)) return null
   try {
     const sceneFile = parseSceneFile(JSON.parse(await readFile(file, 'utf8')))
@@ -37,11 +39,24 @@ export async function readSceneFile(chapter: number, dir: string = scenesDir): P
   }
 }
 
-// 검증한 뒤 쓴다. 중간에 끊겨도 파일이 반쯤 쓰이지 않게 임시 파일을 거친다.
-export async function writeSceneFile(sceneFile: SceneFile, dir: string = scenesDir): Promise<void> {
+// 검증한 뒤 쓴다. 장면 id는 모두 그 책·그 장의 id(genesis-04-03)여야 한다.
+// 중간에 끊겨도 파일이 반쯤 쓰이지 않게 임시 파일을 거친다.
+export async function writeSceneFile(book: BookId, sceneFile: SceneFile, dir: string = scenesDir): Promise<void> {
   const parsed = parseSceneFile(sceneFile)
-  const file = sceneFilePath(parsed.chapter, dir)
+  for (const scene of parsed.scenes) {
+    const id = parseSceneId(scene.id)
+    if (id?.book !== book || id.chapter !== parsed.chapter) {
+      const example = sceneIdOf(book, parsed.chapter, 1)
+      throw new Error(`${getBook(book).name} ${parsed.chapter}장의 장면 id가 아닙니다(${example} 모양이어야 합니다): ${scene.id}`)
+    }
+  }
+  const file = sceneFilePath(book, parsed.chapter, dir)
   await mkdir(dir, { recursive: true })
   await writeFile(`${file}.tmp`, `${JSON.stringify(parsed, null, 2)}\n`, 'utf8')
   await rename(`${file}.tmp`, file)
+}
+
+// 그 책의 장면 파일이 있는 장 번호(오름차순)
+export async function listSceneChapters(book: BookId, dir: string = scenesDir): Promise<number[]> {
+  return listChapterFiles(book, dir)
 }

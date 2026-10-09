@@ -10,7 +10,7 @@ import { canon, outScene, source, style } from './scenarioFixtures.ts'
 
 describe('runScenario', () => {
   let dir: string
-  let paths: { storyBibleDir: string; sourceFile: string; scenesDir: string; styleFile: string }
+  let paths: { storyBibleDir: string; sourceDir: string; scenesDir: string; styleFile: string }
   const lines: string[] = []
   const log = (line: string) => lines.push(line)
 
@@ -19,7 +19,7 @@ describe('runScenario', () => {
     dir = await mkdtemp(path.join(tmpdir(), 'run-scenario-'))
     paths = {
       storyBibleDir: path.join(dir, 'story-bible'),
-      sourceFile: path.join(dir, 'genesis.json'),
+      sourceDir: dir,
       scenesDir: path.join(dir, 'scenes'),
       styleFile: path.join(dir, 'story-bible', 'style.json'),
     }
@@ -28,7 +28,7 @@ describe('runScenario', () => {
       await writeFile(path.join(paths.storyBibleDir, `${key}.json`), JSON.stringify(canon[key]), 'utf8')
     }
     await writeFile(paths.styleFile, JSON.stringify(style), 'utf8')
-    await writeFile(paths.sourceFile, JSON.stringify(source), 'utf8')
+    await writeFile(path.join(dir, 'genesis.json'), JSON.stringify(source), 'utf8')
   })
   afterEach(async () => {
     await rm(dir, { recursive: true, force: true })
@@ -51,24 +51,24 @@ describe('runScenario', () => {
 
   it('dry-run이면 프롬프트만 출력하고 모델을 부르지 않는다', async () => {
     const calls: ParseRequest[] = []
-    const result = await runScenario(3, { ...paths, dryRun: true, llm: fakeLlm([good], calls) }, log)
+    const result = await runScenario('genesis', 3, { ...paths, dryRun: true, llm: fakeLlm([good], calls) }, log)
     expect(calls).toEqual([])
     expect(result.dryRun).toBe(true)
     expect(result.prompt.user).toContain('3:1 여호와')
     expect(lines.join('\n')).toContain(result.prompt.system)
-    expect(await readSceneFile(3, paths.scenesDir)).toBeNull()
+    expect(await readSceneFile('genesis', 3, paths.scenesDir)).toBeNull()
   })
 
   it('장면을 써서 저장하고 장면마다 요약을 남긴다', async () => {
     const calls: ParseRequest[] = []
-    const result = await runScenario(3, { ...paths, llm: fakeLlm([good], calls) }, log)
+    const result = await runScenario('genesis', 3, { ...paths, llm: fakeLlm([good], calls) }, log)
     expect(calls).toHaveLength(1)
     expect(calls[0]!.name).toBe('scenario')
     // 승인되지 않은 인물은 설정집 요약에 없다
     expect(calls[0]!.user).not.toContain('serpent 뱀')
     expect(result.scenes.map((scene) => scene.id)).toEqual(['genesis-03-01', 'genesis-03-02'])
 
-    const saved = await readSceneFile(3, paths.scenesDir)
+    const saved = await readSceneFile('genesis', 3, paths.scenesDir)
     expect(saved!.scenes).toHaveLength(2)
     expect(saved!.scenes[0]!.eraId).toBe('eden-era')
     expect(lines).toContain('genesis-03-01 간교한 뱀 (3:1-2) 낱말 1 역사 0')
@@ -76,27 +76,27 @@ describe('runScenario', () => {
 
   it('본보기 파일의 1번째·3번째 장면을 넣는다', async () => {
     const examples = { chapter: 2, scenes: [] as unknown[] }
-    const first = await runScenario(3, { ...paths, llm: fakeLlm([good], []) }, log)
+    const first = await runScenario('genesis', 3, { ...paths, llm: fakeLlm([good], []) }, log)
     examples.scenes = [0, 1, 2].map((n) => ({ ...first.scenes[0]!, id: `genesis-02-0${n + 1}`, chapter: 2, title: `본보기${n + 1}` }))
     await writeFile(path.join(paths.scenesDir, 'genesis-02.json'), JSON.stringify(examples), 'utf8')
 
-    const result = await runScenario(3, { ...paths, dryRun: true }, log)
+    const result = await runScenario('genesis', 3, { ...paths, dryRun: true }, log)
     expect(result.prompt.user).toContain('본보기1')
     expect(result.prompt.user).not.toContain('본보기2')
     expect(result.prompt.user).toContain('본보기3')
   })
 
   it('장면 파일이 있으면 force 없이 덮어쓰지 않는다', async () => {
-    await runScenario(3, { ...paths, llm: fakeLlm([good], []) }, log)
-    await expect(runScenario(3, { ...paths, llm: fakeLlm([good], []) }, log)).rejects.toThrow('--force')
+    await runScenario('genesis', 3, { ...paths, llm: fakeLlm([good], []) }, log)
+    await expect(runScenario('genesis', 3, { ...paths, llm: fakeLlm([good], []) }, log)).rejects.toThrow('--force')
     const calls: ParseRequest[] = []
-    await runScenario(3, { ...paths, force: true, llm: fakeLlm([good], calls) }, log)
+    await runScenario('genesis', 3, { ...paths, force: true, llm: fakeLlm([good], calls) }, log)
     expect(calls).toHaveLength(1)
   })
 
   it('절 범위 문제가 있으면 문제를 붙여 한 번 더 부른다', async () => {
     const calls: ParseRequest[] = []
-    const result = await runScenario(3, { ...paths, llm: fakeLlm([gap, good], calls) }, log)
+    const result = await runScenario('genesis', 3, { ...paths, llm: fakeLlm([gap, good], calls) }, log)
     expect(calls).toHaveLength(2)
     expect(calls[1]!.user).toContain('## 고칠 것')
     expect(calls[1]!.user).toContain('3절에서 시작해야 하는데 4절에서 시작합니다')
@@ -104,11 +104,11 @@ describe('runScenario', () => {
   })
 
   it('두 번째에도 절 범위가 맞지 않으면 저장하지 않고 오류를 낸다', async () => {
-    await expect(runScenario(3, { ...paths, llm: fakeLlm([gap, gap], []) }, log)).rejects.toThrow('절 범위')
-    expect(await readSceneFile(3, paths.scenesDir)).toBeNull()
+    await expect(runScenario('genesis', 3, { ...paths, llm: fakeLlm([gap, gap], []) }, log)).rejects.toThrow('절 범위')
+    expect(await readSceneFile('genesis', 3, paths.scenesDir)).toBeNull()
   })
 
   it('없는 장이면 오류를 낸다', async () => {
-    await expect(runScenario(9, { ...paths, dryRun: true }, log)).rejects.toThrow('9장')
+    await expect(runScenario('genesis', 9, { ...paths, dryRun: true }, log)).rejects.toThrow('9장')
   })
 })

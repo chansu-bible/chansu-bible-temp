@@ -1,3 +1,4 @@
+import type { BookId } from 'reader-core'
 import { approvedCanon } from '../canon/approved.ts'
 import { readCanon } from '../canon/files.ts'
 import { readStyle } from '../images/style.ts'
@@ -5,7 +6,7 @@ import { createLlm, type Llm } from '../llm/client.ts'
 import { reviewerModel, writerModel } from '../llm/models.ts'
 import {
   scenesDir as defaultScenesDir,
-  sourceFile as defaultSourceFile,
+  sourceDir as defaultSourceDir,
   storyBibleDir as defaultStoryBibleDir,
   styleFile as defaultStyleFile,
 } from '../paths.ts'
@@ -14,9 +15,9 @@ import { assembleRevision } from '../scenario/assemble.ts'
 import { canonIds, glossaryProblem, refProblems, type CanonIds } from '../scenario/checks.ts'
 import { ReviseOutputSchema, TextVerdictSchema, type TextVerdict } from '../scenario/output.ts'
 import { buildRevisePrompt } from '../scenario/prompt.ts'
-import { readSourceChapter } from '../scenario/runScenario.ts'
 import { findCoverageProblems } from '../scenes/coverage.ts'
 import { readSceneFile, writeSceneFile } from '../scenes/files.ts'
+import { readSourceChapter } from '../source/files.ts'
 import { buildReviewTextPrompt } from './prompt.ts'
 
 export type ReviewTextOptions = {
@@ -29,7 +30,7 @@ export type ReviewTextOptions = {
   // 불합격 때 다시 쓰는 최대 횟수(장면의 review.attempts 기준). 기본 2
   maxAttempts?: number
   storyBibleDir?: string
-  sourceFile?: string
+  sourceDir?: string
   scenesDir?: string
   styleFile?: string
 }
@@ -66,6 +67,7 @@ function codeIssues(scene: Scene, chapter: SourceChapter, ids: CanonIds): string
 // 장면 글을 검수한다. 불합격이면 작성 모델이 지적 사항을 반영해 다시 쓰고, maxAttempts번을 넘으면 flagged로 둔다.
 // dryRun이면 첫 장면의 검수 프롬프트만 출력하고 모델을 부르지 않는다.
 export async function runReviewText(
+  book: BookId,
   chapter: number,
   {
     dryRun = false,
@@ -74,14 +76,14 @@ export async function runReviewText(
     writer,
     maxAttempts = 2,
     storyBibleDir = defaultStoryBibleDir,
-    sourceFile = defaultSourceFile,
+    sourceDir = defaultSourceDir,
     scenesDir = defaultScenesDir,
     styleFile = defaultStyleFile,
   }: ReviewTextOptions = {},
   log: (line: string) => void = console.log,
 ): Promise<ReviewTextResult> {
-  const sourceChapter = await readSourceChapter(chapter, sourceFile)
-  const sceneFile = await readSceneFile(chapter, scenesDir)
+  const sourceChapter = await readSourceChapter(book, chapter, sourceDir)
+  const sceneFile = await readSceneFile(book, chapter, scenesDir)
   if (!sceneFile) throw new Error(`${chapter}장의 장면 파일이 없습니다. 먼저 scenario 단계를 실행하세요.`)
   for (const id of sceneIds ?? []) {
     if (!sceneFile.scenes.some((scene) => scene.id === id)) throw new Error(`${id} 장면이 ${chapter}장에 없습니다`)
@@ -116,7 +118,7 @@ export async function runReviewText(
     return result
   }
 
-  const shared = reviewer && writer ? null : createLlm({ stage: 'review-text', chapter, log })
+  const shared = reviewer && writer ? null : createLlm({ stage: 'review-text', book, chapter, log })
   const reviewLlm = reviewer ?? shared!
   const writeLlm = writer ?? shared!
   const verseCount = sourceChapter.verses.length
@@ -174,7 +176,7 @@ export async function runReviewText(
       log(`${scene.id}: 확인 필요 (지적 ${verdict.issues.length}개)`)
     }
     // 중간에 멈춰도 이어서 할 수 있게 장면마다 바로 저장한다.
-    await writeSceneFile(sceneFile, scenesDir)
+    await writeSceneFile(book, sceneFile, scenesDir)
   }
 
   log(`검수 ${targets.length}개: 통과 ${result.reviewed.length}개, 확인 필요 ${result.flagged.length}개, 건너뜀 ${result.skipped.length}개`)

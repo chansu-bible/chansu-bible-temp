@@ -60,17 +60,17 @@ describe('그림 버전', () => {
 
 describe('장면 그림 내보내기', () => {
   it('바이트와 Content-Type을 돌려준다', async () => {
-    const res = await app.request('/api/images/v1/g1-s1.jpg')
+    const res = await app.request('/api/images/v1/genesis-01-01.jpg')
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('image/jpeg')
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(JPEG)
-    expect((await app.request('/api/images/v2/g1-s1.png')).headers.get('content-type')).toBe('image/png')
+    expect((await app.request('/api/images/v2/genesis-01-01.png')).headers.get('content-type')).toBe('image/png')
   })
 
   it('이름 규칙을 어기면 400, 없는 버전·파일은 404', async () => {
     expect((await app.request('/api/images/v1/..%2Fversions.json')).status).toBe(400)
-    expect((await app.request('/api/images/v1/g1-s1.txt')).status).toBe(400)
-    expect((await app.request('/api/images/v9/g1-s1.jpg')).status).toBe(404)
-    expect((await app.request('/api/images/v2/g1-s2.png')).status).toBe(404)
+    expect((await app.request('/api/images/v1/genesis-01-01.txt')).status).toBe(400)
+    expect((await app.request('/api/images/v9/genesis-01-01.jpg')).status).toBe(404)
+    expect((await app.request('/api/images/v2/genesis-01-02.png')).status).toBe(404)
   })
 })

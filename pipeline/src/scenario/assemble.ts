@@ -1,13 +1,10 @@
+import { sceneIdOf, type BookId } from 'reader-core'
 import type { Canon, Gloss, Scene, SourceChapter } from '../schema.ts'
 import { findCoverageProblems } from '../scenes/coverage.ts'
 import { canonIds, glossaryProblem, type CanonIds } from './checks.ts'
 import type { ScenarioOutput, ScenarioScene } from './output.ts'
 
 export type AssembleResult = { scenes: Scene[]; warnings: string[]; problems: string[] }
-
-export function sceneId(chapter: number, index: number): string {
-  return `genesis-${String(chapter).padStart(2, '0')}-${String(index + 1).padStart(2, '0')}`
-}
 
 // 출력 장면 하나를 저장할 모양으로 다듬는다. 고칠 수 있는 문제는 빼거나 null로 하고 warnings에 적는다.
 function clean(
@@ -53,13 +50,13 @@ function clean(
   }
 }
 
-// 출력 장면을 저장할 Scene으로 바꾼다. id는 genesis-CC-NN(순서대로)이고 상태는 draft다.
+// 출력 장면을 저장할 Scene으로 바꾼다. id는 reader-core의 sceneIdOf(genesis-03-01, 순서대로)이고 상태는 draft다.
 // 절 범위 문제는 고쳐 쓰게 하려고 problems에 따로 둔다. canon은 승인된 항목만 넘긴다.
-export function assembleScenes(chapter: SourceChapter, output: ScenarioOutput, canon: Canon): AssembleResult {
+export function assembleScenes(book: BookId, chapter: SourceChapter, output: ScenarioOutput, canon: Canon): AssembleResult {
   const ids = canonIds(canon)
   const warnings: string[] = []
   const scenes: Scene[] = output.scenes.map((out, index) => {
-    const id = sceneId(chapter.chapter, index)
+    const id = sceneIdOf(book, chapter.chapter, index + 1)
     const range = { verseStart: out.verseStart, verseEnd: out.verseEnd }
     return {
       id,

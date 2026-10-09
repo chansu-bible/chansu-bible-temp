@@ -80,7 +80,6 @@ describe('buildCanonPrompt', () => {
 describe('runCanon', () => {
   let dir: string
   let bible: string
-  let sourcePath: string
   const lines: string[] = []
   const log = (line: string) => lines.push(line)
 
@@ -88,8 +87,7 @@ describe('runCanon', () => {
     lines.length = 0
     dir = await mkdtemp(path.join(tmpdir(), 'run-canon-'))
     bible = path.join(dir, 'story-bible')
-    sourcePath = path.join(dir, 'genesis.json')
-    await writeFile(sourcePath, JSON.stringify(source), 'utf8')
+    await writeFile(path.join(dir, 'genesis.json'), JSON.stringify(source), 'utf8')
   })
   afterEach(async () => {
     await rm(dir, { recursive: true, force: true })
@@ -106,7 +104,7 @@ describe('runCanon', () => {
 
   it('dry-run이면 프롬프트만 출력하고 모델을 부르지 않는다', async () => {
     const calls: unknown[] = []
-    const result = await runCanon(2, { dryRun: true, llm: fakeLlm(calls), storyBibleDir: bible, sourceFile: sourcePath }, log)
+    const result = await runCanon('genesis', 2, { dryRun: true, llm: fakeLlm(calls), storyBibleDir: bible, sourceDir: dir }, log)
     expect(calls).toEqual([])
     expect(result.dryRun).toBe(true)
     expect(result.prompt?.user).toContain('2:7')
@@ -115,7 +113,7 @@ describe('runCanon', () => {
 
   it('출력을 합쳐 파일에 저장하고 요약을 돌려준다', async () => {
     const calls: unknown[] = []
-    const result = await runCanon(2, { llm: fakeLlm(calls), storyBibleDir: bible, sourceFile: sourcePath }, log)
+    const result = await runCanon('genesis', 2, { llm: fakeLlm(calls), storyBibleDir: bible, sourceDir: dir }, log)
     expect(calls).toHaveLength(1)
     expect(result.added).toEqual([{ kind: 'characters', id: 'adam' }])
 
@@ -125,6 +123,6 @@ describe('runCanon', () => {
   })
 
   it('없는 장이면 오류를 낸다', async () => {
-    await expect(runCanon(9, { dryRun: true, storyBibleDir: bible, sourceFile: sourcePath }, log)).rejects.toThrow('9장')
+    await expect(runCanon('genesis', 9, { dryRun: true, storyBibleDir: bible, sourceDir: dir }, log)).rejects.toThrow('9장')
   })
 })

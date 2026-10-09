@@ -1,12 +1,12 @@
 import { readFile, writeFile } from 'node:fs/promises'
+import type { BookId } from 'reader-core'
 import { createLlm, type Llm } from '../llm/client.ts'
-import {
-  lexiconFile as defaultLexiconFile,
-  originalFile as defaultOriginalFile,
-  sourceFile as defaultSourceFile,
-} from '../paths.ts'
+import { lexiconFile as defaultLexiconFile, originalFilePath, sourceFilePath } from '../paths.ts'
 import { LexiconFileSchema, OriginalFileSchema, SourceSchema, type OriginalFile, type Source } from '../schema.ts'
 import { buildGlossPrompt, GlossOutputSchema } from './glossPrompt.ts'
+
+// 사전은 책을 가리지 않지만, 작성 모델에 보여 줄 예문은 아직 창세기 원어·본문에서 모은다.
+const EXAMPLE_BOOK: BookId = 'genesis'
 
 export type GlossOptions = {
   // 이번에 쓸 항목 수. 비우면 남은 것 모두
@@ -55,10 +55,10 @@ export async function runGloss(options: GlossOptions = {}, log: (line: string) =
     .slice(0, options.limit ?? Number.POSITIVE_INFINITY)
   if (options.dryRun || targets.length === 0) return { selected: targets.length, written: 0, missing: [], dryRun: options.dryRun === true }
 
-  const original = OriginalFileSchema.parse(JSON.parse(await readFile(options.originalFile ?? defaultOriginalFile, 'utf8')))
-  const source = SourceSchema.parse(JSON.parse(await readFile(options.sourceFile ?? defaultSourceFile, 'utf8')))
+  const original = OriginalFileSchema.parse(JSON.parse(await readFile(options.originalFile ?? originalFilePath(EXAMPLE_BOOK), 'utf8')))
+  const source = SourceSchema.parse(JSON.parse(await readFile(options.sourceFile ?? sourceFilePath(EXAMPLE_BOOK), 'utf8')))
   const examples = examplesFor(original, source)
-  const llm = options.llm ?? createLlm({ stage: 'original-gloss', chapter: null, log })
+  const llm = options.llm ?? createLlm({ stage: 'original-gloss', book: null, chapter: null, log })
   const batchSize = options.batchSize ?? 40
 
   let written = 0

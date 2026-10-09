@@ -10,6 +10,7 @@ import {
   type ImageCatalog,
   type Scene,
 } from 'pipeline'
+import { ADMIN_BOOK } from '../book.ts'
 import type { AppContext } from '../context.ts'
 import { readSceneFile, readSource } from '../content.ts'
 import { errorMessage, HttpError, readJsonBody } from '../errors.ts'
@@ -88,7 +89,7 @@ export function sceneRoutes(ctx: AppContext): Hono {
     const scenes = [...sceneFile.scenes]
     scenes[index] = scene
     try {
-      await writeSceneFile({ ...sceneFile, scenes }, scenesDir)
+      await writeSceneFile(ADMIN_BOOK, { ...sceneFile, scenes }, scenesDir)
     } catch (error) {
       throw new HttpError(400, errorMessage(error, '장면 파일 검증에 실패했습니다'))
     }

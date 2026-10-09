@@ -8,8 +8,8 @@ const catalog = {
     { id: 'v2', label: '2차', note: '' },
   ],
   files: {
-    v1: ['g1-s1.jpeg', 'g1-s2.png', 'g9-s1.jpeg', 'g1-s3.txt.bak'],
-    v2: ['g1-s3.jpeg'],
+    v1: ['genesis-01-01.jpeg', 'genesis-01-02.png', 'genesis-09-01.jpeg', 'genesis-01-03.txt.bak'],
+    v2: ['genesis-01-03.jpeg'],
   },
 }
 

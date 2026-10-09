@@ -30,6 +30,7 @@ describe('approvedCanon', () => {
 
 const approved = approvedCanon(canon)
 const [example] = assembleScenes(
+  'genesis',
   { ...chapter3, chapter: 2 },
   {
     scenes: [
@@ -81,7 +82,7 @@ describe('buildScenarioPrompt', () => {
 
 describe('buildRevisePrompt', () => {
   it('장면 하나와 지적 사항을 넣고 절 범위를 지키게 한다', () => {
-    const [scene] = assembleScenes(chapter3, { scenes: [outScene()] }, approved).scenes
+    const [scene] = assembleScenes('genesis', chapter3, { scenes: [outScene()] }, approved).scenes
     const prompt = buildRevisePrompt(chapter3, approved, style, scene!, ['3:1 해설이 요약에 그칩니다'])
     expect(prompt.system).toContain('장면 하나를 고쳐 쓴다')
     expect(prompt.user).toContain('genesis-03-01, 3:1~4')
@@ -92,7 +93,7 @@ describe('buildRevisePrompt', () => {
 
 describe('buildReviewTextPrompt', () => {
   it('검수 항목과 장면, 본문, 설정집을 넣는다', () => {
-    const [scene] = assembleScenes(chapter3, { scenes: [outScene({ verseEnd: 2 }), outScene({ verseStart: 3 })] }, approved).scenes
+    const [scene] = assembleScenes('genesis', chapter3, { scenes: [outScene({ verseEnd: 2 }), outScene({ verseStart: 3 })] }, approved).scenes
     const prompt = buildReviewTextPrompt(chapter3, approved, style, scene!)
     for (const text of ['검수', '지어냄', '요약', '교파', '낱말 풀이', '확실성', '없는 것', '하나님을', '~해요', '사소한 문체', '절 번호', 'issues는 []']) {
       expect(prompt.system).toContain(text)

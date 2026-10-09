@@ -1,3 +1,4 @@
+import { bookByName, fallbackSceneIdOf, sceneIdOf, verseAudioName, type BookId } from 'reader-core'
 import {
   BUNDLE_SCHEMA_VERSION,
   type Bundle,
@@ -25,7 +26,6 @@ import {
 } from '../schema.ts'
 import { posLabel } from '../original/morph.ts'
 import { findCoverageProblems } from '../scenes/coverage.ts'
-import { audioName } from '../tts/select.ts'
 
 // files: 버전 id → 그 버전 폴더에 있는 그림 파일 이름들
 export type ImageCatalog = { versions: ImageVersion[]; files: Record<string, string[]> }
@@ -48,6 +48,13 @@ function audioDurations(audio: AudioCatalog): ReadonlyMap<string, number | null>
   return audio instanceof Map ? audio : new Map([...(audio as ReadonlySet<string>)].map((name) => [name, null] as const))
 }
 
+// 본문의 책 이름(창세기)으로 책 id를 찾는다. 장면 id와 음성 파일 이름에 쓴다.
+function bookOf(source: Source): BookId {
+  const book = bookByName(source.book)
+  if (!book) throw new Error(`본문의 책 이름을 알 수 없습니다: ${source.book}`)
+  return book.id
+}
+
 export function buildBundle(
   source: Source,
   sceneFiles: SceneFile[],
@@ -56,6 +63,7 @@ export function buildBundle(
   catalog: ImageCatalog = { versions: [], files: {} },
   extras: BundleExtras = {},
 ): Bundle {
+  const book = bookOf(source)
   const durations = audioDurations(audio)
   // 사람이 승인한 장소만 앱에 나간다. 검수 전 초안은 지도에 올리지 않는다.
   const places = canon.places.filter((place) => place.status === 'approved')
@@ -78,14 +86,14 @@ export function buildBundle(
     const { chapter } = sourceChapter
     // 본문은 원본 그대로 두고, 음성 파일이 있는 절에만 경로를 붙인다.
     const verses = sourceChapter.verses.map((verse) => {
-      const name = audioName(chapter, verse.verse)
+      const name = verseAudioName(book, chapter, verse.verse)
       const has = durations.has(name)
       return { ...verse, audio: has ? `content/audio/${name}` : null, audioMs: has ? (durations.get(name) ?? null) : null }
     })
     const sceneFile = sceneFiles.find((file) => file.chapter === chapter)
-    if (!sceneFile) return { chapter, verses, scenes: [withSceneAudio(fallbackScene(chapter, verses.length, catalog), verses)] }
+    if (!sceneFile) return { chapter, verses, scenes: [withSceneAudio(fallbackScene(book, chapter, verses.length, catalog), verses)] }
 
-    checkSceneIds(sceneFile)
+    checkSceneIds(book, sceneFile)
 
     const problems = findCoverageProblems(sceneFile.scenes, verses.length)
     if (problems.length > 0) {
@@ -225,8 +233,8 @@ function withSceneAudio(scene: SceneWithoutAudio, verses: VerseAudio[]): BundleS
   }
 }
 
-function fallbackScene(chapter: number, verseCount: number, catalog: ImageCatalog): SceneWithoutAudio {
-  const id = `genesis-${String(chapter).padStart(2, '0')}-00`
+function fallbackScene(book: BookId, chapter: number, verseCount: number, catalog: ImageCatalog): SceneWithoutAudio {
+  const id = fallbackSceneIdOf(book, chapter)
   return {
     id,
     verseStart: 1,
@@ -284,12 +292,12 @@ function checkGlossary(scene: Scene, chapter: number, verses: Verse[]): void {
   }
 }
 
-function checkSceneIds(file: SceneFile): void {
+function checkSceneIds(book: BookId, file: SceneFile): void {
   file.scenes.forEach((scene, index) => {
     if (scene.chapter !== file.chapter) {
       throw new Error(`${scene.id}: chapter가 ${scene.chapter}인데 ${file.chapter}장 파일에 들어 있습니다`)
     }
-    const expectedId = `genesis-${String(file.chapter).padStart(2, '0')}-${String(index + 1).padStart(2, '0')}`
+    const expectedId = sceneIdOf(book, file.chapter, index + 1)
     if (scene.id !== expectedId) throw new Error(`${scene.id}: id가 ${expectedId}여야 합니다`)
   })
 }

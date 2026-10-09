@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { paths, QuizQuestionSchema, quizCodeIssues, readQuizFile, writeQuizFile, type QuizQuestion } from 'pipeline'
+import { ADMIN_BOOK } from '../book.ts'
 import type { AppContext } from '../context.ts'
 import { readSource } from '../content.ts'
 import { errorMessage, HttpError, readJsonBody } from '../errors.ts'
@@ -43,7 +44,7 @@ export function quizRoutes(ctx: AppContext): Hono {
     const source = await readSource(ctx.sourceFile)
     const summary = await Promise.all(
       source.chapters.map(async ({ chapter }): Promise<QuizChapterSummary> => {
-        const quizFile = await readQuizFile(chapter, quizDir)
+        const quizFile = await readQuizFile(ADMIN_BOOK, chapter, quizDir)
         const counts: Record<QuizStatus, number> = { draft: 0, reviewed: 0, flagged: 0, approved: 0, rejected: 0 }
         for (const question of quizFile?.questions ?? []) counts[question.status] += 1
         return { chapter, hasFile: quizFile !== null, total: quizFile?.questions.length ?? 0, counts }
@@ -56,7 +57,7 @@ export function quizRoutes(ctx: AppContext): Hono {
   app.get('/:chapter', async (c) => {
     const chapter = parseChapter(c.req.param('chapter'))
     const sourceChapter = await sourceChapterOf(chapter)
-    const quizFile = await readQuizFile(chapter, quizDir)
+    const quizFile = await readQuizFile(ADMIN_BOOK, chapter, quizDir)
     return c.json({ chapter, verses: sourceChapter.verses, questions: quizFile?.questions ?? [] })
   })
 
@@ -70,7 +71,7 @@ export function quizRoutes(ctx: AppContext): Hono {
     const sourceChapter = await sourceChapterOf(chapter)
     return serial(async () => {
       refuseDuringQuizJob(ctx, chapter)
-      const quizFile = await readQuizFile(chapter, quizDir)
+      const quizFile = await readQuizFile(ADMIN_BOOK, chapter, quizDir)
       if (!quizFile) throw new HttpError(404, `${chapter}장의 퀴즈 파일이 없습니다`)
       const index = quizFile.questions.findIndex((question) => question.id === id)
       if (index < 0) throw new HttpError(404, `${id} 문제가 ${chapter}장에 없습니다`)
@@ -81,7 +82,7 @@ export function quizRoutes(ctx: AppContext): Hono {
       }
       const questions = [...quizFile.questions]
       questions[index] = question
-      await writeQuizFile({ ...quizFile, questions }, quizDir)
+      await writeQuizFile(ADMIN_BOOK, { ...quizFile, questions }, quizDir)
       return c.json(question)
     })
   })

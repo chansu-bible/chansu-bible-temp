@@ -41,9 +41,9 @@ export const sceneFiles: SceneFile[] = [
   {
     chapter: 1,
     scenes: [
-      withStatus(scene('g1-s1', 1), 'draft'),
-      withStatus(scene('g1-s2', 1), 'approved'),
-      withStatus(scene('g1-s3', 1), 'flagged'),
+      withStatus(scene('genesis-01-01', 1), 'draft'),
+      withStatus(scene('genesis-01-02', 1), 'approved'),
+      withStatus(scene('genesis-01-03', 1), 'flagged'),
     ],
   },
 ]
@@ -191,9 +191,9 @@ export async function makeTempContent(): Promise<TempContent> {
       { id: 'v2', label: '2차', note: '' },
     ]),
   )
-  await writeFile(path.join(dirs.imagesDir, 'v1', 'g1-s1.jpg'), JPEG)
-  await writeFile(path.join(dirs.imagesDir, 'v1', 'g1-s2.png'), PNG)
-  await writeFile(path.join(dirs.imagesDir, 'v2', 'g1-s1.png'), PNG)
+  await writeFile(path.join(dirs.imagesDir, 'v1', 'genesis-01-01.jpg'), JPEG)
+  await writeFile(path.join(dirs.imagesDir, 'v1', 'genesis-01-02.png'), PNG)
+  await writeFile(path.join(dirs.imagesDir, 'v2', 'genesis-01-01.png'), PNG)
   await writeFile(path.join(dirs.scenesDir, 'genesis-01.json'), JSON.stringify(sceneFiles[0]))
   await writeFile(dirs.sourceFile, JSON.stringify(source))
   await writeFile(dirs.lexiconFile, pretty(lexicon))
