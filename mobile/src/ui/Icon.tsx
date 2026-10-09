@@ -33,6 +33,9 @@ export type IconName =
   | 'previous'
   | 'next'
   | 'pauseBars'
+  | 'chat'
+  | 'arrowUp'
+  | 'link'
 
 // 웹 목업(app/src/components/Icon.tsx)과 같은 선 아이콘
 const shapes: Record<IconName, ReactNode> = {
@@ -134,6 +137,14 @@ const shapes: Record<IconName, ReactNode> = {
   previous: <Path d="M6 5h2v14H6zM20 5v14L9 12z" />,
   next: <Path d="M16 5h2v14h-2zM4 5v14l11-7z" />,
   pauseBars: <Path d="M7 5h3v14H7zM14 5h3v14h-3z" />,
+  chat: <Path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z" />,
+  arrowUp: <Path d="M12 19V5M5 12l7-7 7 7" />,
+  link: (
+    <>
+      <Path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
+      <Path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+    </>
+  ),
 }
 
 // filled: 안을 칠한다(즐겨찾기, 불꽃)

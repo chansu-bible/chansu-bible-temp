@@ -79,3 +79,27 @@ export function saveMark(mark: Mark): void {
   if (isEmptyMark(mark)) store.remove('marks', id)
   else store.put('marks', id, mark)
 }
+
+// 끝까지 푼 퀴즈: id는 '책:장'(genesis:4), 값은 푼 날. 점수는 남기지 않는다.
+export function quizDoneId(book: string, chapter: number): string {
+  return `${book}:${chapter}`
+}
+
+export function useQuizDone(book: string): Set<number> {
+  const version = useStoreVersion()
+  return useMemo(
+    () =>
+      new Set(
+        store.list('quizDone').flatMap((item) => {
+          const [itemBook, chapter] = item.id.split(':')
+          return itemBook === book && Number(chapter) > 0 ? [Number(chapter)] : []
+        }),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [version, book],
+  )
+}
+
+export function markQuizDone(book: string, chapter: number, day: string): void {
+  store.put('quizDone', quizDoneId(book, chapter), { day })
+}

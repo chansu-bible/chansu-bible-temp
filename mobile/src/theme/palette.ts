@@ -92,6 +92,8 @@ export const fonts = {
   serif: 'NanumMyeongjo_400Regular',
   serifBold: 'NanumMyeongjo_700Bold',
   sans: Platform.select({ ios: 'System', android: 'sans-serif', default: 'system-ui' }),
+  // 히브리어(모음 부호 포함)를 그리는 기기 글꼴
+  hebrew: Platform.select({ ios: 'Times New Roman', android: 'serif', default: 'serif' }),
 } as const
 
 // '#rrggbb'에 투명도를 더한 rgba 문자열

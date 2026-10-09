@@ -94,6 +94,13 @@ export default function HomeScreen({ bundle }: { bundle: Bundle }) {
       onPress: () => router.push('/notes'),
     },
     { icon: 'search', title: '검색', detail: '본문·낱말·설정집·장면', onPress: () => router.push('/search') },
+    {
+      icon: 'chat',
+      title: '질문하기',
+      detail: signedIn ? '검수된 자료 안에서 답해요' : '로그인하면 쓸 수 있어요',
+      onPress: () => router.push({ pathname: '/ask', params: { chapter: String(position.chapter) } }),
+    },
+    { icon: 'book', title: '서재', detail: `${bundle.book} ${first}~${last}장 · 다음 책 준비 중`, onPress: () => router.push('/library') },
   ]
 
   return (

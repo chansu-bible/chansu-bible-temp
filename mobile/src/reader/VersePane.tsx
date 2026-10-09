@@ -50,6 +50,10 @@ type Props = {
   onLongPressVerse: (verse: number) => void
   onGoHome: () => void
   onOpenSearch: () => void
+  onOpenAsk: () => void
+  // 이 장의 퀴즈(승인된 문제가 셋 이상일 때). done은 끝까지 푼 적이 있는지
+  quiz: { count: number; done: boolean } | null
+  onOpenQuiz: () => void
 }
 
 // 화면 아래쪽 절반: 장의 본문. 장이나 이동(목차, 장면 넘기기)이 바뀌면 ReaderScreen이 key로 새로 그린다.
@@ -70,6 +74,9 @@ export default function VersePane({
   onLongPressVerse,
   onGoHome,
   onOpenSearch,
+  onOpenAsk,
+  quiz,
+  onOpenQuiz,
 }: Props) {
   const { palette, verseScale } = useSettings()
   const insets = useSafeAreaInsets()
@@ -159,6 +166,7 @@ export default function VersePane({
         </View>
         <View style={styles.headerButtons}>
           <IconButton name="search" label="검색" color={palette.ink} onPress={onOpenSearch} />
+          <IconButton name="chat" label="질문하기" color={palette.ink} onPress={onOpenAsk} />
           <IconButton name="list" label="목차" color={palette.ink} onPress={onOpenContents} />
           <IconButton name="gear" label="읽기 설정" color={palette.ink} onPress={onOpenSettings} />
         </View>
@@ -258,6 +266,23 @@ export default function VersePane({
           )
         })}
 
+        {quiz && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`이해 확인 퀴즈. 문제 ${quiz.count}개${quiz.done ? ', 다 풀었음' : ''}`}
+            onPress={onOpenQuiz}
+            style={({ pressed }) => [styles.quiz, { backgroundColor: palette.accentSoft, opacity: pressed ? 0.8 : 1 }]}
+          >
+            <Icon name="check" size={18} color={palette.accent} />
+            <View style={styles.quizText}>
+              <Text style={[styles.quizTitle, { color: palette.accent }]}>이해 확인 퀴즈</Text>
+              <Text style={[styles.quizDetail, { color: palette.inkSoft }]}>
+                {quiz.done ? '다 풀었어요 · 다시 풀기' : `${chapter.chapter}장 문제 ${quiz.count}개 · 점수는 남지 않아요`}
+              </Text>
+            </View>
+          </Pressable>
+        )}
+
         {nextChapter !== undefined && (
           <Pressable
             accessibilityRole="button"
@@ -305,6 +330,10 @@ const styles = StyleSheet.create({
   name: { textDecorationLine: 'underline', textDecorationStyle: 'solid' },
   nextChapter: { marginTop: 16, padding: 14, borderWidth: 1, borderRadius: 12, alignItems: 'center' },
   nextChapterText: { fontSize: 15, fontWeight: '600' },
+  quiz: { marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12 },
+  quizText: { flex: 1, gap: 2 },
+  quizTitle: { fontSize: 15, fontWeight: '600' },
+  quizDetail: { fontSize: 12 },
   glossCard: {
     position: 'absolute',
     left: 12,

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { StyleSheet, Switch, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native'
 import { FONT_SCALE_STEPS, type Speed, type Theme, type Verse } from 'reader-core'
 import { useSettings } from '../settings/SettingsContext'
 import { fonts } from '../theme/palette'
@@ -28,7 +28,15 @@ const fontOptions = FONT_SCALE_STEPS.map((step) => ({
 }))
 
 // 읽기 설정 시트. 바꾸면 바로 반영되고 이 기기에 저장된다.
-export default function SettingsSheet({ verse, onClose }: { verse: Verse | undefined; onClose: () => void }) {
+export default function SettingsSheet({
+  verse,
+  onOpenSources,
+  onClose,
+}: {
+  verse: Verse | undefined
+  onOpenSources: () => void
+  onClose: () => void
+}) {
   const { settings, update, palette, verseScale, subtitles, setSubtitles } = useSettings()
   const previewSize = 17 * verseScale
 
@@ -64,6 +72,9 @@ export default function SettingsSheet({ verse, onClose }: { verse: Verse | undef
       <Text style={[sheetStyles.note, { color: palette.inkFaint }]}>
         본문은 개역한글(퍼블릭 도메인), 그림은 이 앱에서 만든 것. 설정은 이 기기에만 저장돼요.
       </Text>
+      <Pressable accessibilityRole="link" onPress={onOpenSources} hitSlop={8} style={styles.sourcesLink}>
+        <Text style={[styles.sourcesLinkText, { color: palette.accent }]}>자료 출처와 이용 조건</Text>
+      </Pressable>
     </Sheet>
   )
 }
@@ -103,4 +114,6 @@ const styles = StyleSheet.create({
   previewNumber: { fontFamily: fonts.sans, fontSize: 11 },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   switchLabel: { flex: 1, fontSize: 15 },
+  sourcesLink: { alignSelf: 'flex-start' },
+  sourcesLinkText: { fontSize: 13, fontWeight: '600' },
 })

@@ -9,6 +9,7 @@ import {
   initialPosition,
   localDay,
   placeChange,
+  quizReady,
   startOfChapter,
   verseAt,
   type Bundle,
@@ -17,10 +18,11 @@ import {
   type Position,
 } from 'reader-core'
 import { bookId } from '../content/bundle'
-import { markSceneRead, savedPosition, savePositionRecord, useMarks, useReadScenes } from '../data/reading'
+import { markSceneRead, savedPosition, savePositionRecord, useMarks, useQuizDone, useReadScenes } from '../data/reading'
 import MapScreen from '../map/MapScreen'
 import { useNarration } from '../narration/NarrationContext'
 import { goHome, onReaderRequest, takeReaderRequest, type ReaderRequest } from '../navigation'
+import OriginalSheet from '../original/OriginalSheet'
 import { useSettings } from '../settings/SettingsContext'
 import ShareCardSheet from '../share/ShareCardSheet'
 import BackgroundSheet from './BackgroundSheet'
@@ -44,6 +46,8 @@ type Overlay =
   // 절을 길게 눌러 연 밑줄·메모 시트와, 거기서 연 장면 카드 공유
   | { kind: 'mark'; verse: number }
   | { kind: 'share'; verse: number }
+  // 밑줄·메모 시트에서 연 원어 보기
+  | { kind: 'original'; verse: number }
 
 // 읽기 화면: 위에 장면 그림, 아래에 본문. 웹 목업 ReaderScreen과 같은 흐름이다.
 export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
@@ -56,13 +60,20 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
     initialPosition(bundle.chapters, initialRequest?.position ?? savedPosition()),
   )
   const [overlay, setOverlay] = useState<Overlay>(() =>
-    initialRequest?.overlay === 'map' ? 'map' : initialRequest?.overlay ? 'contents' : 'none',
+    initialRequest?.overlay === 'map'
+      ? 'map'
+      : initialRequest?.overlay === 'background'
+        ? 'sheet'
+        : initialRequest?.overlay
+          ? 'contents'
+          : 'none',
   )
   const [contentsTab, setContentsTab] = useState<ContentsTab>(
     initialRequest?.overlay === 'timeline' ? 'timeline' : 'scenes',
   )
   const { ids: readScenes } = useReadScenes()
   const marks = useMarks()
+  const quizDone = useQuizDone(bookId)
   const chapterMarks = useMemo(
     () =>
       new Map(
@@ -168,6 +179,7 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   applyRequest.current = (request) => {
     if (request.position) jumpTo(request.position)
     if (request.overlay === 'map') openOverlay('map')
+    else if (request.overlay === 'background') openOverlay('sheet')
     else if (request.overlay) {
       setContentsTab(request.overlay === 'timeline' ? 'timeline' : 'scenes')
       openOverlay('contents')
@@ -181,6 +193,10 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
       }),
     [],
   )
+
+  function openQuiz(number: number) {
+    router.push({ pathname: '/quiz/[chapter]', params: { chapter: String(number), from: 'read' } })
+  }
 
   function togglePlay() {
     if (narration.playing) narration.pause()
@@ -232,6 +248,9 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           onLongPressVerse={(target) => openOverlay({ kind: 'mark', verse: target })}
           onGoHome={() => goHome(router)}
           onOpenSearch={() => router.push({ pathname: '/search', params: { from: 'read' } })}
+          onOpenAsk={() => router.push({ pathname: '/ask', params: { from: 'read', chapter: String(chapter.chapter) } })}
+          quiz={quizReady(chapter) ? { count: chapter.quiz.length, done: quizDone.has(chapter.chapter) } : null}
+          onOpenQuiz={() => openQuiz(chapter.chapter)}
         />
       </View>
 
@@ -248,10 +267,14 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           onTabChange={setContentsTab}
           onJump={jumpTo}
           onOpenEntity={openEntity}
+          quizDone={quizDone}
+          onOpenQuiz={openQuiz}
           onClose={closeOverlay}
         />
       )}
-      {overlay === 'settings' && <SettingsSheet verse={verse} onClose={closeOverlay} />}
+      {overlay === 'settings' && (
+        <SettingsSheet verse={verse} onOpenSources={() => router.push('/sources')} onClose={closeOverlay} />
+      )}
       {overlay === 'chapters' && (
         <ChapterPicker
           chapters={bundle.chapters}
@@ -282,6 +305,7 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           chapter={chapter.chapter}
           verse={chapter.verses.find((v) => v.verse === overlay.verse)!}
           onShare={() => setOverlay({ kind: 'share', verse: overlay.verse })}
+          onOpenOriginal={chapter.original !== null ? () => setOverlay({ kind: 'original', verse: overlay.verse }) : undefined}
           onClose={closeOverlay}
         />
       )}
@@ -292,6 +316,16 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           chapter={chapter.chapter}
           verse={chapter.verses.find((v) => v.verse === overlay.verse)!}
           translation={bundle.translation}
+          onClose={closeOverlay}
+        />
+      )}
+      {typeof overlay === 'object' && overlay.kind === 'original' && (
+        <OriginalSheet
+          bundle={bundle}
+          chapter={chapter}
+          verse={overlay.verse}
+          onJump={jumpTo}
+          onOpenSources={() => router.push('/sources')}
           onClose={closeOverlay}
         />
       )}

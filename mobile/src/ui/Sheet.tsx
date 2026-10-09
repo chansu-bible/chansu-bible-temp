@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { Animated, Easing, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useSettings } from '../settings/SettingsContext'
@@ -12,10 +12,12 @@ type Props = {
   closeLabel: string
   onClose: () => void
   children: ReactNode
+  // 시트 안을 스크롤해야 할 때(원어 시트가 누른 낱말의 사전 항목으로 옮긴다)
+  scrollRef?: RefObject<ScrollView | null>
 }
 
 // 아래에서 올라오는 시트. 바탕을 누르면 닫힌다. 안드로이드 뒤로 가기는 ReaderScreen이 처리한다.
-export function Sheet({ title, header, closeLabel, onClose, children }: Props) {
+export function Sheet({ title, header, closeLabel, onClose, children, scrollRef }: Props) {
   const { palette } = useSettings()
   const insets = useSafeAreaInsets()
   const offset = useRef(new Animated.Value(1)).current
@@ -49,7 +51,7 @@ export function Sheet({ title, header, closeLabel, onClose, children }: Props) {
           </View>
           <IconButton name="close" label={closeLabel} color={palette.ink} onPress={onClose} />
         </View>
-        <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
           {children}
         </ScrollView>
       </Animated.View>

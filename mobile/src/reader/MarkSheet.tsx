@@ -16,11 +16,13 @@ type Props = {
   chapter: number
   verse: Verse
   onShare: () => void
+  // 그 장에 원어 자료가 있을 때만 준다.
+  onOpenOriginal?: () => void
   onClose: () => void
 }
 
 // 절을 길게 눌러 여는 밑줄·메모·즐겨찾기 시트. 저장을 눌러야 바뀐다.
-export default function MarkSheet({ book, chapter, verse, onShare, onClose }: Props) {
+export default function MarkSheet({ book, chapter, verse, onShare, onOpenOriginal, onClose }: Props) {
   const { palette } = useSettings()
   const signedIn = useAuth().state.status === 'signedIn'
   const existing = getMark(book, chapter, verse.verse)
@@ -88,6 +90,12 @@ export default function MarkSheet({ book, chapter, verse, onShare, onClose }: Pr
           <Icon name="share" size={16} color={palette.inkSoft} />
           <Text style={[styles.chipText, { color: palette.inkSoft }]}>카드로 공유</Text>
         </Pressable>
+        {onOpenOriginal && (
+          <Pressable accessibilityRole="button" onPress={onOpenOriginal} style={[styles.chip, { backgroundColor: palette.paper }]}>
+            <Icon name="book" size={16} color={palette.inkSoft} />
+            <Text style={[styles.chipText, { color: palette.inkSoft }]}>원어 보기</Text>
+          </Pressable>
+        )}
       </View>
 
       <View style={[styles.row, styles.actions]}>
@@ -114,7 +122,7 @@ const styles = StyleSheet.create({
   swatch: { width: 32, height: 32, borderRadius: 16, borderWidth: 2 },
   clear: { borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   input: { minHeight: 84, padding: 12, borderWidth: 1, borderRadius: 12, fontSize: 14, lineHeight: 22, textAlignVertical: 'top' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, paddingHorizontal: 12, borderRadius: 10 },
   chipText: { fontSize: 13 },
   actions: { justifyContent: 'flex-end' },

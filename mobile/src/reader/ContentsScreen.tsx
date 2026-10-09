@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   chapterProgress,
   hueOf,
+  quizReady,
   sceneStatus,
   type Bundle,
   type Entity,
@@ -33,6 +34,9 @@ type Props = {
   // 장면을 누르면 그 장면의 첫 절로 옮기고 목차를 닫는다.
   onJump: (position: Position) => void
   onOpenEntity: (entity: Entity) => void
+  // 끝까지 푼 퀴즈의 장, 퀴즈 열기(장 머리의 "이해 확인 퀴즈")
+  quizDone: ReadonlySet<number>
+  onOpenQuiz: (chapter: number) => void
   onClose: () => void
 }
 
@@ -49,6 +53,8 @@ export default function ContentsScreen({
   onTabChange,
   onJump,
   onOpenEntity,
+  quizDone,
+  onOpenQuiz,
   onClose,
 }: Props) {
   const { palette } = useSettings()
@@ -118,6 +124,19 @@ export default function ContentsScreen({
               >
                 <View style={{ width: `${percent}%`, height: '100%', backgroundColor: palette.ok }} />
               </View>
+              {quizReady(chapter) && (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => onOpenQuiz(chapter.chapter)}
+                  hitSlop={6}
+                  style={styles.quizLink}
+                >
+                  <Icon name="check" size={14} color={palette.accent} />
+                  <Text style={[styles.quizLinkText, { color: palette.accent }]}>
+                    이해 확인 퀴즈{quizDone.has(chapter.chapter) ? ' · 다 풀었어요' : ` · 문제 ${chapter.quiz.length}개`}
+                  </Text>
+                </Pressable>
+              )}
             </View>
 
             {chapter.scenes.map((scene, index) => (
@@ -236,6 +255,8 @@ const styles = StyleSheet.create({
   summaryTitle: { fontFamily: fonts.serifBold, fontSize: 17 },
   summaryText: { fontSize: 13 },
   progress: { height: 4, marginTop: 4, borderRadius: 999, overflow: 'hidden' },
+  quizLink: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, marginTop: 8 },
+  quizLinkText: { fontSize: 13, fontWeight: '600' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 8, borderWidth: 1, borderColor: 'transparent', borderRadius: 12 },
   thumb: { width: 56, height: 56, borderRadius: 10, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   thumbNumber: { fontWeight: '700', fontSize: 16 },

@@ -3,8 +3,9 @@ import type { Position } from 'reader-core'
 
 type Router = ReturnType<typeof useRouter>
 
-// 다른 화면(홈, 검색, 메모)이 읽기 화면에 보내는 요청: 이 절로 옮기기, 이 덮개 열기
-export type ReaderRequest = { position?: Position; overlay?: 'map' | 'timeline' | 'contents' }
+// 다른 화면(홈, 검색, 메모, 질문하기)이 읽기 화면에 보내는 요청: 이 절로 옮기기, 이 덮개 열기.
+// background는 옮긴 절이 든 장면의 해설 시트다.
+export type ReaderRequest = { position?: Position; overlay?: 'map' | 'timeline' | 'contents' | 'background' }
 
 let pending: ReaderRequest | null = null
 const listeners = new Set<() => void>()
