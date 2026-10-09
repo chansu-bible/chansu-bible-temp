@@ -513,11 +513,11 @@ git commit -m "feat(core): 절 참조(책이 붙은 참조, 비교)와 묶음 bo
 
 - [ ] **Step 0: 고치기 전 묶음을 남긴다**
 
-창세기 결과가 그대로인지 Task 3과 Task 7 끝에 비교한다. `app/public/content/`는 git에서 빠진 폴더다.
+창세기 결과가 그대로인지 Task 3과 Task 7 끝에 비교한다. `build`는 `app/public/content/`를 비우고 다시 만들므로 사본은 시스템 임시 폴더에 둔다.
 
 ```bash
 npm run pipeline -- build
-node -e "require('fs').copyFileSync('app/public/content/genesis.json','app/public/content/genesis.before.json')"
+node -e "const fs=require('fs'),os=require('os'),path=require('path');fs.copyFileSync('app/public/content/genesis.json',path.join(os.tmpdir(),'genesis.before.json'))"
 ```
 
 - [ ] **Step 1: 경로 함수**
@@ -639,7 +639,7 @@ export async function listQuizChapters(book: BookId, dir: string = defaultQuizDi
 | `runQuiz` | `runQuiz(book, chapter, options, log)` |
 | `runOriginal` | `runOriginal(book, options, log)`(OSIS 파일은 Task 6, 지금은 `getBook(book).osis`로 주소를 만든다) |
 | `runGloss` | 그대로(사전은 책을 가리지 않는다) |
-| `writeBundle` | `writeBundle(book)`(Task 7에서 책마다 파일) |
+| `writeBundle` | `writeBundles(books)`: 앱 콘텐츠 폴더를 한 번 비우고 그림·낭독을 한 번 복사한 뒤, 책마다 `<book>.json`과 장면 낭독을 쓴다(책마다 지우면 마지막 책만 남는다) |
 
 - [ ] **Step 7: CLI**
 
@@ -670,7 +670,7 @@ Expected: 통과
 
 ```bash
 npm run pipeline -- build --book genesis
-node -e "const fs=require('fs');console.log(fs.readFileSync('app/public/content/genesis.json','utf8')===fs.readFileSync('app/public/content/genesis.before.json','utf8')?'same':'DIFFERENT')"
+node -e "const fs=require('fs'),os=require('os'),path=require('path');console.log(fs.readFileSync('app/public/content/genesis.json','utf8')===fs.readFileSync(path.join(os.tmpdir(),'genesis.before.json'),'utf8')?'same':'DIFFERENT')"
 ```
 
 Expected: `same` (묶음 `bookId`는 Task 7에서 더한다).
@@ -876,7 +876,7 @@ it('장면 파일이 없는 장의 대체 장면 id와 제목에 책을 쓴다',
 - [ ] **Step 2: 구현**
 
 - `buildBundle(book, source, sceneFiles, canon, audio, catalog, extras)`: `bookId: book`을 넣고, `fallbackScene`은 `fallbackSceneIdOf(book, chapter)`와 `${getBook(book).name} ${chapter}장`. 설정집 항목은 `parseRef(firstAppearance)?.book === book`인 것만(시대는 `range.from`, 물건은 첫 `sources`) 넣고, 넣는 항목의 인용은 `localRef(text, book)`로 바꾸며 `null`(다른 책)은 뺀다.
-- `writeBundle(book)`: `app/public/content/<book>.json`과 그 책의 그림·낭독을 쓴다. 다른 책의 묶음과 파일은 건드리지 않는다.
+- `writeBundles(books)`(Task 3에서 만든 것): 책마다 `buildBundle(book, …)`의 결과를 `<book>.json`으로 쓴다.
 - `buildSources(book, style)`: 개역한글판 출처를 책 이름으로 만든다.
 - `docs/content-bundle.md`: 맨 위 키 표에 `bookId`(책 id, `reader-core`의 `books.ts`)를 더한다.
 
@@ -884,10 +884,10 @@ it('장면 파일이 없는 장의 대체 장면 id와 제목에 책을 쓴다',
 
 ```bash
 npm run pipeline -- build
-node -e "const fs=require('fs');const a=JSON.parse(fs.readFileSync('app/public/content/genesis.before.json','utf8'));const b=JSON.parse(fs.readFileSync('app/public/content/genesis.json','utf8'));delete b.bookId;console.log(JSON.stringify(a)===JSON.stringify(b)?'same':'DIFFERENT')"
+node -e "const fs=require('fs'),os=require('os'),path=require('path');const a=JSON.parse(fs.readFileSync(path.join(os.tmpdir(),'genesis.before.json'),'utf8'));const b=JSON.parse(fs.readFileSync('app/public/content/genesis.json','utf8'));delete b.bookId;console.log(JSON.stringify(a)===JSON.stringify(b)?'same':'DIFFERENT')"
 ```
 
-Expected: `same` (`genesis.before.json`은 Task 3 Step 0에서 남긴 것). 확인한 뒤 `genesis.before.json`을 지운다.
+Expected: `same` (사본은 Task 3 Step 0에서 남긴 것). 확인한 뒤 사본을 지운다.
 
 - [ ] **Step 4: 확인과 커밋**
 
