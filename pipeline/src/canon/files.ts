@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
-import { repoRoot, storyBibleDir } from '../paths.ts'
+import { displayPath, storyBibleDir } from '../paths.ts'
 import {
   CharacterSchema,
   EraSchema,
@@ -40,11 +40,6 @@ export function canonFilePath(key: FileKey, dir: string = storyBibleDir): string
   return path.join(dir, `${key}.json`)
 }
 
-function displayName(file: string): string {
-  const relative = path.relative(repoRoot, file)
-  return (relative.startsWith('..') ? file : relative).split(path.sep).join('/')
-}
-
 async function readList(key: FileKey, dir: string): Promise<unknown[]> {
   const file = canonFilePath(key, dir)
   if (!existsSync(file)) return []
@@ -52,7 +47,7 @@ async function readList(key: FileKey, dir: string): Promise<unknown[]> {
     return listSchemas[key].parse(JSON.parse(await readFile(file, 'utf8')))
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`${displayName(file)}: ${message}`)
+    throw new Error(`${displayPath(file)}: ${message}`)
   }
 }
 
@@ -62,7 +57,7 @@ function assertValid(canon: Canon, dir: string): void {
   if (problems.length === 0) return
   const lines = problems.map((problem) => {
     const key = problem.slice(0, problem.indexOf('/')) as FileKey
-    return `${displayName(canonFilePath(key, dir))}: ${problem}`
+    return `${displayPath(canonFilePath(key, dir))}: ${problem}`
   })
   throw new Error(`설정집에 문제가 있습니다:\n${lines.join('\n')}`)
 }

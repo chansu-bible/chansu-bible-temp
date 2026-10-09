@@ -37,7 +37,7 @@ export type Llm = {
 
 export type LlmOptions = {
   stage: string
-  // 책을 가리지 않는 단계(original-gloss)는 null
+  // 책을 가리지 않는 단계(original-gloss)는 null이다.
   book: BookId | null
   chapter: number | null
   log?: (line: string) => void

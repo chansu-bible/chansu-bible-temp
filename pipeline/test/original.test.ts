@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanHebrew, strongOf } from '../src/original/hebrew.ts'
 import { posLabel } from '../src/original/morph.ts'
 import { parseOshb } from '../src/original/oshb.ts'
@@ -87,33 +87,54 @@ describe('parseOshb', () => {
 })
 
 describe('runOriginal', () => {
-  it('책의 OSIS 이름으로 OSHB를 받아 original/<책 id>.json과 사전을 쓴다', async () => {
-    const dir = await mkdtemp(path.join(tmpdir(), 'original-'))
-    try {
-      const source = { book: '창세기', translation: '개역한글', chapters: [{ chapter: 1, verses: [{ verse: 1, text: '태초에' }] }] }
-      await writeFile(path.join(dir, 'genesis.json'), JSON.stringify(source))
-      const urls: string[] = []
-      const lines: string[] = []
-      const fetchText = async (url: string) => {
-        urls.push(url)
-        return url === STRONGS_URL ? strongs : oshb
-      }
-      const originalDir = path.join(dir, 'original')
-      const lexiconFile = path.join(dir, 'lexicon.json')
-      const result = await runOriginal('genesis', { fetchText, sourceDir: dir, originalDir, lexiconFile }, (line) => lines.push(line))
+  let dir: string
+  let urls: string[]
+  const fetchText = async (url: string) => {
+    urls.push(url)
+    return url === STRONGS_URL ? strongs : oshb
+  }
+  const chapterOne = { chapter: 1, verses: [{ verse: 1, text: '태초에' }] }
+  const optionsOf = () => ({ fetchText, sourceDir: dir, originalDir: path.join(dir, 'original'), lexiconFile: path.join(dir, 'lexicon.json') })
 
-      expect(urls).toEqual([
-        'https://raw.githubusercontent.com/openscriptures/morphhb/3d15126fb1ef74867fc1434be1942e837932691f/wlc/Gen.xml',
-        STRONGS_URL,
-      ])
-      expect(lines[0]).toBe('OSHB 창세기를 받는 중…')
-      expect(result).toMatchObject({ chapters: 1, words: 4, entries: 1 })
-      const original = JSON.parse(await readFile(path.join(originalDir, 'genesis.json'), 'utf8'))
-      expect(original.chapters.map((chapter: { chapter: number }) => chapter.chapter)).toEqual([1])
-      expect(existsSync(lexiconFile)).toBe(true)
-    } finally {
-      await rm(dir, { recursive: true, force: true })
-    }
+  beforeEach(async () => {
+    urls = []
+    dir = await mkdtemp(path.join(tmpdir(), 'original-'))
+    await writeFile(path.join(dir, 'genesis.json'), JSON.stringify({ book: '창세기', translation: '개역한글', chapters: [chapterOne] }))
+    await writeFile(path.join(dir, 'exodus.json'), JSON.stringify({ book: '출애굽기', translation: '개역한글', chapters: [chapterOne] }))
+  })
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  it('책의 OSIS 이름으로 OSHB를 받아 original/<책 id>.json과 사전을 쓴다', async () => {
+    const lines: string[] = []
+    const options = optionsOf()
+    const result = await runOriginal('genesis', options, (line) => lines.push(line))
+
+    expect(urls).toEqual([
+      'https://raw.githubusercontent.com/openscriptures/morphhb/3d15126fb1ef74867fc1434be1942e837932691f/wlc/Gen.xml',
+      STRONGS_URL,
+    ])
+    expect(lines[0]).toBe('OSHB 창세기를 받는 중…')
+    expect(result).toMatchObject({ chapters: 1, words: 4, entries: 1 })
+    const original = JSON.parse(await readFile(path.join(options.originalDir, 'genesis.json'), 'utf8'))
+    expect(original.chapters.map((chapter: { chapter: number }) => chapter.chapter)).toEqual([1])
+    expect(existsSync(options.lexiconFile)).toBe(true)
+
+    // 같은 책은 다시 만들 수 있다.
+    await expect(runOriginal('genesis', options)).resolves.toMatchObject({ chapters: 1 })
+  })
+
+  it('다른 책 원어가 이미 있으면 받기 전에 멈춘다(사전이 아직 한 책으로만 세므로)', async () => {
+    const options = optionsOf()
+    await mkdir(options.originalDir, { recursive: true })
+    await writeFile(path.join(options.originalDir, 'genesis.json'), JSON.stringify({ chapters: [] }))
+    await writeFile(path.join(options.originalDir, 'lexicon.json'), JSON.stringify({ entries: [] }))
+    await expect(runOriginal('exodus', options)).rejects.toThrow(
+      '원어 사전은 아직 한 책으로만 만듭니다. 창세기 원어가 이미 있어 출애굽기 원어를 만들 수 없습니다.',
+    )
+    expect(urls).toEqual([])
   })
 
   it('OSHB 주소는 책의 OSIS 코드로 만든다', () => {

@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { BookId } from 'reader-core'
-import { appContentDir, audioDir, imagesDir, lexiconFile, originalFilePath, repoRoot, styleFile } from '../paths.ts'
+import { appContentDir, audioDir, displayPath, imagesDir, lexiconFile, originalFilePath, styleFile } from '../paths.ts'
 import { BundleSchema, LexiconFileSchema, OriginalFileSchema, type Bundle, type QuizFile, type SceneFile } from '../schema.ts'
 import { readStyle } from '../images/style.ts'
 import { readCanon } from '../canon/files.ts'
@@ -14,16 +14,12 @@ import { joinMp3, mp3DurationMs } from '../tts/mp3.ts'
 import { buildBundle, sceneAudioParts, type ImageCatalog } from './buildBundle.ts'
 import { buildSources } from './sources.ts'
 
-function relativeName(file: string): string {
-  return path.relative(repoRoot, file).split(path.sep).join('/')
-}
-
 async function readJson<T>(file: string, parse: (value: unknown) => T): Promise<T> {
   try {
     return parse(JSON.parse(await readFile(file, 'utf8')))
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`${relativeName(file)}: ${message}`)
+    throw new Error(`${displayPath(file)}: ${message}`)
   }
 }
 
@@ -65,7 +61,7 @@ async function readQuizFiles(book: BookId): Promise<QuizFile[]> {
 // 책마다 앱 묶음(app/public/content/<책 id>.json)과 장면 낭독을 쓴다.
 // 앱 콘텐츠 폴더는 모든 책의 묶음을 검증한 뒤 한 번만 비우고, 그림·낭독도 한 번만 복사한다(책마다 비우면 마지막 책만 남는다).
 export async function writeBundles(books: BookId[]): Promise<Bundle[]> {
-  if (books.length === 0) throw new Error('묶음을 만들 책이 없습니다. 먼저 source --book <책 id>를 실행하세요.')
+  if (books.length === 0) throw new Error('본문이 있는 책이 없습니다. 먼저 source --book <책 id>를 실행하세요.')
   const { characters, places, eras, things } = await readCanon()
   const audio = await readAudioCatalog()
   const catalog = await readImageCatalog()

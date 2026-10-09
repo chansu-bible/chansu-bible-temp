@@ -71,8 +71,17 @@ describe('readSource', () => {
 })
 
 describe('readSourceChapter', () => {
-  it('한 장을 읽고, 없는 장이면 오류', async () => {
+  it('한 장을 읽고, 본문 파일에 그 장이 없으면 source를 먼저 돌리라고 한다', async () => {
     expect((await readSourceChapter('exodus', 2, dir)).verses).toHaveLength(4)
-    await expect(readSourceChapter('exodus', 1, dir)).rejects.toThrow('출애굽기 본문에 1장이 없습니다')
+    await expect(readSourceChapter('exodus', 1, dir)).rejects.toThrow(
+      '출애굽기 본문에 1장이 없습니다. 먼저 source --book exodus를 실행하세요.',
+    )
+  })
+
+  it('책에 없는 장이면 source를 돌려도 소용없으니 그렇다고만 한다', async () => {
+    await expect(readSourceChapter('genesis', 51, dir)).rejects.toThrow(/^창세기에는 51장이 없습니다$/)
+    await expect(readSourceChapter('genesis', 0, dir)).rejects.toThrow(/^창세기에는 0장이 없습니다$/)
+    // 본문 파일이 없는 책이어도 장 번호부터 본다.
+    await expect(readSourceChapter('obadiah', 2, dir)).rejects.toThrow(/^오바댜에는 2장이 없습니다$/)
   })
 })

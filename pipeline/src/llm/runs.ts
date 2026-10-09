@@ -10,7 +10,7 @@ export const RunSchema = z.object({
   at: z.string(), // 호출 시작 시각, ISO 8601
   stage: z.string(),
   model: z.string(),
-  // 책 id. 책을 가리지 않는 단계(original-gloss)와 책을 적기 전의 옛 줄은 null
+  // 책 id다. 책을 가리지 않는 단계(original-gloss)와 책을 적기 전의 옛 줄은 null이다.
   book: z.string().nullable().default(null),
   chapter: z.number().int().nullable(),
   inputTokens: z.number().int().min(0),

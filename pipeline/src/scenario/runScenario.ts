@@ -30,7 +30,7 @@ export type ScenarioRunOptions = {
   sourceDir?: string
   scenesDir?: string
   styleFile?: string
-  // 본보기 장면 파일. 비우면 장면 폴더에 있는 그 책의 2장 파일(2장을 쓸 때는 1장 파일)
+  // 본보기 장면 파일이다. 비우면 장면 폴더에 있는 그 책의 2장 파일(2장을 쓸 때는 1장 파일)을 쓴다.
   examplesFile?: string
 }
 

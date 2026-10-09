@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { getBook, josa, type BookId } from 'reader-core'
+import { bookOrder, findBook, getBook, josa, type BookId } from 'reader-core'
 import {
   lexiconFile as defaultLexiconFile,
   originalDir as defaultOriginalDir,
@@ -19,7 +19,7 @@ export const OSHB_BASE = 'https://raw.githubusercontent.com/openscriptures/morph
 export const STRONGS_URL =
   'https://raw.githubusercontent.com/openscriptures/strongs/0acd2f251c2d35ff8db2dece4e0593979d3ac223/hebrew/StrongHebrewG.xml'
 
-// 책의 OSHB 파일. 파일 이름은 책의 OSIS 코드다(창세기는 Gen.xml).
+// 책의 OSHB 파일 주소를 만든다. 파일 이름은 책의 OSIS 코드다(창세기는 Gen.xml).
 export function oshbUrl(book: BookId): string {
   return `${OSHB_BASE}/${getBook(book).osis}.xml`
 }
@@ -37,11 +37,29 @@ async function defaultFetch(url: string): Promise<string> {
   return response.text()
 }
 
+// 사전(lexicon.json)은 아직 이번 책의 낱말로만 다시 세므로, 다른 책 원어가 있으면 그 책의 한국어 뜻이 사전에서 빠진다. 그래서 막는다.
+// Task 6에서 사전을 모든 책의 원어로 세게 되면 이 검사를 지운다.
+async function refuseOtherBooks(book: BookId, dir: string): Promise<void> {
+  if (!existsSync(dir)) return
+  const others = (await readdir(dir)).flatMap((name) => {
+    const found = name.endsWith('.json') ? findBook(name.slice(0, -'.json'.length)) : undefined
+    return found && found.id !== book ? [found] : []
+  })
+  const other = others.sort((a, b) => bookOrder(a.id) - bookOrder(b.id))[0]
+  if (other) {
+    throw new Error(`원어 사전은 아직 한 책으로만 만듭니다. ${other.name} 원어가 이미 있어 ${getBook(book).name} 원어를 만들 수 없습니다.`)
+  }
+}
+
 // 본문에 있는 장의 히브리어 낱말과 그 낱말들의 사전 항목을 만든다. 이미 있는 한국어 뜻(초안, 승인)은 그대로 둔다.
 export async function runOriginal(book: BookId, options: OriginalOptions = {}, log: (line: string) => void = () => {}) {
   const fetchText = options.fetchText ?? defaultFetch
-  const originalFile = originalFilePath(book, options.originalDir ?? defaultOriginalDir)
+  const originalDir = options.originalDir ?? defaultOriginalDir
+  const originalFile = originalFilePath(book, originalDir)
   const lexiconFile = options.lexiconFile ?? defaultLexiconFile
+
+  // 받기 전에 본다.
+  await refuseOtherBooks(book, originalDir)
 
   const source = await readSource(book, options.sourceDir ?? defaultSourceDir)
   const chapterNumbers = new Set(source.chapters.map((chapter) => chapter.chapter))

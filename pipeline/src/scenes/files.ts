@@ -1,14 +1,8 @@
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import path from 'node:path'
 import { getBook, hasChapter, parseSceneId, sceneIdOf, type BookId } from 'reader-core'
-import { listChapterFiles, repoRoot, sceneFilePath, scenesDir } from '../paths.ts'
+import { displayPath, listChapterFiles, sceneFilePath, scenesDir } from '../paths.ts'
 import { SceneFileSchema, type SceneFile } from '../schema.ts'
-
-function displayName(file: string): string {
-  const relative = path.relative(repoRoot, file)
-  return (relative.startsWith('..') ? file : relative).split(path.sep).join('/')
-}
 
 // 스키마, 장면마다 장 번호가 파일과 같은지, id가 겹치지 않는지 본다.
 function parseSceneFile(value: unknown): SceneFile {
@@ -35,7 +29,7 @@ export async function readSceneFile(book: BookId, chapter: number, dir: string =
     return sceneFile
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`${displayName(file)}: ${message}`)
+    throw new Error(`${displayPath(file)}: ${message}`)
   }
 }
 
@@ -56,7 +50,7 @@ export async function writeSceneFile(book: BookId, sceneFile: SceneFile, dir: st
   await rename(`${file}.tmp`, file)
 }
 
-// 그 책의 장면 파일이 있는 장 번호(오름차순)
+// 그 책의 장면 파일이 있는 장 번호를 오름차순으로 돌려준다.
 export async function listSceneChapters(book: BookId, dir: string = scenesDir): Promise<number[]> {
   return listChapterFiles(book, dir)
 }

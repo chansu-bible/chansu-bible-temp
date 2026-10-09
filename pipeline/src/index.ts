@@ -1,6 +1,6 @@
 // 관리 서버가 쓰는 공개 함수 모음. 여기 없는 모듈은 서버에서 직접 가져오지 않는다.
 export * from './schema.ts'
-// 책 id. 관리 서버가 reader-core에 기대지 않고 쓸 수 있게 다시 내보낸다.
+// 관리 서버가 reader-core에 기대지 않고 책 id 형을 쓸 수 있게 다시 내보낸다.
 export type { BookId } from 'reader-core'
 export * as paths from './paths.ts'
 export { sceneFilePath } from './paths.ts'

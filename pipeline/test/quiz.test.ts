@@ -1,11 +1,11 @@
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { Llm, ParseRequest } from '../src/llm/client.ts'
 import { listQuizChapters, readQuizFile, writeQuizFile } from '../src/quiz/files.ts'
 import { runQuiz } from '../src/quiz/runQuiz.ts'
-import { QuizQuestionSchema, type QuizFile } from '../src/schema.ts'
+import { QuizQuestionSchema, type QuizFile, type QuizQuestion } from '../src/schema.ts'
 
 const source = {
   book: '창세기',
@@ -22,8 +22,17 @@ const source = {
   ],
 }
 
+let dir: string
+
+beforeEach(async () => {
+  dir = await mkdtemp(path.join(tmpdir(), 'quiz-'))
+})
+
+afterEach(async () => {
+  await rm(dir, { recursive: true, force: true })
+})
+
 async function setup() {
-  const dir = await mkdtemp(path.join(tmpdir(), 'quiz-'))
   const files = { sourceDir: dir, quizDir: path.join(dir, 'quiz'), scenesDir: path.join(dir, 'scenes') }
   await writeFile(path.join(dir, 'genesis.json'), JSON.stringify(source))
   return files
@@ -37,6 +46,8 @@ const question = (overrides: Partial<{ question: string; options: string[]; answ
   verse: 3,
   ...overrides,
 })
+
+const storedQuestion = (id: string): QuizQuestion => ({ id, ...question(), status: 'reviewed', issues: [] })
 
 function fake(output: unknown): Llm & { requests: ParseRequest[] } {
   const requests: ParseRequest[] = []
@@ -120,7 +131,6 @@ describe('runQuiz', () => {
 
 describe('퀴즈 파일', () => {
   it('그 책의 퀴즈 파일이 있는 장만 오름차순으로 돌려준다', async () => {
-    const dir = await mkdtemp(path.join(tmpdir(), 'quiz-list-'))
     for (const name of ['genesis-10.json', 'genesis-04.json', 'exodus-03.json', 'notes.json']) {
       await writeFile(path.join(dir, name), '{}')
     }
@@ -130,8 +140,30 @@ describe('퀴즈 파일', () => {
   })
 
   it('책에 없는 장의 퀴즈 파일은 없다', async () => {
-    const dir = await mkdtemp(path.join(tmpdir(), 'quiz-none-'))
     expect(await readQuizFile('genesis', 51, dir)).toBeNull()
+  })
+
+  it('형식에 맞지 않으면 파일 이름과 함께 오류를 낸다', async () => {
+    await writeFile(path.join(dir, 'genesis-04.json'), JSON.stringify({ chapter: 4, questions: [{ id: 'genesis-04-q1' }] }))
+    await expect(readQuizFile('genesis', 4, dir)).rejects.toThrow('genesis-04.json: ')
+    await writeFile(path.join(dir, 'genesis-04.json'), '{ 깨진 JSON')
+    await expect(readQuizFile('genesis', 4, dir)).rejects.toThrow('genesis-04.json: ')
+  })
+
+  it('파일의 장 번호가 요청한 장과 다르면 오류', async () => {
+    await writeFile(path.join(dir, 'genesis-04.json'), JSON.stringify({ chapter: 5, questions: [] }))
+    await expect(readQuizFile('genesis', 4, dir)).rejects.toThrow('genesis-04.json: 장 번호(5)가 4장이 아닙니다')
+  })
+
+  it('문제 id가 그 책·그 장의 id가 아니면 쓰지 않는다', async () => {
+    for (const id of ['exodus-04-q1', 'genesis-05-q1', 'genesis-04-q0', 'genesis-04-q01', 'genesis-4-q1']) {
+      await expect(writeQuizFile('genesis', { chapter: 4, questions: [storedQuestion('genesis-04-q1'), storedQuestion(id)] }, dir)).rejects.toThrow(
+        `창세기 4장의 문제 id가 아닙니다(genesis-04-q1 모양이어야 합니다): ${id}`,
+      )
+    }
+    expect(await readQuizFile('genesis', 4, dir)).toBeNull()
+    await writeQuizFile('genesis', { chapter: 4, questions: [storedQuestion('genesis-04-q1'), storedQuestion('genesis-04-q12')] }, dir)
+    expect((await readQuizFile('genesis', 4, dir))!.questions.map((item) => item.id)).toEqual(['genesis-04-q1', 'genesis-04-q12'])
   })
 
   it('문제 id는 책-장-q번호 모양이다', () => {
