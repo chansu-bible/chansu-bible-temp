@@ -378,7 +378,7 @@ export const LexiconEntrySchema = z.object({
   pos: z.string(),
   definition: z.string(),
   usage: z.string(),
-  // 모든 책 원어에 나오는 횟수
+  // 모든 책 원어에 나오는 횟수. 0이면 어느 책에도 나오지 않지만 한국어 뜻 때문에 남긴 항목이다.
   count: z.number().int().nonnegative(),
   korean: KoreanGlossSchema.nullable(),
 })

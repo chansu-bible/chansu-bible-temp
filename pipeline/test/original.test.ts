@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { getBook } from 'reader-core'
@@ -11,7 +11,8 @@ import { originalBooks, oshbUrl, runOriginal } from '../src/original/runOriginal
 import { parseStrongs } from '../src/original/strongs.ts'
 import { STRONGS_URL } from '../src/original/urls.ts'
 import { OSHB_VERSE_MAP_URL } from '../src/original/verseMap.ts'
-import type { LexiconFile, OriginalFile } from '../src/schema.ts'
+import { displayPath } from '../src/paths.ts'
+import type { KoreanGloss, LexiconEntry, LexiconFile, OriginalFile } from '../src/schema.ts'
 
 const oshb = `<chapter osisID="Gen.1">
 <verse osisID="Gen.1.1">
@@ -68,6 +69,19 @@ describe('posLabel', () => {
   })
 })
 
+// OSHB Deut.xml의 신명기 6:4 그대로. 첫 낱말과 끝 낱말의 마지막 글자는 큰 글자라 낱말 안에 seg로 적혀 있다.
+const shema = `<verse osisID="Deut.6.4">
+<w lemma="8085" n="1.0" morph="HVqv2ms" id="05WH5">שְׁמַ֖<seg type="x-large">ע</seg></w>
+<note n="5">Large letter(s). Shown as large letters without a superscript note number. </note>
+<w lemma="3478" n="1" morph="HNp" id="05Wu9">יִשְׂרָאֵ֑ל</w>
+<w lemma="3068" morph="HNp" id="05Wfj">יְהוָ֥ה</w>
+<w lemma="430" n="0.0" morph="HNcmpc/Sp1cp" id="05MRr">אֱלֹהֵ֖י/נוּ</w>
+<w lemma="3068" morph="HNp" id="05d46">יְהוָ֥ה</w>
+<seg type="x-paseq">׀</seg>
+<w lemma="259" n="0" morph="HAcmsa" id="05vGY">אֶחָֽ<seg type="x-large">ד</seg></w><seg type="x-sof-pasuq">׃</seg>
+<note n="5">Large letter(s). Shown as large letters without a superscript note number. </note>
+</verse>`
+
 describe('parseOshb', () => {
   it('고른 장의 절마다 낱말을 차례로 읽는다', () => {
     expect(parseOshb(oshb, new Set([1, 4]))).toEqual([
@@ -91,6 +105,23 @@ describe('parseOshb', () => {
 
   it('장을 고르지 않으면 모든 장을 읽는다', () => {
     expect(parseOshb(oshb).map((chapter) => chapter.chapter)).toEqual([1, 4, 11])
+  })
+
+  it('큰 글자처럼 안에 seg가 든 낱말도 빠뜨리지 않고, 그 글자는 보통 글자로 둔다(신명기 6:4)', () => {
+    const words = parseOshb(shema)[0]!.verses[0]!.words
+    expect(words.map((word) => [word.strong, word.morph])).toEqual([
+      ['H8085', 'HVqv2ms'],
+      ['H3478', 'HNp'],
+      ['H3068', 'HNp'],
+      ['H430', 'HNcmpc/Sp1cp'],
+      ['H3068', 'HNp'],
+      ['H259', 'HAcmsa'],
+    ])
+    // seg 태그만 지운 낱말과 같고, 큰 글자(ע, ד)가 낱말 끝에 남는다.
+    expect(parseOshb(shema)).toEqual(parseOshb(shema.replace(/<seg type="x-large">([^<]*)<\/seg>/g, '$1')))
+    expect(words[0]!.text.endsWith('ע')).toBe(true)
+    expect(words[5]!.text.endsWith('ד')).toBe(true)
+    expect(words.some((word) => word.text.includes('<'))).toBe(false)
   })
 })
 
@@ -217,6 +248,51 @@ describe('runOriginal', () => {
     expect(lines).toContain('출애굽기 2장은 히브리어와 개역한글의 절 나눔이 달라 원어를 넣지 않았습니다(본문 3절, 원어 2절)')
     const original = await readJson<OriginalFile>(path.join(options.originalDir, 'exodus.json'))
     expect(strongsOf(original)).toEqual([[1, [['H1', 'H7225'], ['H1'], ['H7225']]]])
+  })
+
+  it('다른 책 원어 파일이 깨졌으면 받거나 쓰기 전에 그 파일 이름을 대고 멈춘다', async () => {
+    const options = optionsOf()
+    await mkdir(options.originalDir, { recursive: true })
+    const exodusFile = path.join(options.originalDir, 'exodus.json')
+    await writeFile(exodusFile, '{ 깨진 JSON')
+    await writeFile(options.lexiconFile, '{"entries":[]}')
+
+    await expect(runOriginal('genesis', options)).rejects.toThrow(`${displayPath(exodusFile)}: `)
+    // 이 책 원어도 사전도 쓰지 않았고, 받지도 않았다.
+    expect(existsSync(path.join(options.originalDir, 'genesis.json'))).toBe(false)
+    expect(await readFile(options.lexiconFile, 'utf8')).toBe('{"entries":[]}')
+    expect(urls).toEqual([])
+  })
+
+  it('어느 책 원어에도 나오지 않게 된 번호는 한국어 뜻이 있으면 횟수 0으로 남기고, 뜻이 없으면 뺀다', async () => {
+    const lines: string[] = []
+    const options = optionsOf()
+    await mkdir(options.originalDir, { recursive: true })
+    const gloss: KoreanGloss = { meaning: '아버지', note: '사람이 쓴 뜻', status: 'approved' }
+    const entryOf = (strong: string, korean: KoreanGloss | null): LexiconEntry => ({
+      strong,
+      lemma: 'אָב',
+      xlit: 'ʼâb',
+      pos: 'n-m',
+      definition: 'father',
+      usage: 'father',
+      count: 5,
+      korean,
+    })
+    // 창세기 고정값에는 H1과 H2가 나오지 않는다.
+    await writeFile(options.lexiconFile, JSON.stringify({ entries: [entryOf('H1', gloss), entryOf('H2', null)] }))
+
+    const result = await runOriginal('genesis', options, (line) => lines.push(line))
+
+    const saved = await readJson<LexiconFile>(options.lexiconFile)
+    expect(saved.entries.map((entry) => [entry.strong, entry.count])).toEqual([
+      ['H1', 0],
+      ['H7225', 1],
+    ])
+    // 남긴 항목은 횟수만 0이고 나머지는 그대로다.
+    expect(saved.entries[0]).toEqual({ ...entryOf('H1', gloss), count: 0 })
+    expect(result).toMatchObject({ entries: 2, withKorean: 1 })
+    expect(lines).toContain('어느 책 원어에도 나오지 않지만 한국어 뜻이 있어 남긴 사전 항목 1개: H1')
   })
 
   it('신약 책은 본문을 읽거나 받기 전에 멈춘다', async () => {
