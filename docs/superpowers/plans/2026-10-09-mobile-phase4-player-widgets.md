@@ -531,7 +531,8 @@ Run: `npm test -w reader-core` → FAIL(모듈 없음)
 - [ ] **Step 2: 구현**
 
 ```ts path=packages/reader-core/src/narration.ts
-import type { Chapter, Position } from './types.ts'
+import type { Position } from './position.ts'
+import type { Chapter } from './types.ts'
 
 // 장면 낭독 파일(장면에 든 절의 낭독을 차례로 이은 것) 안에서 절마다의 구간(ms).
 // 음성이 없는 절은 파일에 들어 있지 않아 빠진다.
@@ -661,7 +662,8 @@ export function clockLabel(ms: number): string {
 ```ts path=packages/reader-core/src/widget.ts
 import { findSceneIndex, initialPosition } from './readingPosition.ts'
 import { readingStreak } from './streak.ts'
-import type { Bundle, Position } from './types.ts'
+import type { Position } from './position.ts'
+import type { Bundle } from './types.ts'
 
 // 홈 화면 위젯 "오늘의 장면"(목업 15)에 그릴 것. 앱 홈의 이어 읽기 카드와 같은 장면(저장된 읽기 위치의 장면)이다.
 // 안드로이드 위젯은 이것을 바로 그리고, iOS 위젯은 App Group에 JSON으로 받아 그린다.
