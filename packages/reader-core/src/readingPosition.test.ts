@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Chapter, Scene, Verse } from '../content/types.ts'
+import type { Chapter, Scene, Verse } from './types.ts'
 import { findSceneIndex, initialPosition, nextPosition } from './readingPosition.ts'
 
 function scene(id: string, verseStart: number, verseEnd: number): Scene {

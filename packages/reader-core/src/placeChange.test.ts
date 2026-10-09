@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Place } from '../content/types.ts'
+import type { Place } from './types.ts'
 import { flashTiming, placeChange } from './placeChange.ts'
 
 const eden: Place = { id: 'eden', name: '에덴', description: '', estimated: true, lat: 31.02, lng: 47.43 }

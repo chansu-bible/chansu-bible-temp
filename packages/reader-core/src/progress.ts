@@ -1,11 +1,12 @@
-import type { Scene } from '../content/types.ts'
+import type { KeyValueStore } from './store.ts'
+import type { Scene } from './types.ts'
 
 const key = 'reader-read-scenes'
 
 // 읽은 장면 id들. 장면의 마지막 절까지 오면 읽은 것으로 본다.
-export function loadReadScenes(): Set<string> {
+export function loadReadScenes(store: KeyValueStore): Set<string> {
   try {
-    const value: unknown = JSON.parse(localStorage.getItem(key) ?? '[]')
+    const value: unknown = JSON.parse(store.getItem(key) ?? '[]')
     if (!Array.isArray(value)) return new Set()
     return new Set(value.filter((id): id is string => typeof id === 'string'))
   } catch {
@@ -13,9 +14,9 @@ export function loadReadScenes(): Set<string> {
   }
 }
 
-export function saveReadScenes(scenes: Set<string>): void {
+export function saveReadScenes(store: KeyValueStore, scenes: Set<string>): void {
   try {
-    localStorage.setItem(key, JSON.stringify([...scenes]))
+    store.setItem(key, JSON.stringify([...scenes]))
   } catch {
     // 저장소를 쓸 수 없는 환경에서는 진도 저장을 건너뛴다.
   }

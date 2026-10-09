@@ -1,4 +1,4 @@
-import type { Chapter, Place } from '../content/types.ts'
+import type { Chapter, Place } from './types.ts'
 
 export type MappedPlace = Place & { lat: number; lng: number }
 

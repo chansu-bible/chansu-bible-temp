@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fillMissing } from './loadBundle.ts'
+import { fillMissing } from './bundle.ts'
 import type { Bundle } from './types.ts'
 
 describe('fillMissing', () => {

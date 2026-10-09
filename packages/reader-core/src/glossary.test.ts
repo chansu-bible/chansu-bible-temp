@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Gloss } from '../content/types.ts'
+import type { Gloss } from './types.ts'
 import { splitByGlosses } from './glossary.ts'
 
 const gloss = (word: string): Gloss => ({ verse: 2, word, meaning: `${word}의 뜻` })

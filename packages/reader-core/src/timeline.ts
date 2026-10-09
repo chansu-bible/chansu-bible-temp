@@ -1,4 +1,4 @@
-import type { Character, Era } from '../content/types.ts'
+import type { Character, Era } from './types.ts'
 
 // 죽은 해가 본문에 없는 인물(데려간 에녹)의 막대 길이(년). 점선으로 그린다.
 export const OPEN_SPAN = 120

@@ -1,0 +1,18 @@
+{
+  "name": "reader-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "웹 목업(app)과 네이티브 앱(mobile)이 함께 쓰는 읽기 계산 모듈과 묶음 타입. 브라우저·React Native API를 쓰지 않는다.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.3"
+  }
+}

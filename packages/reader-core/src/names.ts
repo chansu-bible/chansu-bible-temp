@@ -1,4 +1,4 @@
-import type { Character, Gloss, Place } from '../content/types.ts'
+import type { Character, Gloss, Place } from './types.ts'
 import { splitByGlosses } from './glossary.ts'
 
 export type Entity = { kind: 'character' | 'place'; id: string }

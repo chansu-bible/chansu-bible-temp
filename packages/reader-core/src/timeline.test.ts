@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Character, Era } from '../content/types.ts'
+import type { Character, Era } from './types.ts'
 import { OPEN_SPAN, timelineLayout } from './timeline.ts'
 
 function person(id: string, born: number | null, died: number | null): Character {

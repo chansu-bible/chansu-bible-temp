@@ -1,4 +1,4 @@
-import type { Chapter, Scene, Verse } from '../content/types.ts'
+import type { Chapter, Scene, Verse } from './types.ts'
 import type { Position } from './position.ts'
 
 // 절이 들어 있는 장면의 순서. 맞는 장면이 없으면 첫 장면으로 본다.

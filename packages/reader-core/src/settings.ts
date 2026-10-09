@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import type { KeyValueStore } from './store.ts'
 
 export type FontScale = 1 | 2 | 3 | 4 | 5
 export type Theme = 'auto' | 'light' | 'dark'
@@ -14,6 +14,7 @@ export const DEFAULT_SETTINGS: Settings = { fontScale: 3, theme: 'auto', speed: 
 // 글자 크기 단계 → 절 글꼴 배율
 export const FONT_SCALES = { 1: 0.85, 2: 0.93, 3: 1, 4: 1.1, 5: 1.25 } as const
 
+export const FONT_SCALE_STEPS: FontScale[] = [1, 2, 3, 4, 5]
 export const SPEEDS: Speed[] = [0.8, 1, 1.2]
 export const THEMES: Theme[] = ['auto', 'light', 'dark']
 
@@ -31,7 +32,7 @@ export function parseSettings(raw: string | null): Settings {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return DEFAULT_SETTINGS
   const saved = value as Record<string, unknown>
   return {
-    fontScale: [1, 2, 3, 4, 5].includes(saved.fontScale as number)
+    fontScale: FONT_SCALE_STEPS.includes(saved.fontScale as FontScale)
       ? (saved.fontScale as FontScale)
       : DEFAULT_SETTINGS.fontScale,
     theme: THEMES.includes(saved.theme as Theme) ? (saved.theme as Theme) : DEFAULT_SETTINGS.theme,
@@ -40,40 +41,18 @@ export function parseSettings(raw: string | null): Settings {
   }
 }
 
-export function loadSettings(): Settings {
+export function loadSettings(store: KeyValueStore): Settings {
   try {
-    return parseSettings(localStorage.getItem(key))
+    return parseSettings(store.getItem(key))
   } catch {
     return DEFAULT_SETTINGS
   }
 }
 
-export function saveSettings(settings: Settings): void {
+export function saveSettings(store: KeyValueStore, settings: Settings): void {
   try {
-    localStorage.setItem(key, JSON.stringify(settings))
+    store.setItem(key, JSON.stringify(settings))
   } catch {
     // 저장소를 쓸 수 없는 환경에서는 설정 저장을 건너뛴다.
   }
-}
-
-// 설정 상태와 바꾸는 함수. 바꾸면 바로 저장하고, 어두운 화면 설정은 문서 루트에 적는다.
-// 글자 크기는 verseScale로 돌려주어 .reader의 --verse-scale에 쓰게 한다.
-export function useSettings() {
-  const [settings, setSettings] = useState(loadSettings)
-
-  const update = useCallback((partial: Partial<Settings>) => {
-    setSettings((current) => {
-      const next = { ...current, ...partial }
-      saveSettings(next)
-      return next
-    })
-  }, [])
-
-  useEffect(() => {
-    const root = document.documentElement
-    if (settings.theme === 'auto') delete root.dataset.theme
-    else root.dataset.theme = settings.theme
-  }, [settings.theme])
-
-  return { settings, update, verseScale: FONT_SCALES[settings.fontScale] }
 }

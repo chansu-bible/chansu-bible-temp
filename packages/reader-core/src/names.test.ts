@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Character, Gloss, Place } from '../content/types.ts'
+import type { Character, Gloss, Place } from './types.ts'
 import { linkNames, splitVerse, type VersePart } from './names.ts'
 
 function person(id: string, name: string, firstAppearance: string): Character {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { ImageVersion } from '../content/types.ts'
-import { nextImageVersion, pickImageVersion } from './imageVersion.ts'
+import type { ImageVersion } from './types.ts'
+import { loadImageVersion, nextImageVersion, pickImageVersion, saveImageVersion } from './imageVersion.ts'
+import { memoryStore } from './store.ts'
 
 const versions: ImageVersion[] = [
   { id: 'v1', label: '1차', note: '' },
@@ -38,5 +39,14 @@ describe('nextImageVersion', () => {
 
   it('버전이 없으면 null이다', () => {
     expect(nextImageVersion([], 'v1')).toBeNull()
+  })
+})
+
+describe('그림 버전 저장', () => {
+  it('고른 버전을 저장하고 되살린다', () => {
+    const store = memoryStore()
+    expect(loadImageVersion(store)).toBeNull()
+    saveImageVersion(store, 'v2')
+    expect(loadImageVersion(store)).toBe('v2')
   })
 })

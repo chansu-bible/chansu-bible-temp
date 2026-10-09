@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Chapter, Place, Scene } from '../content/types.ts'
+import type { Chapter, Place, Scene } from './types.ts'
 import { buildRoute } from './route.ts'
 
 function scene(id: string, placeId: string | null): Scene {

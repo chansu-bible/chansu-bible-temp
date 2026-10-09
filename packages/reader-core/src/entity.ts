@@ -1,4 +1,4 @@
-import type { Character } from '../content/types.ts'
+import type { Character } from './types.ts'
 
 // 인물 카드의 한 줄 요약: notes의 첫 문장
 export function firstSentence(notes: string): string {

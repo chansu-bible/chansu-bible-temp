@@ -1,15 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Scene } from '../content/types.ts'
+import { describe, expect, it } from 'vitest'
 import { chapterProgress, loadReadScenes, markRead, saveReadScenes, sceneStatus } from './progress.ts'
-
-function fakeStorage() {
-  const store = new Map<string, string>()
-  return {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => void store.set(key, value),
-    store,
-  }
-}
+import { memoryStore } from './store.ts'
+import type { Scene } from './types.ts'
 
 function scene(id: string): Scene {
   return {
@@ -29,32 +21,38 @@ function scene(id: string): Scene {
 }
 
 describe('읽은 장면', () => {
-  let storage: ReturnType<typeof fakeStorage>
-  beforeEach(() => {
-    storage = fakeStorage()
-    vi.stubGlobal('localStorage', storage)
-  })
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
   it('저장된 것이 없으면 빈 Set이다', () => {
-    expect(loadReadScenes()).toEqual(new Set())
+    expect(loadReadScenes(memoryStore())).toEqual(new Set())
   })
 
   it('저장한 장면 id를 배열로 적고 되살린다', () => {
-    saveReadScenes(new Set(['a', 'b']))
-    expect(JSON.parse(storage.store.get('reader-read-scenes')!)).toEqual(['a', 'b'])
-    expect(loadReadScenes()).toEqual(new Set(['a', 'b']))
+    const store = memoryStore()
+    saveReadScenes(store, new Set(['a', 'b']))
+    expect(JSON.parse(store.entries.get('reader-read-scenes')!)).toEqual(['a', 'b'])
+    expect(loadReadScenes(store)).toEqual(new Set(['a', 'b']))
   })
 
   it('깨진 값이나 문자열이 아닌 항목은 버린다', () => {
-    storage.setItem('reader-read-scenes', 'nope')
-    expect(loadReadScenes()).toEqual(new Set())
-    storage.setItem('reader-read-scenes', JSON.stringify(['a', 3, null]))
-    expect(loadReadScenes()).toEqual(new Set(['a']))
-    storage.setItem('reader-read-scenes', JSON.stringify({ a: 1 }))
-    expect(loadReadScenes()).toEqual(new Set())
+    const store = memoryStore()
+    store.setItem('reader-read-scenes', 'nope')
+    expect(loadReadScenes(store)).toEqual(new Set())
+    store.setItem('reader-read-scenes', JSON.stringify(['a', 3, null]))
+    expect(loadReadScenes(store)).toEqual(new Set(['a']))
+    store.setItem('reader-read-scenes', JSON.stringify({ a: 1 }))
+    expect(loadReadScenes(store)).toEqual(new Set())
+  })
+
+  it('저장소가 막혀 있으면 빈 Set을 주고 저장은 조용히 건너뛴다', () => {
+    const broken = {
+      getItem: () => {
+        throw new Error('막힘')
+      },
+      setItem: () => {
+        throw new Error('막힘')
+      },
+    }
+    expect(loadReadScenes(broken)).toEqual(new Set())
+    expect(() => saveReadScenes(broken, new Set(['a']))).not.toThrow()
   })
 
   it('markRead는 원래 Set을 건드리지 않고 새 Set을 준다', () => {

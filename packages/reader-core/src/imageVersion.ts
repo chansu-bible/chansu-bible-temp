@@ -1,4 +1,5 @@
-import type { Bundle, ImageVersion } from '../content/types.ts'
+import type { KeyValueStore } from './store.ts'
+import type { Bundle, ImageVersion } from './types.ts'
 
 const key = 'reader-image-version'
 
@@ -14,20 +15,20 @@ export function pickImageVersion(
 export function nextImageVersion(versions: ImageVersion[], current: string | null): string | null {
   if (versions.length === 0) return null
   const index = versions.findIndex((version) => version.id === current)
-  return versions[(index + 1) % versions.length].id
+  return versions[(index + 1) % versions.length]!.id
 }
 
-export function loadImageVersion(): string | null {
+export function loadImageVersion(store: KeyValueStore): string | null {
   try {
-    return localStorage.getItem(key)
+    return store.getItem(key)
   } catch {
     return null
   }
 }
 
-export function saveImageVersion(id: string): void {
+export function saveImageVersion(store: KeyValueStore, id: string): void {
   try {
-    localStorage.setItem(key, id)
+    store.setItem(key, id)
   } catch {
     // 저장소를 쓸 수 없는 환경에서는 선택을 저장하지 않는다.
   }

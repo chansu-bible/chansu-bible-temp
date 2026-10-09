@@ -1,4 +1,4 @@
-import type { Gloss } from '../content/types.ts'
+import type { Gloss } from './types.ts'
 
 export type TextPart = { text: string; gloss?: Gloss }
 

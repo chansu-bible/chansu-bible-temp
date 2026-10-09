@@ -1,4 +1,4 @@
-import type { Place } from '../content/types.ts'
+import type { Place } from './types.ts'
 import { isMapped, type MappedPlace } from './route.ts'
 
 // 장면이 바뀌면서 장소가 달라진 것. from은 이전 장소(지도에 없거나 없었으면 null), to는 새 장소다.
