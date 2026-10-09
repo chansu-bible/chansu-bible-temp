@@ -16,6 +16,9 @@
 - 잠자기 타이머는 끔·15분·30분·60분·장면 끝. 분 타이머는 시간이 되면 그때 읽던 절을 마저 읽고 멈춘다(문장 가운데서 끊지 않게).
 - 잠금 화면의 앞뒤 버튼은 10초 건너뛰기다(expo-audio가 곡 넘기기 단추를 주지 않는다). 절 넘기기는 플레이어 화면에서 한다.
 - 플레이어는 목업처럼 테마와 상관없이 어두운 바탕이다. 홈에는 낭독 중일 때 작은 재생 막대가 뜨고, 계획 카드에 "오늘 분량 듣기"를 둔다. 읽기 화면에는 낭독 중일 때 플레이어를 여는 단추가 생긴다.
+- (확인하며 바꿈) iOS 위젯 그림은 위젯 안 그림(imageset)으로 넣지 않는다. @bacons/apple-targets가 JPEG를 PNG로 바꿔 장면마다 330KB, 모두 11MB가 되었다. 앱이 지금 장면의 작은 JPEG를 App Group에 base64로 적고, 위젯은 그림 id가 장면 id와 같을 때 그린다. 빌드 전에 묶음을 복사해 둘 필요도 없어진다.
+- (확인하며 바꿈) 안드로이드에서 기기의 어두운 화면을 따르려면 expo-system-ui가 있어야 해서 더한다. Expo 템플릿이 넣는 쓰지 않는 권한(SYSTEM_ALERT_WINDOW, 저장소 읽기·쓰기)은 android.blockedPermissions로 뺀다.
+- (확인하며 바꿈) 진행 막대는 좌표 없이 눌리면(키보드, 화면 읽기) 무시하고, 화면 읽기에는 10초 앞뒤 조작을 준다. 작은 재생 막대는 단추 안에 단추를 두지 않는다(웹에서 잘못된 HTML).
 - 위젯은 홈의 이어 읽기 카드와 같은 장면(저장된 읽기 위치의 장면)과 연속 읽기 날수를 보인다. 누르면 읽기 화면이 열린다(`chansubible://read`). 위젯 그림은 장면 그림을 작게 줄인 것(420×474 JPEG)이다. 안드로이드 위젯은 큰 비트맵을 보내면 실패한다.
 - 마이크 권한을 빼다. expo-audio 설정 플러그인이 기본으로 넣는 녹음 권한(iOS 마이크 설명, 안드로이드 RECORD_AUDIO)은 이 앱에 필요 없고 스토어 심사에서 이유를 묻는다.
 - 위젯 모듈은 개발 빌드에만 있다. Expo Go와 웹에서는 위젯 코드를 불러오지 않는다(안드로이드 위젯 모듈은 불러오는 순간 네이티브 모듈을 찾아 Expo Go에서 앱이 죽는다).
@@ -1700,7 +1703,10 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps): Promise<
 
 ```tsx path=mobile/src/widgets/updateWidgets.tsx
 import { ExtensionStorage } from '@bacons/apple-targets'
+import { Asset } from 'expo-asset'
+import { File } from 'expo-file-system'
 import { Platform } from 'react-native'
+import { widgetImageAssets } from '../content/assets.generated'
 import { androidWidgetsAvailable } from './register'
 import { currentWidgetSnapshot } from './snapshot'
 
@@ -1710,6 +1716,21 @@ export const APP_GROUP = 'group.com.chansubible.app'
 const iosStorage = Platform.OS === 'ios' ? new ExtensionStorage(APP_GROUP) : null
 
 let last = ''
+let lastImage = ''
+
+// iOS 위젯 그림: 지금 장면의 작은 JPEG(npm run content가 만든 위젯 그림)를 base64로 App Group에 적는다.
+// 위젯은 그림 id가 장면 id와 같을 때만 그린다(그림을 못 적었으면 그림 없이 그린다).
+async function writeIosImage(storage: ExtensionStorage, sceneId: string): Promise<void> {
+  if (sceneId === lastImage) return
+  const image = widgetImageAssets[sceneId]
+  if (image === undefined) return
+  const asset = Asset.fromModule(image)
+  await asset.downloadAsync()
+  if (!asset.localUri) return
+  storage.set('todaySceneImage', await new File(asset.localUri).base64())
+  storage.set('todaySceneImageId', sceneId)
+  lastImage = sceneId
+}
 
 // 위젯에 보일 것이 바뀌었으면 위젯을 다시 그리게 한다.
 export function updateWidgets(): void {
@@ -1719,8 +1740,11 @@ export function updateWidgets(): void {
   if (json === last) return
   last = json
   if (iosStorage) {
-    iosStorage.set('todayScene', json)
-    ExtensionStorage.reloadWidget('TodayScene')
+    const storage = iosStorage
+    storage.set('todayScene', json)
+    writeIosImage(storage, snapshot.sceneId)
+      .catch(() => undefined)
+      .finally(() => ExtensionStorage.reloadWidget('TodayScene'))
   }
   if (androidWidgetsAvailable) {
     const { requestWidgetUpdate } = require('react-native-android-widget') as typeof import('react-native-android-widget')
@@ -1765,21 +1789,7 @@ export function WidgetSync() {
 
 ```js path=mobile/targets/widget/expo-target.config.js
 // iOS 홈 화면 위젯 "오늘의 장면"(목업 15). @bacons/apple-targets가 npx expo prebuild 때 Xcode 대상으로 만든다.
-// 장면 그림은 npm run content -w mobile이 만든 작은 그림(assets/content/widget/<장면 id>.jpg)을 위젯 안 그림으로 넣는다.
-const fs = require('fs')
-const path = require('path')
-
-const thumbnails = path.join(__dirname, '../../assets/content/widget')
-
-function sceneImages() {
-  if (!fs.existsSync(thumbnails)) return {}
-  return Object.fromEntries(
-    fs
-      .readdirSync(thumbnails)
-      .filter((name) => name.endsWith('.jpg'))
-      .map((name) => [name.replace(/\.jpg$/, ''), path.join('../../assets/content/widget', name)]),
-  )
-}
+// 장면 그림은 앱이 App Group에 적어 준다(mobile/src/widgets/updateWidgets.tsx). 위젯 안에 그림을 넣지 않아 확장이 가볍다.
 
 /** @type {import('@bacons/apple-targets/app.plugin').ConfigFunction} */
 module.exports = (config) => ({
@@ -1795,7 +1805,6 @@ module.exports = (config) => ({
     widgetInkSoft: { light: '#6f665e', dark: '#b8ad9f' },
     widgetAccent: { light: '#8a5a2b', dark: '#d6a56f' },
   },
-  images: sceneImages(),
   entitlements: {
     'com.apple.security.application-groups': config.ios.entitlements['com.apple.security.application-groups'],
   },
@@ -1819,30 +1828,40 @@ struct TodayScene: Decodable {
 struct SceneEntry: TimelineEntry {
   let date: Date
   let scene: TodayScene?
+  let image: UIImage?
 }
 
 struct Provider: TimelineProvider {
   private let sample = TodayScene(sceneId: "", kicker: "오늘의 장면 · 창세기 1장", title: "빛이 있으라", detail: "1:1~5절")
 
   func placeholder(in context: Context) -> SceneEntry {
-    SceneEntry(date: Date(), scene: sample)
+    SceneEntry(date: Date(), scene: sample, image: nil)
   }
 
   func getSnapshot(in context: Context, completion: @escaping (SceneEntry) -> Void) {
-    completion(SceneEntry(date: Date(), scene: load() ?? sample))
+    completion(entry() ?? SceneEntry(date: Date(), scene: sample, image: nil))
   }
 
   // 앱이 읽기 기록을 바꾸면 다시 그리게 한다(ExtensionStorage.reloadWidget). 날이 바뀌면 한 번 더 읽는다.
   func getTimeline(in context: Context, completion: @escaping (Timeline<SceneEntry>) -> Void) {
     let calendar = Calendar.current
     let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())) ?? Date().addingTimeInterval(86_400)
-    completion(Timeline(entries: [SceneEntry(date: Date(), scene: load())], policy: .after(tomorrow)))
+    completion(Timeline(entries: [entry() ?? SceneEntry(date: Date(), scene: nil, image: nil)], policy: .after(tomorrow)))
   }
 
-  private func load() -> TodayScene? {
-    guard let json = UserDefaults(suiteName: appGroup)?.string(forKey: "todayScene"),
-          let data = json.data(using: .utf8) else { return nil }
-    return try? JSONDecoder().decode(TodayScene.self, from: data)
+  // 앱이 적은 장면과, 그 장면의 그림(그림 id가 같을 때만)
+  private func entry() -> SceneEntry? {
+    let defaults = UserDefaults(suiteName: appGroup)
+    guard let json = defaults?.string(forKey: "todayScene"),
+          let data = json.data(using: .utf8),
+          let scene = try? JSONDecoder().decode(TodayScene.self, from: data) else { return nil }
+    var image: UIImage?
+    if defaults?.string(forKey: "todaySceneImageId") == scene.sceneId,
+       let base64 = defaults?.string(forKey: "todaySceneImage"),
+       let bytes = Data(base64Encoded: base64) {
+      image = UIImage(data: bytes)
+    }
+    return SceneEntry(date: Date(), scene: scene, image: image)
   }
 }
 
@@ -1852,7 +1871,7 @@ struct TodaySceneView: View {
   var body: some View {
     if let scene = entry.scene {
       HStack(spacing: 0) {
-        if let image = UIImage(named: scene.sceneId) {
+        if let image = entry.image {
           Image(uiImage: image)
             .resizable()
             .scaledToFill()

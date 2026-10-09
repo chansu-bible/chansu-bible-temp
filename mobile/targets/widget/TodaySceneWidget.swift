@@ -14,30 +14,40 @@ struct TodayScene: Decodable {
 struct SceneEntry: TimelineEntry {
   let date: Date
   let scene: TodayScene?
+  let image: UIImage?
 }
 
 struct Provider: TimelineProvider {
   private let sample = TodayScene(sceneId: "", kicker: "오늘의 장면 · 창세기 1장", title: "빛이 있으라", detail: "1:1~5절")
 
   func placeholder(in context: Context) -> SceneEntry {
-    SceneEntry(date: Date(), scene: sample)
+    SceneEntry(date: Date(), scene: sample, image: nil)
   }
 
   func getSnapshot(in context: Context, completion: @escaping (SceneEntry) -> Void) {
-    completion(SceneEntry(date: Date(), scene: load() ?? sample))
+    completion(entry() ?? SceneEntry(date: Date(), scene: sample, image: nil))
   }
 
   // 앱이 읽기 기록을 바꾸면 다시 그리게 한다(ExtensionStorage.reloadWidget). 날이 바뀌면 한 번 더 읽는다.
   func getTimeline(in context: Context, completion: @escaping (Timeline<SceneEntry>) -> Void) {
     let calendar = Calendar.current
     let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())) ?? Date().addingTimeInterval(86_400)
-    completion(Timeline(entries: [SceneEntry(date: Date(), scene: load())], policy: .after(tomorrow)))
+    completion(Timeline(entries: [entry() ?? SceneEntry(date: Date(), scene: nil, image: nil)], policy: .after(tomorrow)))
   }
 
-  private func load() -> TodayScene? {
-    guard let json = UserDefaults(suiteName: appGroup)?.string(forKey: "todayScene"),
-          let data = json.data(using: .utf8) else { return nil }
-    return try? JSONDecoder().decode(TodayScene.self, from: data)
+  // 앱이 적은 장면과, 그 장면의 그림(그림 id가 같을 때만)
+  private func entry() -> SceneEntry? {
+    let defaults = UserDefaults(suiteName: appGroup)
+    guard let json = defaults?.string(forKey: "todayScene"),
+          let data = json.data(using: .utf8),
+          let scene = try? JSONDecoder().decode(TodayScene.self, from: data) else { return nil }
+    var image: UIImage?
+    if defaults?.string(forKey: "todaySceneImageId") == scene.sceneId,
+       let base64 = defaults?.string(forKey: "todaySceneImage"),
+       let bytes = Data(base64Encoded: base64) {
+      image = UIImage(data: bytes)
+    }
+    return SceneEntry(date: Date(), scene: scene, image: image)
   }
 }
 
@@ -47,7 +57,7 @@ struct TodaySceneView: View {
   var body: some View {
     if let scene = entry.scene {
       HStack(spacing: 0) {
-        if let image = UIImage(named: scene.sceneId) {
+        if let image = entry.image {
           Image(uiImage: image)
             .resizable()
             .scaledToFill()
