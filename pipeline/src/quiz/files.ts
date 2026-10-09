@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import type { BookId } from 'reader-core'
-import { quizDir as defaultQuizDir, hasChapter, listChapterFiles, quizFilePath } from '../paths.ts'
+import { hasChapter, type BookId } from 'reader-core'
+import { quizDir as defaultQuizDir, listChapterFiles, quizFilePath } from '../paths.ts'
 import { QuizFileSchema, type QuizFile } from '../schema.ts'
 
 // 퀴즈 파일 하나. 없으면 null(책에 없는 장도)

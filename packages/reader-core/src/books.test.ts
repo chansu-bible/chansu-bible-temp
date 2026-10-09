@@ -7,6 +7,7 @@ import {
   fallbackSceneIdOf,
   findBook,
   getBook,
+  hasChapter,
   isBookId,
   parseChapterStem,
   parseSceneId,
@@ -46,6 +47,15 @@ describe('BOOKS', () => {
 })
 
 describe('id와 파일 이름', () => {
+  it('책에 그 장이 있는지 본다', () => {
+    expect(hasChapter('genesis', 50)).toBe(true)
+    expect(hasChapter('genesis', 51)).toBe(false)
+    expect(hasChapter('genesis', 0)).toBe(false)
+    expect(hasChapter('genesis', 1.5)).toBe(false)
+    expect(hasChapter('obadiah', 1)).toBe(true)
+    expect(hasChapter('obadiah', 2)).toBe(false)
+  })
+
   it('장 번호를 그 책의 장 수 자리수로 채운다', () => {
     expect(chapterStem('genesis', 4)).toBe('genesis-04')
     expect(chapterStem('psalms', 1)).toBe('psalms-001')

@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import path from 'node:path'
-import { chapterStem, getBook, parseChapterStem, type BookId } from 'reader-core'
+import { chapterStem, parseChapterStem, type BookId } from 'reader-core'
 
 export const repoRoot = path.resolve(import.meta.dirname, '../..')
 export const contentDir = path.join(repoRoot, 'content')
@@ -15,11 +15,6 @@ export const storyBibleDir = path.join(contentDir, 'story-bible')
 export const styleFile = path.join(storyBibleDir, 'style.json')
 export const refsDir = path.join(storyBibleDir, 'refs')
 export const envFile = path.join(repoRoot, '.env')
-
-// 책에 그 장이 있는지(창세기는 1~50장). 없는 장에는 장면·퀴즈 파일 이름도 없다.
-export function hasChapter(book: BookId, chapter: number): boolean {
-  return Number.isInteger(chapter) && chapter >= 1 && chapter <= getBook(book).chapters
-}
 
 // 폴더에서 그 책의 장 파일(genesis-04.json)이 있는 장 번호, 오름차순. 장면·퀴즈 폴더에 쓴다.
 // 이름 규칙(reader-core의 chapterStem)에 맞지 않거나 다른 책인 파일은 건너뛴다.

@@ -1,13 +1,12 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import type { BookId } from 'reader-core'
+import { hasChapter, type BookId } from 'reader-core'
 import { approvedCanon } from '../canon/approved.ts'
 import { readCanon } from '../canon/files.ts'
 import { readStyle } from '../images/style.ts'
 import { createLlm, type Llm } from '../llm/client.ts'
 import { writerModel } from '../llm/models.ts'
 import {
-  hasChapter,
   sceneFilePath,
   scenesDir as defaultScenesDir,
   sourceDir as defaultSourceDir,

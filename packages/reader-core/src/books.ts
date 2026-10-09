@@ -101,12 +101,15 @@ export function bookOrder(id: BookId): number {
   return order.get(id) ?? -1
 }
 
+// 책에 그 장이 있는지 본다. 장 번호는 1부터 그 책의 장 수까지의 정수다(창세기는 1~50장).
+export function hasChapter(id: BookId, chapter: number): boolean {
+  return Number.isInteger(chapter) && chapter >= 1 && chapter <= getBook(id).chapters
+}
+
 // 장 번호를 그 책의 장 수 자리수로 채운 파일 줄기: genesis-04, psalms-119, obadiah-1
 export function chapterStem(id: BookId, chapter: number): string {
   const book = getBook(id)
-  if (!Number.isInteger(chapter) || chapter < 1 || chapter > book.chapters) {
-    throw new Error(`${book.name}에는 ${chapter}장이 없습니다`)
-  }
+  if (!hasChapter(id, chapter)) throw new Error(`${book.name}에는 ${chapter}장이 없습니다`)
   return `${book.id}-${String(chapter).padStart(String(book.chapters).length, '0')}`
 }
 
@@ -135,7 +138,7 @@ export function parseChapterStem(stem: string): { book: BookId; chapter: number 
   const book = findBook(match[1]!)
   if (!book) return null
   const chapter = Number(match[2])
-  if (chapter < 1 || chapter > book.chapters) return null
+  if (!hasChapter(book.id, chapter)) return null
   return chapterStem(book.id, chapter) === stem ? { book: book.id, chapter } : null
 }
 
