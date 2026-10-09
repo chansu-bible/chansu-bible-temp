@@ -129,6 +129,34 @@ describe('parseWikisource', () => {
       { verse: 35, text: '[25절과 같음]' },
     ])
   })
+
+  it('절 글의 &nbsp;는 빈칸으로 바꾸고, 이어진 빈칸은 하나로 줄이고, 앞뒤는 자른다', () => {
+    const text = [
+      '== 22장 ==',
+      '{{절|22|}} [다윗의 시, 영장으로 아얠롓사할에  맞춘 노래] 내 하나님이여',
+      '{{절||2}}   가&nbsp;&nbsp;나\t다 &nbsp;',
+      '{{절||3}} &nbsp;라 마&nbsp;',
+    ].join('\n')
+    expect(parseWikisource(text, 22, 22)[0]!.verses).toEqual([
+      { verse: 1, text: '[다윗의 시, 영장으로 아얠롓사할에 맞춘 노래] 내 하나님이여' },
+      { verse: 2, text: '가 나 다' },
+      { verse: 3, text: '라 마' },
+    ])
+  })
+
+  it('이어지는 줄의 빈칸도 같게 정리한다', () => {
+    const text = ['== 1장 ==', '{{절|1|1}} 가  나', '<br> &nbsp;&nbsp;다&nbsp;&nbsp;라  마 '].join('\n')
+    expect(parseWikisource(text, 1, 1)[0]!.verses).toEqual([{ verse: 1, text: '가 나 다 라 마' }])
+  })
+
+  it('&nbsp;뿐인 절은 빈 글이 되어 검증에 걸리고, 이어지는 줄이 있으면 그 줄이 절 글이 된다', () => {
+    const empty = parseWikisource(['== 1장 ==', '{{절|1|1}} 가', '{{절||2}} &nbsp;&nbsp;'].join('\n'), 1, 1)
+    expect(empty[0]!.verses[1]).toEqual({ verse: 2, text: '' })
+    expect(findSourceProblems(empty, { from: 1, to: 1 })).toEqual(['1장 2절이 비어 있습니다'])
+
+    const continued = parseWikisource(['== 1장 ==', '{{절|1|1}} &nbsp;', '<br> &nbsp;&nbsp;가'].join('\n'), 1, 1)
+    expect(continued[0]!.verses).toEqual([{ verse: 1, text: '가' }])
+  })
 })
 
 describe('findSourceProblems', () => {
@@ -176,5 +204,67 @@ describe('findSourceProblems', () => {
   it('절 번호가 끊기면 그 뒤 절은 더 보지 않는다', () => {
     const broken = { chapter: 1, verses: [{ verse: 1, text: '' }, { verse: 3, text: '' }, { verse: 4, text: '' }] }
     expect(findSourceProblems([broken], { from: 1, to: 1 })).toEqual(['1장 1절이 비어 있습니다', '1장: 2절이 없습니다'])
+  })
+
+  it('같은 장이 두 번 이상 나오면 장마다 한 번만 알려준다', () => {
+    expect(findSourceProblems([chapter(1, [1]), chapter(2, [1]), chapter(2, [1]), chapter(3, [1])], { from: 1, to: 3 })).toEqual([
+      '2장이 두 번 있습니다',
+    ])
+    expect(findSourceProblems([chapter(1, [1]), chapter(1, [1]), chapter(1, [1])], { from: 1, to: 1 })).toEqual(['1장이 두 번 있습니다'])
+    expect(findSourceProblems([chapter(1, [1]), chapter(1, [1]), chapter(2, [1]), chapter(2, [1])], { from: 1, to: 2 })).toEqual([
+      '1장이 두 번 있습니다',
+      '2장이 두 번 있습니다',
+    ])
+  })
+
+  it('겹친 장도 첫 장의 절은 본다', () => {
+    expect(findSourceProblems([chapter(1, [1, 3]), chapter(1, [1, 2])], { from: 1, to: 1 })).toEqual([
+      '1장이 두 번 있습니다',
+      '1장: 2절이 없습니다',
+    ])
+  })
+
+  it('장 순서가 오름차순이 아니면 받은 순서를 한 번만 알려준다', () => {
+    expect(findSourceProblems([chapter(1, [1]), chapter(3, [1]), chapter(2, [1]), chapter(4, [1])], { from: 1, to: 4 })).toEqual([
+      '장 순서가 맞지 않습니다: 1, 3, 2, 4',
+    ])
+    expect(findSourceProblems([chapter(3, [1]), chapter(2, [1]), chapter(1, [1])], { from: 1, to: 3 })).toEqual([
+      '장 순서가 맞지 않습니다: 3, 2, 1',
+    ])
+  })
+
+  it('겹치고 순서도 틀리면 둘 다 알려준다', () => {
+    expect(findSourceProblems([chapter(1, [1]), chapter(2, [1]), chapter(3, [1]), chapter(2, [1]), chapter(4, [1])], { from: 1, to: 4 })).toEqual([
+      '2장이 두 번 있습니다',
+      '장 순서가 맞지 않습니다: 1, 2, 3, 2, 4',
+    ])
+  })
+
+  it('범위 밖의 장은 겹치거나 순서가 틀려도 보지 않는다', () => {
+    expect(findSourceProblems([chapter(5, [1]), chapter(1, [1]), chapter(5, [1]), chapter(0, [1])], { from: 1, to: 1 })).toEqual([])
+    expect(findSourceProblems([chapter(9, [1]), chapter(2, [1]), chapter(1, [1])], { from: 1, to: 2 })).toEqual([
+      '장 순서가 맞지 않습니다: 2, 1',
+    ])
+  })
+
+  it('위키 글에서 장 글이 겹친 채 읽힌 것을 잡는다', () => {
+    const text = ['== 1장 ==', '{{절|1|1}} 가', '== 2장 ==', '{{절|2|}} 나', '== 2장 ==', '{{절|2|}} 나', '== 3장 ==', '{{절|3|}} 다'].join('\n')
+    const chapters = parseWikisource(text, 1, 3)
+    expect(chapters.map((c) => c.chapter)).toEqual([1, 2, 2, 3])
+    expect(findSourceProblems(chapters, { from: 1, to: 3 })).toEqual(['2장이 두 번 있습니다'])
+  })
+
+  it.each(['<ref>각주</ref>', '가 {{각주|1}}', '가 }}', '가 &amp; 나', '가 &#160; 나', '가 < 나'])('위키 문법이 남은 절을 알려준다: %s', (text) => {
+    const verses = [
+      { verse: 1, text: '본문' },
+      { verse: 2, text },
+    ]
+    expect(findSourceProblems([{ chapter: 1, verses }], { from: 1, to: 1 })).toEqual(['1장 2절에 위키 문법이 남아 있습니다'])
+  })
+
+  it('[없음]과 [25절과 같음]과 괄호는 위키 문법이 아니다', () => {
+    const texts = ['[없음]', '[25절과 같음]', '바울이 (실라를) 택하고', '[성전에 올라가는 노래] 여호와를']
+    const verses = texts.map((text, index) => ({ verse: index + 1, text }))
+    expect(findSourceProblems([{ chapter: 1, verses }], { from: 1, to: 1 })).toEqual([])
   })
 })

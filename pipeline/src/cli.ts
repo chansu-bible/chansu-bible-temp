@@ -60,6 +60,8 @@ function requireChapter(flags: Flags): number {
 
 const commands: Record<string, (flags: Flags) => Promise<void>> = {
   async source(flags) {
+    // --chapter를 그냥 두면 책 전체를 받아, 있던 본문 파일이 그 책 전체로 바뀐다.
+    if (flags.chapter !== undefined) throw new Error('source는 --chapter 대신 --chapters를 씁니다(예: --chapters 3, --chapters 1-10)')
     // --chapters 3-7처럼 받을 장을 고른다. 없으면 책 전체를 받는다.
     const source = await fetchSource(requireBook(flags), flags.chapters === undefined ? {} : parseChapterRange(flags.chapters))
     const verseCount = source.chapters.reduce((sum, chapter) => sum + chapter.verses.length, 0)
