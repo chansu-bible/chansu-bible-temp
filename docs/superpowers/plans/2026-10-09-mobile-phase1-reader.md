@@ -1813,8 +1813,8 @@ export function Sheet({ title, header, closeLabel, onClose, children }: Props) {
 }
 
 const styles = StyleSheet.create({
-  root: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 0, 0, 0.35)' },
+  root: { ...StyleSheet.absoluteFill, justifyContent: 'flex-end' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0, 0, 0, 0.35)' },
   sheet: { maxHeight: '80%', paddingTop: 12, paddingHorizontal: 16, borderTopLeftRadius: 18, borderTopRightRadius: 18 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingBottom: 4 },
   headText: { flex: 1, minWidth: 0 },
