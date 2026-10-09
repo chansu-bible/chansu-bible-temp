@@ -3997,7 +3997,7 @@ const styles = StyleSheet.create({
 ```tsx path=mobile/src/reader/ReaderScreen.tsx
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BackHandler, StyleSheet, View } from 'react-native'
+import { BackHandler, Platform, StyleSheet, View } from 'react-native'
 import {
   adjacentScenePosition,
   buildRoute,
@@ -4109,9 +4109,9 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
     else setOverlay('none')
   }
 
-  // 안드로이드 뒤로 가기는 열린 덮개를 닫는다.
+  // 안드로이드 뒤로 가기는 열린 덮개를 닫는다(뒤로 가기 단추는 안드로이드에만 있다).
   useEffect(() => {
-    if (overlay === 'none') return
+    if (overlay === 'none' || Platform.OS !== 'android') return
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       closeOverlay()
       return true
@@ -4176,7 +4176,8 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           onSwipe={swipeScene}
         />
         <VersePane
-          key={`${chapter.chapter}-${jumpCount}`}
+          // 글자 크기가 바뀌면 줄 위치가 달라지므로 새로 그려 지금 절을 다시 기준선에 맞춘다.
+          key={`${chapter.chapter}-${jumpCount}-${settings.fontScale}`}
           chapter={chapter}
           nextChapter={nextChapter}
           verse={position.verse}
