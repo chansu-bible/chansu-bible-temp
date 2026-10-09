@@ -39,7 +39,9 @@ npm run web -w mobile        # Expo 웹으로 확인 (http://localhost:8081)
 
 폰에서 보려면 폰에 Expo Go 앱을 깔고, 같은 와이파이에서 `npm run start -w mobile`이 띄우는 QR 코드를 찍는다(1단계는 Expo Go에 들어 있는 모듈만 써서 따로 빌드할 필요가 없다). 에뮬레이터는 Android SDK가 있어야 하고 `npm run android -w mobile`로 연다. 지도, 그림 전환, 낭독, 글꼴은 모두 앱 안에 들어 있어 인터넷 없이 돈다. 여정 지도의 바탕(해안선·강)은 Natural Earth에서 만든 `mobile/src/map/basemap.generated.ts`이고, 다시 만들 때는 `npm run basemap -w mobile`을 쓴다. 앱 형 검사는 `npm run typecheck -w mobile`.
 
-앱 화면: 홈(오늘의 읽기, 계획과 진도), 읽기(장면 그림과 본문, 낱말 풀이, 인물·장소 카드, 목차·연표, 여정 지도, 낭독, 절을 길게 눌러 밑줄·메모와 장면 카드 공유), 내 메모, 검색, 인물 사전, 가계도, 계정과 동기화. 기록은 기기에 저장되고, 로그인하면 계정과 맞춰진다.
+앱 화면: 홈(오늘의 읽기, 계획과 진도), 읽기(장면 그림과 본문, 낱말 풀이, 인물·장소 카드, 목차·연표, 여정 지도, 낭독, 절을 길게 눌러 밑줄·메모와 장면 카드 공유), 낭독 플레이어(속도, 잠자기 타이머, 자막, 다음에 들을 것), 내 메모, 검색, 인물 사전, 가계도, 계정과 동기화, 홈 화면 위젯 "오늘의 장면". 기록은 기기에 저장되고, 로그인하면 계정과 맞춰진다.
+
+낭독은 장면마다 절 낭독을 이은 파일(`npm run pipeline -- build`가 만든다)로 재생한다. 화면을 끈 뒤에도 이어지는 낭독, 잠금 화면 조작, 홈 화면 위젯은 Expo Go에 없는 기능이라 개발 빌드에서만 보인다(그 밖의 화면은 Expo Go와 Expo 웹에서 모두 된다). 개발 빌드는 Android SDK가 있으면 `npx expo run:android`로, 없으면 Expo 클라우드 빌드(EAS)로 만든다. iOS는 맥 또는 EAS가 필요하고, app.json에 `ios.appleTeamId`를 넣어야 한다. 네이티브 폴더(`mobile/android`, `mobile/ios`)는 `npx expo prebuild`가 만들며 커밋하지 않는다.
 
 로그인과 기록 동기화는 도커로 띄운 키클락과 동기화 서버를 쓴다. 로그인하지 않아도 앱은 모두 돈다.
 
