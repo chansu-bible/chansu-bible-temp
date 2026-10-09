@@ -56,7 +56,8 @@ export class RecordStore {
     const existing = this.rows.get(keyOf(collection, id))
     if (!existing || existing.deletedAt !== null) return
     const at = this.stamp(collection, id, now)
-    this.write([{ ...existing, updatedAt: at, deletedAt: at, dirty: true }])
+    // 지운 줄은 지웠다는 것만 알리면 되므로 내용(메모 등)은 남기지 않는다.
+    this.write([{ ...existing, data: null, updatedAt: at, deletedAt: at, dirty: true }])
   }
 
   // 아래는 동기화가 쓴다.

@@ -23,7 +23,7 @@ describe('RecordStore', () => {
     store.remove('marks', 'a', 2000)
     expect(store.get('marks', 'a')).toBeNull()
     expect(store.list('marks')).toEqual([])
-    expect(store.rowsSnapshot()[0]).toMatchObject({ deletedAt: 2000, updatedAt: 2000, dirty: true })
+    expect(store.rowsSnapshot()[0]).toMatchObject({ data: null, deletedAt: 2000, updatedAt: 2000, dirty: true })
   })
 
   it('저장해 둔 줄을 불러오고, 컬렉션별로 지우지 않은 것만 늘어놓는다', () => {
