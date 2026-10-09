@@ -1,15 +1,5 @@
-import { parseRef } from './refs.ts'
+import { chapterOfReference, verseOfReference } from './refs.ts'
 import type { Chapter, Character } from './types.ts'
-
-// "4:17"이나 "genesis 4:17" → 4. 읽을 수 없으면 0이다.
-export function chapterOfReference(reference: string): number {
-  return parseRef(reference)?.chapter ?? 0
-}
-
-// "4:17"이나 "genesis 4:17" → 17. 읽을 수 없으면 0이다.
-export function verseOfReference(reference: string): number {
-  return parseRef(reference)?.verse ?? 0
-}
 
 // 어디까지 읽었는지: 읽은 장면이 있는 가장 뒤 장과 지금 읽는 장 가운데 큰 쪽
 export function readUpToChapter(chapters: Chapter[], readSceneIds: ReadonlySet<string>, currentChapter: number): number {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareRefs, formatRef, localRef, parseRef, qualifyRef } from './refs.ts'
+import { chapterOfReference, compareRefs, formatRef, localRef, parseRef, qualifyRef, verseOfReference } from './refs.ts'
 
 describe('parseRef', () => {
   it('책이 붙은 참조와 책 없는 참조를 읽는다', () => {
@@ -15,6 +15,22 @@ describe('parseRef', () => {
     expect(parseRef('4')).toBeNull()
     expect(parseRef('0:1')).toBeNull()
   })
+
+  it('앞뒤 공백은 무시하고, 책 id는 소문자만 받는다', () => {
+    expect(parseRef(' 4:1 ')).toEqual({ book: null, chapter: 4, verse: 1, verseEnd: 1 })
+    expect(parseRef('Genesis 4:1')).toBeNull()
+  })
+
+  it('책이 붙은 참조는 그 책에 있는 장이어야 한다', () => {
+    expect(parseRef('genesis 50:26')?.chapter).toBe(50)
+    expect(parseRef('genesis 51:1')).toBeNull()
+    expect(parseRef('obadiah 1:21')?.chapter).toBe(1)
+    expect(parseRef('obadiah 2:1')).toBeNull()
+  })
+
+  it('책 없는 참조는 장 수를 볼 책이 없어서 그대로 읽는다', () => {
+    expect(parseRef('51:1')).toEqual({ book: null, chapter: 51, verse: 1, verseEnd: 1 })
+  })
 })
 
 describe('formatRef', () => {
@@ -24,6 +40,10 @@ describe('formatRef', () => {
     expect(formatRef(ref, 'name')).toBe('창세기 4:1-5')
     expect(formatRef(ref, 'bare')).toBe('4:1-5')
     expect(formatRef(parseRef('2:7')!, 'name')).toBe('2:7')
+  })
+
+  it('책이 없으면 어느 모양이든 장:절만 쓴다', () => {
+    expect(formatRef(parseRef('2:7')!, 'id')).toBe('2:7')
   })
 })
 
@@ -39,14 +59,51 @@ describe('책 붙이기와 떼기', () => {
     expect(localRef('4:1', 'genesis')).toBe('4:1')
     expect(localRef('exodus 3:2', 'genesis')).toBeNull()
   })
+
+  it('읽을 수 없는 글도 null', () => {
+    expect(localRef('엉터리', 'genesis')).toBeNull()
+    expect(localRef('', 'genesis')).toBeNull()
+  })
 })
 
 describe('compareRefs', () => {
+  const at = (text: string) => parseRef(text)!
+
   it('책 순서, 장, 절 순서로 비교한다', () => {
-    const at = (text: string) => parseRef(text)!
     expect(compareRefs(at('genesis 4:1'), at('genesis 4:2'))).toBeLessThan(0)
     expect(compareRefs(at('genesis 5:1'), at('genesis 4:26'))).toBeGreaterThan(0)
     expect(compareRefs(at('exodus 1:1'), at('genesis 50:26'))).toBeGreaterThan(0)
     expect(compareRefs(at('4:1'), at('genesis 4:1'), 'genesis')).toBe(0)
+  })
+
+  it('시작 위치만 비교하고 끝 절은 보지 않는다', () => {
+    expect(compareRefs(at('genesis 4:1-5'), at('genesis 4:1'))).toBe(0)
+    expect(compareRefs(at('genesis 4:1-5'), at('genesis 4:2'))).toBeLessThan(0)
+  })
+
+  it('책 없는 참조는 fallback 책으로 보고, 책 없는 참조끼리는 같은 책으로 친다', () => {
+    expect(compareRefs(at('exodus 1:1'), at('50:1'), 'genesis')).toBeGreaterThan(0)
+    expect(compareRefs(at('4:1'), at('4:2'))).toBeLessThan(0)
+    expect(compareRefs(at('5:1'), at('4:26'))).toBeGreaterThan(0)
+  })
+
+  it('한쪽만 책이 있는데 fallback이 없으면 오류를 던진다', () => {
+    const message = '책이 있는 참조와 책 없는 참조를 비교하려면 fallback 책이 필요합니다'
+    expect(() => compareRefs(at('genesis 4:1'), at('4:1'))).toThrow(message)
+    expect(() => compareRefs(at('4:1'), at('genesis 4:1'))).toThrow(message)
+  })
+})
+
+describe('장과 절만 꺼내기', () => {
+  it('참조에서 장과 절을 꺼내고, 읽을 수 없으면 0이다', () => {
+    expect(chapterOfReference('4:17')).toBe(4)
+    expect(verseOfReference('4:17-20')).toBe(17)
+    expect(chapterOfReference('')).toBe(0)
+    expect(verseOfReference('엉터리')).toBe(0)
+  })
+
+  it('책이 붙어 있어도 책은 보지 않는다', () => {
+    expect(chapterOfReference('genesis 4:17')).toBe(4)
+    expect(verseOfReference('exodus 3:2')).toBe(2)
   })
 })

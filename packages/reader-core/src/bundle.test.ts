@@ -6,7 +6,7 @@ describe('fillMissing', () => {
   it('인물·시대·장면 인물이 없는 옛 묶음은 빈 배열로 채운다', () => {
     const old = {
       schemaVersion: 1,
-      book: 'genesis',
+      book: '창세기',
       translation: '개역한글',
       places: [],
       imageVersions: [],
@@ -23,6 +23,7 @@ describe('fillMissing', () => {
   it('있는 값은 그대로 둔다', () => {
     const bundle = {
       schemaVersion: 1,
+      book: '창세기',
       characters: [{ id: 'adam' }],
       eras: [{ id: 'flood' }],
       things: [{ id: 'ark' }],
@@ -54,12 +55,29 @@ describe('묶음의 책', () => {
     expect(filled.bookId).toBe('genesis')
   })
 
+  it('bookId가 있으면 그대로 쓴다', () => {
+    const exodus = { ...oldBundle, book: '출애굽기', bookId: 'exodus' }
+    expect(fillMissing(validateBundle(exodus)).bookId).toBe('exodus')
+  })
+
+  it('bookId만 있고 책 이름이 없어도 받는다', () => {
+    const nameless = { ...oldBundle, book: undefined, bookId: 'exodus' }
+    expect(fillMissing(validateBundle(nameless)).bookId).toBe('exodus')
+  })
+
   it('책을 알 수 없는 묶음은 받지 않는다', () => {
     expect(() => validateBundle({ ...oldBundle, book: '없는 책' })).toThrow('묶음의 책을 알 수 없습니다')
   })
 
-  it('bookId가 있으면 그대로 쓴다', () => {
-    const exodus = { ...oldBundle, book: '출애굽기', bookId: 'exodus' }
-    expect(fillMissing(validateBundle(exodus)).bookId).toBe('exodus')
+  it('모르는 bookId는 책 이름이 맞아도 받지 않는다', () => {
+    expect(() => validateBundle({ ...oldBundle, bookId: 'nope' })).toThrow('묶음의 책을 알 수 없습니다')
+  })
+
+  it('bookId와 책 이름이 다른 책이면 받지 않는다', () => {
+    expect(() => validateBundle({ ...oldBundle, bookId: 'exodus' })).toThrow('묶음의 책 이름(창세기)이 bookId(exodus)와 다릅니다')
+  })
+
+  it('fillMissing도 책을 알 수 없으면 오류를 던진다', () => {
+    expect(() => fillMissing({ ...oldBundle, book: '없는 책' } as unknown as Bundle)).toThrow('묶음의 책을 알 수 없습니다')
   })
 })

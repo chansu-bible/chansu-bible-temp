@@ -1,6 +1,6 @@
 import type { Character, Gloss, Place } from './types.ts'
 import { splitByGlosses } from './glossary.ts'
-import { chapterOfReference, verseOfReference } from './people.ts'
+import { chapterOfReference, verseOfReference } from './refs.ts'
 
 export type Entity = { kind: 'character' | 'place'; id: string }
 
