@@ -267,6 +267,38 @@ export const BundleThingSchema = z.object({
 // 키를 더하기만 할 때는 올리지 않는다(옛 독자는 모르는 키를 무시한다).
 export const BUNDLE_SCHEMA_VERSION = 1
 
+// 원어 보기: 절마다 히브리어 낱말. pos는 한국어 품사 이름(OSHB 형태 부호에서 만든다)
+export const BundleOriginalVerseSchema = z.object({
+  verse: z.number().int().positive(),
+  words: z.array(z.object({ text: z.string(), strong: z.string().nullable(), morph: z.string(), pos: z.string() })),
+})
+// 사전 항목. korean·note는 사람이 승인한 한국어 뜻만 들어 있다(아니면 null).
+export const BundleLexiconEntrySchema = z.object({
+  lemma: z.string(),
+  xlit: z.string(),
+  english: z.string(),
+  korean: z.string().nullable(),
+  note: z.string().nullable(),
+  count: z.number().int().nonnegative(),
+})
+// 사람이 승인한 이해 확인 문제
+export const BundleQuizQuestionSchema = z.object({
+  id: z.string(),
+  question: z.string(),
+  options: z.array(z.string()).length(4),
+  answer: z.number().int().min(0).max(3),
+  explanation: z.string(),
+  verse: z.number().int().positive(),
+})
+// 자료 출처와 이용 조건(앱의 자료 출처 화면)
+export const BundleSourceSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  detail: z.string(),
+  license: z.string(),
+  url: z.string().nullable(),
+})
+
 export const BundleSchema = z.object({
   schemaVersion: z.literal(BUNDLE_SCHEMA_VERSION),
   book: z.string(),
@@ -277,11 +309,17 @@ export const BundleSchema = z.object({
   things: z.array(BundleThingSchema),
   imageVersions: z.array(ImageVersionSchema),
   defaultImageVersion: z.string().nullable(),
+  // 스트롱 번호 → 사전 항목(묶음의 장에 나오는 것만)
+  lexicon: z.record(z.string(), BundleLexiconEntrySchema),
+  sources: z.array(BundleSourceSchema),
   chapters: z.array(
     z.object({
       chapter: z.number().int().positive(),
       verses: z.array(BundleVerseSchema).min(1),
       scenes: z.array(BundleSceneSchema).min(1),
+      // 원어 자료가 없는 장은 null
+      original: z.array(BundleOriginalVerseSchema).nullable(),
+      quiz: z.array(BundleQuizQuestionSchema),
     }),
   ),
 })
@@ -362,3 +400,8 @@ export const QuizFileSchema = z.object({ chapter: z.number().int().positive(), q
 
 export type QuizQuestion = z.infer<typeof QuizQuestionSchema>
 export type QuizFile = z.infer<typeof QuizFileSchema>
+
+export type BundleOriginalVerse = z.infer<typeof BundleOriginalVerseSchema>
+export type BundleLexiconEntry = z.infer<typeof BundleLexiconEntrySchema>
+export type BundleQuizQuestion = z.infer<typeof BundleQuizQuestionSchema>
+export type BundleSource = z.infer<typeof BundleSourceSchema>

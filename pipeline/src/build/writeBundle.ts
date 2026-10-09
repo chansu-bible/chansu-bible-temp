@@ -1,12 +1,24 @@
 import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { appContentDir, audioDir, imagesDir, repoRoot, scenesDir, sourceFile } from '../paths.ts'
-import { BundleSchema, SceneFileSchema, SourceSchema, type Bundle, type SceneFile } from '../schema.ts'
+import { appContentDir, audioDir, imagesDir, lexiconFile, originalFile, quizDir, repoRoot, scenesDir, sourceFile, styleFile } from '../paths.ts'
+import {
+  BundleSchema,
+  LexiconFileSchema,
+  OriginalFileSchema,
+  QuizFileSchema,
+  SceneFileSchema,
+  SourceSchema,
+  type Bundle,
+  type QuizFile,
+  type SceneFile,
+} from '../schema.ts'
+import { readStyle } from '../images/style.ts'
 import { readCanon } from '../canon/files.ts'
 import { readImageCatalog } from '../images/versions.ts'
 import { joinMp3, mp3DurationMs } from '../tts/mp3.ts'
 import { buildBundle, sceneAudioParts, type ImageCatalog } from './buildBundle.ts'
+import { buildSources } from './sources.ts'
 
 function relativeName(file: string): string {
   return path.relative(repoRoot, file).split(path.sep).join('/')
@@ -59,13 +71,31 @@ async function readAudioCatalog(): Promise<Map<string, number | null>> {
   return new Map(entries)
 }
 
+// 퀴즈 파일(content/quiz/genesis-NN.json)을 모두 읽는다.
+async function readQuizFiles(): Promise<QuizFile[]> {
+  if (!existsSync(quizDir)) return []
+  const names = (await readdir(quizDir)).filter((name) => /^genesis-\d{2}\.json$/.test(name)).sort()
+  return Promise.all(names.map((name) => readJson(path.join(quizDir, name), (value) => QuizFileSchema.parse(value))))
+}
+
 export async function writeBundle(): Promise<Bundle> {
   const source = await readJson(sourceFile, (value) => SourceSchema.parse(value))
   const { characters, places, eras, things } = await readCanon()
   const sceneFiles = await readSceneFiles()
   const audio = await readAudioCatalog()
   const catalog = await readImageCatalog()
-  const bundle = BundleSchema.parse(buildBundle(source, sceneFiles, { characters, places, eras, things }, audio, catalog))
+  const original = existsSync(originalFile) ? await readJson(originalFile, (value) => OriginalFileSchema.parse(value)) : null
+  const lexicon = existsSync(lexiconFile) ? await readJson(lexiconFile, (value) => LexiconFileSchema.parse(value)) : null
+  const quizzes = await readQuizFiles()
+  const style = existsSync(styleFile) ? await readStyle(styleFile, { requireFiles: false }) : null
+  const bundle = BundleSchema.parse(
+    buildBundle(source, sceneFiles, { characters, places, eras, things }, audio, catalog, {
+      original,
+      lexicon,
+      quizzes,
+      sources: buildSources(style),
+    }),
+  )
   checkImages(sceneFiles, catalog)
 
   await rm(appContentDir, { recursive: true, force: true })

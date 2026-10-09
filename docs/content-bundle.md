@@ -17,7 +17,7 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 
 ## 필드
 
-**형식 버전.** 키를 더하기만 할 때는 `schemaVersion`을 올리지 않는다. `characters`, `eras`, `things`, 장면의 `characters`·`audio`·`audioMs`, 절의 `audioMs`는 나중에 더한 키라 `schemaVersion`은 1 그대로이며, 이 키를 모르는 옛 독자는 무시하면 된다. 있던 키의 뜻이나 형식을 바꿀 때만 올린다.
+**형식 버전.** 키를 더하기만 할 때는 `schemaVersion`을 올리지 않는다. `characters`, `eras`, `things`, 장면의 `characters`·`audio`·`audioMs`, 절의 `audioMs`, `lexicon`, `sources`, 장의 `original`·`quiz`는 나중에 더한 키라 `schemaVersion`은 1 그대로이며, 이 키를 모르는 옛 독자는 무시하면 된다. 있던 키의 뜻이나 형식을 바꿀 때만 올린다.
 
 ### 최상위
 
@@ -32,6 +32,8 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 | `things` | Thing[] | 검색과 설정집 카드에 쓰는 물건. 설정집에서 승인한 물건만, 설정집 파일 순서 |
 | `imageVersions` | ImageVersion[] | 그림 버전 목록. 추가한 순서 |
 | `defaultImageVersion` | string \| null | 처음 보여 줄 그림 버전 id. 목록의 마지막 버전이고, 버전이 없으면 null |
+| `lexicon` | Record<string, LexiconEntry> | 스트롱 번호(`H7225`) → 사전 항목. 장들의 원어 낱말에 나오는 번호만 |
+| `sources` | Source[] | 자료 출처와 이용 조건(앱의 자료 출처 화면) |
 | `chapters` | Chapter[] | 장 목록. 장 번호 순서 |
 
 ### Place
@@ -98,6 +100,16 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 | `chapter` | number | 장 번호 |
 | `verses` | Verse[] | 절 목록. 1절부터 순서대로 |
 | `scenes` | Scene[] | 장면 목록. 절 순서대로 |
+| `original` | OriginalVerse[] \| null | 절마다 히브리어 낱말(OSHB). 원어 자료가 없는 장은 null |
+| `quiz` | QuizQuestion[] | 사람이 승인한 이해 확인 문제. 없으면 빈 배열 |
+
+`OriginalVerse`: `{ verse, words: [{ text, strong, morph, pos }] }`. `text`는 모음 부호가 있는 히브리어 낱말(칸틸레이션 부호는 뺐다), `strong`은 스트롱 번호(접두사뿐인 낱말은 null), `morph`는 OSHB 형태 부호, `pos`는 한국어 품사 이름(예: `접속사 + 동사(칼 연속 미완료)`). 한국어 절의 낱말과 짝짓지 않는다.
+
+`LexiconEntry`: `{ lemma, xlit, english, korean, note, count }`. `english`는 스트롱 사전의 정의, `korean`과 `note`는 사람이 승인한 한국어 뜻과 메모이고 아직 없으면 null, `count`는 이 묶음의 장에 나오는 횟수.
+
+`QuizQuestion`: `{ id, question, options, answer, explanation, verse }`. 보기는 넷, `answer`는 정답 보기 번호(0부터), `verse`는 그 장의 근거 절.
+
+`Source`: `{ id, title, detail, license, url }`. `url`은 없을 수 있다.
 
 ### Verse
 

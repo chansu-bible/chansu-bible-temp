@@ -26,7 +26,7 @@ function verses(count: number): Verse[] {
 }
 
 function chapter(number: number, verseCount: number): Chapter {
-  return { chapter: number, verses: verses(verseCount), scenes: [scene(`s${number}`, 1, verseCount)] }
+  return { chapter: number, original: null, quiz: [], verses: verses(verseCount), scenes: [scene(`s${number}`, 1, verseCount)] }
 }
 
 const scenes = [scene('a', 1, 3), scene('b', 4, 7), scene('c', 8, 10)]

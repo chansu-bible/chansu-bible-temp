@@ -25,6 +25,8 @@ function chapter(number: number, scenes: Scene[], audioMs = 1000): Chapter {
   const last = scenes.at(-1)?.verseEnd ?? 0
   return {
     chapter: number,
+    original: null,
+    quiz: [],
     verses: Array.from({ length: last }, (_, index) => ({ verse: index + 1, text: '', audio: null, audioMs })),
     scenes,
   }

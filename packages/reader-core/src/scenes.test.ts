@@ -26,8 +26,8 @@ function verses(count: number) {
 }
 
 const chapters: Chapter[] = [
-  { chapter: 1, verses: verses(4), scenes: [scene('a', 1, 2), scene('b', 3, 4)] },
-  { chapter: 2, verses: verses(2), scenes: [scene('c', 1, 2)] },
+  { chapter: 1, original: null, quiz: [], verses: verses(4), scenes: [scene('a', 1, 2), scene('b', 3, 4)] },
+  { chapter: 2, original: null, quiz: [], verses: verses(2), scenes: [scene('c', 1, 2)] },
 ]
 
 describe('adjacentScenePosition', () => {

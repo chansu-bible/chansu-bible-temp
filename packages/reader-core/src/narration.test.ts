@@ -42,11 +42,15 @@ const scene = (id: string, verseStart: number, verseEnd: number, audio: boolean)
 const chapters: Chapter[] = [
   {
     chapter: 1,
+    original: null,
+    quiz: [],
     verses: [verse(1, 1, 1000), verse(1, 2, 2000), verse(1, 3, null), verse(1, 4, 1500), verse(1, 5, null)],
     scenes: [scene('a', 1, 2, true), scene('b', 3, 4, true), scene('c', 5, 5, false)],
   },
   {
     chapter: 2,
+    original: null,
+    quiz: [],
     verses: [verse(2, 1, 500), verse(2, 2, 500)],
     scenes: [scene('d', 1, 2, true)],
   },

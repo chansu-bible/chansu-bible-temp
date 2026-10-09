@@ -3,19 +3,27 @@ import {
   type Bundle,
   type BundleCharacter,
   type BundleEra,
+  type BundleLexiconEntry,
+  type BundleOriginalVerse,
   type BundlePlace,
+  type BundleQuizQuestion,
+  type BundleSource,
   type BundleScene,
   type BundleThing,
   type Character,
   type Era,
   type ImageVersion,
+  type LexiconFile,
+  type OriginalFile,
   type Place,
+  type QuizFile,
   type Scene,
   type SceneFile,
   type Source,
   type Thing,
   type Verse,
 } from '../schema.ts'
+import { posLabel } from '../original/morph.ts'
 import { findCoverageProblems } from '../scenes/coverage.ts'
 import { audioName } from '../tts/select.ts'
 
@@ -28,6 +36,14 @@ export type BundleCanon = { characters: Character[]; places: Place[]; eras: Era[
 // 음성 파일 이름 → 재생 길이(ms, 모르면 null). 이름만 아는 Set도 받는다.
 export type AudioCatalog = ReadonlyMap<string, number | null> | ReadonlySet<string>
 
+// 원어, 사전, 퀴즈, 자료 출처. 없으면 묶음에서 비운다.
+export type BundleExtras = {
+  original?: OriginalFile | null
+  lexicon?: LexiconFile | null
+  quizzes?: QuizFile[]
+  sources?: BundleSource[]
+}
+
 function audioDurations(audio: AudioCatalog): ReadonlyMap<string, number | null> {
   return audio instanceof Map ? audio : new Map([...(audio as ReadonlySet<string>)].map((name) => [name, null] as const))
 }
@@ -38,6 +54,7 @@ export function buildBundle(
   canon: BundleCanon,
   audio: AudioCatalog = new Map(),
   catalog: ImageCatalog = { versions: [], files: {} },
+  extras: BundleExtras = {},
 ): Bundle {
   const durations = audioDurations(audio)
   // 사람이 승인한 장소만 앱에 나간다. 검수 전 초안은 지도에 올리지 않는다.
@@ -87,6 +104,36 @@ export function buildBundle(
     }
   })
 
+  // 원어 낱말에 한국어 품사 이름을 붙인다.
+  const originalOf = (chapter: number): BundleOriginalVerse[] | null => {
+    const found = extras.original?.chapters.find((item) => item.chapter === chapter)
+    return found
+      ? found.verses.map((verse) => ({ verse: verse.verse, words: verse.words.map((word) => ({ ...word, pos: posLabel(word.morph) })) }))
+      : null
+  }
+  // 사람이 승인한 문제만 앱에 나간다.
+  const quizOf = (chapter: number): BundleQuizQuestion[] =>
+    (extras.quizzes?.find((item) => item.chapter === chapter)?.questions ?? [])
+      .filter((question) => question.status === 'approved')
+      .map(({ id, question, options, answer, explanation, verse }) => ({ id, question, options, answer, explanation, verse }))
+  const withExtras = chapters.map((item) => ({ ...item, original: originalOf(item.chapter), quiz: quizOf(item.chapter) }))
+
+  // 사전은 묶음의 장에 나오는 번호만, 한국어 뜻은 승인된 것만
+  const used = new Set(withExtras.flatMap((item) => (item.original ?? []).flatMap((verse) => verse.words.flatMap((word) => (word.strong ? [word.strong] : [])))))
+  const lexicon: Record<string, BundleLexiconEntry> = {}
+  for (const entry of extras.lexicon?.entries ?? []) {
+    if (!used.has(entry.strong)) continue
+    const approved = entry.korean?.status === 'approved' ? entry.korean : null
+    lexicon[entry.strong] = {
+      lemma: entry.lemma,
+      xlit: entry.xlit,
+      english: entry.definition,
+      korean: approved?.meaning ?? null,
+      note: approved && approved.note !== '' ? approved.note : null,
+      count: entry.count,
+    }
+  }
+
   return {
     schemaVersion: BUNDLE_SCHEMA_VERSION,
     book: source.book,
@@ -98,7 +145,9 @@ export function buildBundle(
     imageVersions: catalog.versions,
     // 가장 나중에 추가한 버전을 기본으로 보여 준다.
     defaultImageVersion: catalog.versions.at(-1)?.id ?? null,
-    chapters,
+    lexicon,
+    sources: extras.sources ?? [],
+    chapters: withExtras,
   }
 }
 

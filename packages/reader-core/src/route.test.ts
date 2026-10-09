@@ -22,7 +22,7 @@ function scene(id: string, placeId: string | null): Scene {
 }
 
 function chapter(number: number, scenes: Scene[]): Chapter {
-  return { chapter: number, verses: [], scenes }
+  return { chapter: number, original: null, quiz: [], verses: [], scenes }
 }
 
 const eden: Place = { id: 'eden', name: '에덴', description: '', estimated: true, lat: 31, lng: 47.4 }

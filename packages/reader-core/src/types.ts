@@ -84,7 +84,21 @@ export type Place = {
   lng: number | null
 }
 
-export type Chapter = { chapter: number; verses: Verse[]; scenes: Scene[] }
+// 원어 보기: 절마다 히브리어 낱말. strong은 스트롱 번호(H7225), 접두사뿐인 낱말은 null. pos는 한국어 품사 이름
+export type OriginalWord = { text: string; strong: string | null; morph: string; pos: string }
+export type OriginalVerse = { verse: number; words: OriginalWord[] }
+
+// 사전 항목. korean·note는 사람이 승인한 한국어 뜻이고, 아직 없으면 null이다. count는 이 묶음의 장에 나오는 횟수
+export type LexiconEntry = { lemma: string; xlit: string; english: string; korean: string | null; note: string | null; count: number }
+
+// 사람이 승인한 이해 확인 문제. answer는 정답 보기 번호(0~3), verse는 근거 절
+export type QuizQuestion = { id: string; question: string; options: string[]; answer: number; explanation: string; verse: number }
+
+// 자료 출처와 이용 조건
+export type BundleSource = { id: string; title: string; detail: string; license: string; url: string | null }
+
+// original은 원어 자료가 없는 장이면 null, quiz는 승인된 문제(없으면 빈 배열). 옛 묶음에는 없어서 불러올 때 채운다.
+export type Chapter = { chapter: number; verses: Verse[]; scenes: Scene[]; original: OriginalVerse[] | null; quiz: QuizQuestion[] }
 
 export type ImageVersion = { id: string; label: string; note: string }
 
@@ -102,4 +116,8 @@ export type Bundle = {
   imageVersions: ImageVersion[]
   defaultImageVersion: string | null
   chapters: Chapter[]
+  // 스트롱 번호 → 사전 항목(옛 묶음에는 없어서 불러올 때 {}로 채운다)
+  lexicon: Record<string, LexiconEntry>
+  // 자료 출처(옛 묶음에는 없어서 []로 채운다)
+  sources: BundleSource[]
 }

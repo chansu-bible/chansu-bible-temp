@@ -9,15 +9,19 @@ export function validateBundle(value: unknown): Bundle {
   return bundle
 }
 
-// 인물·시대·물건·낭독 길이·장면 낭독은 나중에 더한 키라 옛 묶음에는 없다. 없으면 빈 값으로 채워 화면이 그대로 그려지게 한다.
+// 인물·시대·물건·낭독 길이·장면 낭독·원어·사전·퀴즈·출처는 나중에 더한 키라 옛 묶음에는 없다. 없으면 빈 값으로 채워 화면이 그대로 그려지게 한다.
 export function fillMissing(bundle: Bundle): Bundle {
   return {
     ...bundle,
     characters: Array.isArray(bundle.characters) ? bundle.characters : [],
     eras: Array.isArray(bundle.eras) ? bundle.eras : [],
     things: Array.isArray(bundle.things) ? bundle.things : [],
+    lexicon: bundle.lexicon && typeof bundle.lexicon === 'object' ? bundle.lexicon : {},
+    sources: Array.isArray(bundle.sources) ? bundle.sources : [],
     chapters: bundle.chapters.map((chapter) => ({
       ...chapter,
+      original: Array.isArray(chapter.original) ? chapter.original : null,
+      quiz: Array.isArray(chapter.quiz) ? chapter.quiz : [],
       verses: chapter.verses.map((verse) => ({ ...verse, audioMs: verse.audioMs ?? null })),
       scenes: chapter.scenes.map((scene) => ({
         ...scene,
