@@ -11,7 +11,7 @@ import { createOpenAiDraw } from './images/openaiDraw.ts'
 import { envFile } from './paths.ts'
 import { runReviewText } from './review/reviewText.ts'
 import { runScenario } from './scenario/runScenario.ts'
-import { fetchSource } from './source/fetchSource.ts'
+import { fetchSource, parseChapterRange } from './source/fetchSource.ts'
 import { listSourceBooks } from './source/files.ts'
 import { generateSpeech } from './tts/generateSpeech.ts'
 import { createOpenAiSpeak } from './tts/openaiSpeak.ts'
@@ -19,6 +19,7 @@ import { createOpenAiSpeak } from './tts/openaiSpeak.ts'
 type Flags = {
   book?: string
   chapter?: string
+  chapters?: string
   limit?: string
   scene?: string[]
   'allow-draft': boolean
@@ -59,7 +60,8 @@ function requireChapter(flags: Flags): number {
 
 const commands: Record<string, (flags: Flags) => Promise<void>> = {
   async source(flags) {
-    const source = await fetchSource(requireBook(flags))
+    // --chapters 3-7처럼 받을 장을 고른다. 없으면 책 전체를 받는다.
+    const source = await fetchSource(requireBook(flags), flags.chapters === undefined ? {} : parseChapterRange(flags.chapters))
     const verseCount = source.chapters.reduce((sum, chapter) => sum + chapter.verses.length, 0)
     console.log(`본문 저장 완료: ${source.chapters.length}장 ${verseCount}절`)
   },
@@ -189,6 +191,7 @@ try {
     options: {
       book: { type: 'string' },
       chapter: { type: 'string' },
+      chapters: { type: 'string' },
       limit: { type: 'string' },
       scene: { type: 'string', multiple: true },
       'allow-draft': { type: 'boolean', default: false },

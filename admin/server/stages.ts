@@ -104,7 +104,8 @@ export function createRunner(stage: Stage, options: JobOptions): Runner {
     case 'source':
       return async (log) => {
         log('본문을 가져오는 중')
-        const source = await fetchSource(ADMIN_BOOK)
+        // Task 8에서 작업 폼에 장 범위를 둔다. 그때까지는 지금처럼 1~10장이다.
+        const source = await fetchSource(ADMIN_BOOK, { from: 1, to: 10 })
         const verseCount = source.chapters.reduce((sum, item) => sum + item.verses.length, 0)
         log(`본문 저장 완료: ${source.chapters.length}장 ${verseCount}절`)
       }
