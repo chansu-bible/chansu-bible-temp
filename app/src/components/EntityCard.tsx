@@ -1,6 +1,6 @@
-import type { Character, Place } from '../content/types.ts'
-import { firstSentence, groupRelations, paragraphs, yearsLabel } from '../reader/entity.ts'
-import type { Entity } from '../reader/names.ts'
+import type { Character, Place } from 'reader-core'
+import { firstSentence, groupRelations, paragraphs, yearsLabel } from 'reader-core'
+import type { Entity } from 'reader-core'
 import Icon from './Icon.tsx'
 
 type Props = {

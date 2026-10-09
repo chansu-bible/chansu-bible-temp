@@ -1,0 +1,61 @@
+{
+  "realm": "chansu-bible",
+  "enabled": true,
+  "displayName": "장면으로 읽는 성경",
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "internationalizationEnabled": true,
+  "supportedLocales": ["ko", "en"],
+  "defaultLocale": "ko",
+  "sslRequired": "external",
+  "accessTokenLifespan": 900,
+  "offlineSessionIdleTimeout": 2592000,
+  "clients": [
+    {
+      "clientId": "chansu-bible-app",
+      "name": "장면 성경 앱",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "frontchannelLogout": false,
+      "redirectUris": ["chansubible://*", "exp://*", "http://localhost:8081/*"],
+      "webOrigins": ["http://localhost:8081"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "chansubible://*##exp://*##http://localhost:8081/*"
+      },
+      "defaultClientScopes": ["web-origins", "acr", "basic", "profile", "roles", "email"],
+      "optionalClientScopes": ["offline_access"]
+    },
+    {
+      "clientId": "chansu-bible-test",
+      "name": "개발용 시험 클라이언트",
+      "description": "비밀번호로 바로 토큰을 받는다. 서버를 손으로 시험할 때만 쓴다(infra/dev-token.mjs).",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "defaultClientScopes": ["web-origins", "acr", "basic", "profile", "roles", "email"]
+    }
+  ],
+  "users": [
+    {
+      "id": "6c1f2b8e-4d3a-4f6e-9b7a-2e5d8c0a1f34",
+      "username": "tester",
+      "enabled": true,
+      "email": "tester@example.test",
+      "emailVerified": true,
+      "firstName": "시험",
+      "lastName": "사용자",
+      "realmRoles": ["default-roles-chansu-bible"],
+      "credentials": [{ "type": "password", "value": "tester-local-0hTSOeAN5shA", "temporary": false }]
+    }
+  ]
+}

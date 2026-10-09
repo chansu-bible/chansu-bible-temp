@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
-import type { ImageVersion, ReviewStatus, Scene, Verse } from '../content/types.ts'
-import { hueOf } from '../reader/hue.ts'
+import type { ImageVersion, ReviewStatus, Scene, Verse } from 'reader-core'
+import { hueOf } from 'reader-core'
 import Icon from './Icon.tsx'
 
 const badgeText: Partial<Record<ReviewStatus, string>> = { draft: '검수 전', flagged: '확인 필요' }

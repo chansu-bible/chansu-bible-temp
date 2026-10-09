@@ -4,7 +4,9 @@ import Canon from './pages/Canon.tsx'
 import Dashboard from './pages/Dashboard.tsx'
 import Images from './pages/Images.tsx'
 import Jobs from './pages/Jobs.tsx'
+import Lexicon from './pages/Lexicon.tsx'
 import Queue from './pages/Queue.tsx'
+import Quiz from './pages/Quiz.tsx'
 import Repo from './pages/Repo.tsx'
 import Scenes from './pages/Scenes.tsx'
 
@@ -13,6 +15,8 @@ const NAV: { page: PageName; href: string; label: string }[] = [
   { page: 'canon', href: '#/canon/characters', label: '설정집' },
   { page: 'scenes', href: '#/scenes/1', label: '장면' },
   { page: 'images', href: '#/images', label: '그림' },
+  { page: 'lexicon', href: '#/lexicon', label: '원어 뜻' },
+  { page: 'quiz', href: '#/quiz/1', label: '퀴즈' },
   { page: 'jobs', href: '#/jobs', label: '작업' },
   { page: 'queue', href: '#/queue', label: '검수 대기열' },
   { page: 'repo', href: '#/repo', label: '저장소' },
@@ -65,6 +69,10 @@ function Page({ route }: { route: Route }) {
       return <Scenes chapter={route.chapter} sceneId={route.sceneId} />
     case 'images':
       return <Images />
+    case 'lexicon':
+      return <Lexicon filter={route.filter} />
+    case 'quiz':
+      return <Quiz chapter={route.chapter} />
     case 'jobs':
       return <Jobs />
     case 'queue':

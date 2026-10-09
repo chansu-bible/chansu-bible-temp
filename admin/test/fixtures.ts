@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import type { Canon, Era, Place, Scene, SceneFile, Source, Style } from 'pipeline'
+import type { Canon, Era, LexiconFile, Place, QuizFile, QuizQuestion, Scene, SceneFile, Source, Style } from 'pipeline'
 
 // 시험용 장면. 필요한 필드만 바꿔 쓴다.
 export function scene(id: string, chapter: number, overrides: Partial<Scene> = {}): Scene {
@@ -84,6 +84,67 @@ export const testStyle: Style = {
   referenceInstruction: 'Images are style references.',
 }
 
+// 원어 사전: 초안, 승인, 뜻 없음 하나씩
+export const lexicon: LexiconFile = {
+  entries: [
+    {
+      strong: 'H1',
+      lemma: 'אָב',
+      xlit: 'ʼâb',
+      pos: 'n-m',
+      definition: 'father',
+      usage: 'chief, (fore-) father(-less)',
+      count: 9,
+      korean: { meaning: '아버지, 조상', note: '창세기 4:20에서는 조상을 뜻해요.', status: 'draft' },
+    },
+    {
+      strong: 'H776',
+      lemma: 'אֶרֶץ',
+      xlit: 'ʼerets',
+      pos: 'n-f',
+      definition: 'the earth',
+      usage: 'common, country, earth',
+      count: 90,
+      korean: { meaning: '땅', note: '', status: 'approved' },
+    },
+    {
+      strong: 'H7225',
+      lemma: 'רֵאשִׁית',
+      xlit: 'rêʼshîyth',
+      pos: 'n-f',
+      definition: 'the first, in place, time, order or rank',
+      usage: 'beginning, chief(-est), first(-fruits, part, time)',
+      count: 1,
+      korean: null,
+    },
+  ],
+}
+
+// 시험용 퀴즈 문제. 필요한 필드만 바꿔 쓴다.
+export function quizQuestion(id: string, overrides: Partial<QuizQuestion> = {}): QuizQuestion {
+  return {
+    id,
+    question: `${id} 질문인가요?`,
+    options: ['가', '나', '다', '라'],
+    answer: 0,
+    explanation: `${id} 해설이에요.`,
+    verse: 1,
+    status: 'reviewed',
+    issues: [],
+    ...overrides,
+  }
+}
+
+// 1장 퀴즈: 검수 통과, 지적(근거 절이 장 밖), 승인 하나씩
+export const quizFile: QuizFile = {
+  chapter: 1,
+  questions: [
+    quizQuestion('genesis-01-q1'),
+    quizQuestion('genesis-01-q2', { verse: 9, status: 'flagged', issues: ['근거 절 1:9이 이 장에 없어요.'] }),
+    quizQuestion('genesis-01-q3', { answer: 2, verse: 3, status: 'approved' }),
+  ],
+}
+
 export type TempContent = {
   root: string
   styleFile: string
@@ -92,9 +153,14 @@ export type TempContent = {
   imageVersionsFile: string
   scenesDir: string
   sourceFile: string
+  lexiconFile: string
+  quizDir: string
 }
 
-// 임시 폴더에 화풍·참고 이미지·그림 버전·장면·본문을 만든다. 끝나면 root를 지운다.
+// 파이프라인과 같은 모양으로 쓴다(들여쓰기 2칸, 끝에 줄바꿈).
+export const pretty = (value: unknown) => JSON.stringify(value, null, 2) + '\n'
+
+// 임시 폴더에 화풍·참고 이미지·그림 버전·장면·본문·원어 사전·퀴즈를 만든다. 끝나면 root를 지운다.
 export async function makeTempContent(): Promise<TempContent> {
   const root = await mkdtemp(path.join(tmpdir(), 'admin-content-'))
   const dirs: TempContent = {
@@ -105,12 +171,16 @@ export async function makeTempContent(): Promise<TempContent> {
     imageVersionsFile: path.join(root, 'images', 'versions.json'),
     scenesDir: path.join(root, 'scenes'),
     sourceFile: path.join(root, 'source', 'genesis.json'),
+    lexiconFile: path.join(root, 'original', 'lexicon.json'),
+    quizDir: path.join(root, 'quiz'),
   }
   await mkdir(dirs.refsDir, { recursive: true })
   await mkdir(path.join(dirs.imagesDir, 'v1'), { recursive: true })
   await mkdir(path.join(dirs.imagesDir, 'v2'), { recursive: true })
   await mkdir(dirs.scenesDir, { recursive: true })
   await mkdir(path.dirname(dirs.sourceFile), { recursive: true })
+  await mkdir(path.dirname(dirs.lexiconFile), { recursive: true })
+  await mkdir(dirs.quizDir, { recursive: true })
 
   await writeFile(dirs.styleFile, JSON.stringify(testStyle))
   await writeFile(path.join(dirs.refsDir, 'brush.jpg'), JPEG)
@@ -126,5 +196,7 @@ export async function makeTempContent(): Promise<TempContent> {
   await writeFile(path.join(dirs.imagesDir, 'v2', 'g1-s1.png'), PNG)
   await writeFile(path.join(dirs.scenesDir, 'genesis-01.json'), JSON.stringify(sceneFiles[0]))
   await writeFile(dirs.sourceFile, JSON.stringify(source))
+  await writeFile(dirs.lexiconFile, pretty(lexicon))
+  await writeFile(path.join(dirs.quizDir, 'genesis-01.json'), pretty(quizFile))
   return dirs
 }

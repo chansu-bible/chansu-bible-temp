@@ -1,11 +1,24 @@
 import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { appContentDir, audioDir, imagesDir, repoRoot, scenesDir, sourceFile } from '../paths.ts'
-import { BundleSchema, SceneFileSchema, SourceSchema, type Bundle, type SceneFile } from '../schema.ts'
+import { appContentDir, audioDir, imagesDir, lexiconFile, originalFile, quizDir, repoRoot, scenesDir, sourceFile, styleFile } from '../paths.ts'
+import {
+  BundleSchema,
+  LexiconFileSchema,
+  OriginalFileSchema,
+  QuizFileSchema,
+  SceneFileSchema,
+  SourceSchema,
+  type Bundle,
+  type QuizFile,
+  type SceneFile,
+} from '../schema.ts'
+import { readStyle } from '../images/style.ts'
 import { readCanon } from '../canon/files.ts'
 import { readImageCatalog } from '../images/versions.ts'
-import { buildBundle, type ImageCatalog } from './buildBundle.ts'
+import { joinMp3, mp3DurationMs } from '../tts/mp3.ts'
+import { buildBundle, sceneAudioParts, type ImageCatalog } from './buildBundle.ts'
+import { buildSources } from './sources.ts'
 
 function relativeName(file: string): string {
   return path.relative(repoRoot, file).split(path.sep).join('/')
@@ -48,13 +61,41 @@ function checkImages(sceneFiles: SceneFile[], catalog: ImageCatalog): void {
   }
 }
 
+// 낭독 파일마다 재생 길이를 잰다. 홈 화면의 "낭독으로 들으면 N분" 안내에 쓴다.
+async function readAudioCatalog(): Promise<Map<string, number | null>> {
+  if (!existsSync(audioDir)) return new Map()
+  const names = (await readdir(audioDir)).filter((name) => name.endsWith('.mp3'))
+  const entries = await Promise.all(
+    names.map(async (name) => [name, mp3DurationMs(await readFile(path.join(audioDir, name)))] as const),
+  )
+  return new Map(entries)
+}
+
+// 퀴즈 파일(content/quiz/genesis-NN.json)을 모두 읽는다.
+async function readQuizFiles(): Promise<QuizFile[]> {
+  if (!existsSync(quizDir)) return []
+  const names = (await readdir(quizDir)).filter((name) => /^genesis-\d{2}\.json$/.test(name)).sort()
+  return Promise.all(names.map((name) => readJson(path.join(quizDir, name), (value) => QuizFileSchema.parse(value))))
+}
+
 export async function writeBundle(): Promise<Bundle> {
   const source = await readJson(sourceFile, (value) => SourceSchema.parse(value))
-  const { characters, places, eras } = await readCanon()
+  const { characters, places, eras, things } = await readCanon()
   const sceneFiles = await readSceneFiles()
-  const audioNames = existsSync(audioDir) ? new Set(await readdir(audioDir)) : new Set<string>()
+  const audio = await readAudioCatalog()
   const catalog = await readImageCatalog()
-  const bundle = BundleSchema.parse(buildBundle(source, sceneFiles, { characters, places, eras }, audioNames, catalog))
+  const original = existsSync(originalFile) ? await readJson(originalFile, (value) => OriginalFileSchema.parse(value)) : null
+  const lexicon = existsSync(lexiconFile) ? await readJson(lexiconFile, (value) => LexiconFileSchema.parse(value)) : null
+  const quizzes = await readQuizFiles()
+  const style = existsSync(styleFile) ? await readStyle(styleFile, { requireFiles: false }) : null
+  const bundle = BundleSchema.parse(
+    buildBundle(source, sceneFiles, { characters, places, eras, things }, audio, catalog, {
+      original,
+      lexicon,
+      quizzes,
+      sources: buildSources(style),
+    }),
+  )
   checkImages(sceneFiles, catalog)
 
   await rm(appContentDir, { recursive: true, force: true })
@@ -73,6 +114,18 @@ export async function writeBundle(): Promise<Bundle> {
         return src === from || !(name.startsWith('.') || name === 'versions.json')
       },
     })
+  }
+  // 장면 낭독: 절 낭독을 이어 붙인다. 모든 낭독이 같은 고정 비트레이트 MP3라 프레임을 잇기만 하면 된다.
+  for (const chapter of bundle.chapters) {
+    for (const scene of chapter.scenes) {
+      if (!scene.audio) continue
+      const parts = await Promise.all(
+        sceneAudioParts(scene, chapter.verses).map((file) => readFile(path.join(audioDir, path.basename(file)))),
+      )
+      const target = path.join(appContentDir, 'audio', 'scenes', `${scene.id}.mp3`)
+      await mkdir(path.dirname(target), { recursive: true })
+      await writeFile(target, joinMp3(parts))
+    }
   }
   return bundle
 }

@@ -42,6 +42,17 @@ export function uniqueName(dir: string, name: string, taken: Iterable<string> = 
   }
 }
 
+// 넘긴 일을 하나씩 차례로 실행한다. 같은 파일을 읽고 고쳐 쓰는 저장 둘이 겹쳐 한쪽 변경이 사라지지 않게 한다.
+// 앞의 일이 실패해도 다음 일은 실행한다.
+export function createSerial(): <T>(task: () => Promise<T>) => Promise<T> {
+  let tail: Promise<unknown> = Promise.resolve()
+  return (task) => {
+    const run = tail.then(task)
+    tail = run.catch(() => undefined)
+    return run
+  }
+}
+
 // 그림 파일을 바이트로 답한다. Content-Type은 확장자로 정하고, 없으면 404.
 export async function serveImage(c: Context, filePath: string): Promise<Response> {
   if (!existsSync(filePath)) throw new HttpError(404, `파일이 없습니다: ${path.basename(filePath)}`)

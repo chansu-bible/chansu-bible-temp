@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildBundle } from '../src/build/buildBundle.ts'
-import type { Character, Era, Place, Scene, Source } from '../src/schema.ts'
+import { buildBundle, sceneAudioParts } from '../src/build/buildBundle.ts'
+import type { Character, Era, Place, Scene, Source, Thing } from '../src/schema.ts'
 
 const source: Source = {
   book: '창세기',
@@ -66,8 +66,8 @@ function era(overrides: Partial<Era> & { id: string; name: string }): Era {
   }
 }
 
-function canonOf(placeList: Place[], characters: Character[] = [], eras: Era[] = []) {
-  return { characters, places: placeList, eras }
+function canonOf(placeList: Place[], characters: Character[] = [], eras: Era[] = [], things: Thing[] = []) {
+  return { characters, places: placeList, eras, things }
 }
 
 function scene(overrides: Partial<Scene>): Scene {
@@ -120,6 +120,118 @@ describe('buildBundle', () => {
     ])
   })
 
+  it('음성 길이를 알면 절에 audioMs를 넣고, 모르거나 음성이 없으면 null이다', () => {
+    const audio = new Map<string, number | null>([
+      ['genesis-01-001.mp3', 4210],
+      ['genesis-01-002.mp3', null],
+    ])
+    const bundle = buildBundle(source, [], canonOf(places), audio)
+    expect(bundle.chapters[0].verses.map((verse) => verse.audioMs)).toEqual([4210, null, null])
+    expect(bundle.chapters[0].verses.map((verse) => verse.audio)).toEqual([
+      'content/audio/genesis-01-001.mp3',
+      'content/audio/genesis-01-002.mp3',
+      null,
+    ])
+  })
+
+  it('장면에 든 절 가운데 음성이 있는 절을 이어 장면 낭독으로 둔다(길이는 합)', () => {
+    const audio = new Map<string, number | null>([
+      ['genesis-01-001.mp3', 1000],
+      ['genesis-01-003.mp3', 2500],
+    ])
+    const bundle = buildBundle(source, [{ chapter: 1, scenes: [scene({})] }], canonOf(places), audio)
+    const built = bundle.chapters[0].scenes[0]
+    expect(built.audio).toBe('content/audio/scenes/genesis-01-01.mp3')
+    expect(built.audioMs).toBe(3500)
+    expect(sceneAudioParts(built, bundle.chapters[0].verses)).toEqual([
+      'content/audio/genesis-01-001.mp3',
+      'content/audio/genesis-01-003.mp3',
+    ])
+  })
+
+  it('음성이 하나도 없는 장면은 낭독이 null이고, 길이를 모르는 절이 있으면 길이만 null이다', () => {
+    const none = buildBundle(source, [{ chapter: 1, scenes: [scene({})] }], canonOf(places))
+    expect(none.chapters[0].scenes[0]).toMatchObject({ audio: null, audioMs: null })
+    const unknown = buildBundle(source, [], canonOf(places), new Set(['genesis-02-001.mp3']))
+    expect(unknown.chapters[1].scenes[0]).toMatchObject({ audio: 'content/audio/scenes/genesis-02-00.mp3', audioMs: null })
+  })
+
+  it('원어 낱말에 한국어 품사를 붙이고, 사전에는 나오는 번호만, 한국어 뜻은 승인된 것만 넣는다', () => {
+    const original = {
+      chapters: [
+        {
+          chapter: 1,
+          verses: [
+            {
+              verse: 1,
+              words: [
+                { text: 'בְּרֵאשִׁית', strong: 'H7225', morph: 'HR/Ncfsa' },
+                { text: 'בָּרָא', strong: 'H1254', morph: 'HVqp3ms' },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    const base = { lemma: 'x', xlit: 'x', pos: 'n', definition: 'def', usage: 'use', count: 1 }
+    const lexicon = {
+      entries: [
+        { ...base, strong: 'H7225', korean: { meaning: '처음', note: '', status: 'approved' as const } },
+        { ...base, strong: 'H1254', korean: { meaning: '창조하다', note: '메모', status: 'draft' as const } },
+        { ...base, strong: 'H9999', korean: null },
+      ],
+    }
+    const bundle = buildBundle(source, [], canonOf(places), new Map(), undefined, { original, lexicon })
+    expect(bundle.chapters[0].original?.[0]?.words.map((word) => word.pos)).toEqual(['전치사 + 명사', '동사(칼 완료)'])
+    expect(bundle.chapters[1].original).toBeNull()
+    expect(bundle.lexicon).toEqual({
+      H7225: { lemma: 'x', xlit: 'x', english: 'def', korean: '처음', note: null, count: 1 },
+      H1254: { lemma: 'x', xlit: 'x', english: 'def', korean: null, note: null, count: 1 },
+    })
+  })
+
+  it('승인된 퀴즈만 넣고, 자료 출처는 그대로 넣는다', () => {
+    const question = { question: '질문', options: ['가', '나', '다', '라'], answer: 1, explanation: '해설', verse: 2, issues: [] }
+    const quizzes = [
+      {
+        chapter: 1,
+        questions: [
+          { ...question, id: 'genesis-01-q1', status: 'approved' as const },
+          { ...question, id: 'genesis-01-q2', status: 'reviewed' as const },
+        ],
+      },
+    ]
+    const sources = [{ id: 'oshb', title: 'OSHB', detail: '형태', license: 'CC BY 4.0', url: null }]
+    const bundle = buildBundle(source, [], canonOf(places), new Map(), undefined, { quizzes, sources })
+    expect(bundle.chapters[0].quiz).toEqual([
+      { id: 'genesis-01-q1', question: '질문', options: ['가', '나', '다', '라'], answer: 1, explanation: '해설', verse: 2 },
+    ])
+    expect(bundle.chapters[1].quiz).toEqual([])
+    expect(bundle.sources).toEqual(sources)
+  })
+
+  it('승인된 물건만 앱 형식으로 넣는다', () => {
+    const thing: Thing = {
+      id: 'tree-of-life',
+      name: '생명나무',
+      aliases: [],
+      status: 'approved',
+      facts: { description: '동산 가운데 있는 나무', details: ['길이 지켜졌다'], sources: ['2:9', '3:24'] },
+      design: { visualNotes: '' },
+    }
+    const draft: Thing = { ...thing, id: 'fig-leaves', name: '무화과나무 잎', status: 'draft' }
+    expect(buildBundle(source, [], canonOf(places, [], [], [thing, draft])).things).toEqual([
+      {
+        id: 'tree-of-life',
+        name: '생명나무',
+        aliases: [],
+        description: '동산 가운데 있는 나무',
+        details: ['길이 지켜졌다'],
+        sources: ['2:9', '3:24'],
+      },
+    ])
+  })
+
   it('본문은 원본 그대로 들어간다', () => {
     const bundle = buildBundle(source, [], canonOf(places))
     expect(textOf(bundle.chapters[0].verses)).toEqual(source.chapters[0].verses)
@@ -141,6 +253,8 @@ describe('buildBundle', () => {
         characters: [],
         images: {},
         reviewStatus: 'none',
+        audio: null,
+        audioMs: null,
       },
     ])
   })

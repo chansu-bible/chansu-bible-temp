@@ -1,7 +1,18 @@
 import { randomUUID } from 'node:crypto'
 
 // 실행할 수 있는 단계
-export const STAGES = ['source', 'canon', 'scenario', 'review-text', 'images', 'tts', 'build'] as const
+export const STAGES = [
+  'source',
+  'canon',
+  'scenario',
+  'review-text',
+  'images',
+  'tts',
+  'original',
+  'original-gloss',
+  'quiz',
+  'build',
+] as const
 export type Stage = (typeof STAGES)[number]
 
 export type JobOptions = {

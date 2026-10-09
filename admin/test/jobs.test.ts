@@ -150,6 +150,22 @@ describe('parseJobRequest', () => {
     )
   })
 
+  it('original은 옵션이 없고, original-gloss는 limit·force·dryRun, quiz는 chapter·force·dryRun을 쓴다', () => {
+    const options = { chapter: 4, scenes: ['g4-s1'], force: true, allowDraft: true, dryRun: true, limit: 30 }
+    expect(parseJobRequest({ stage: 'original', options })).toEqual({ stage: 'original', options: {} })
+    expect(parseJobRequest({ stage: 'original-gloss', options })).toEqual({
+      stage: 'original-gloss',
+      options: { limit: 30, force: true, dryRun: true },
+    })
+    expect(parseJobRequest({ stage: 'original-gloss' })).toEqual({ stage: 'original-gloss', options: {} })
+    expect(parseJobRequest({ stage: 'quiz', options })).toEqual({
+      stage: 'quiz',
+      options: { chapter: 4, force: true, dryRun: true },
+    })
+    expect(() => parseJobRequest({ stage: 'quiz', options: { force: true } })).toThrow(/장 번호/)
+    expect(() => parseJobRequest({ stage: 'original-gloss', options: { limit: 0 } })).toThrow(/limit/)
+  })
+
   it('장 번호가 필요한 단계에 없으면 오류', () => {
     expect(() => parseJobRequest({ stage: 'canon', options: {} })).toThrow(JobRequestError)
     expect(() => parseJobRequest({ stage: 'tts', options: { chapter: 0 } })).toThrow(/장 번호/)

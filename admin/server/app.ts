@@ -6,7 +6,9 @@ import { canonRoutes } from './routes/canon.ts'
 import { gitRoutes } from './routes/git.ts'
 import { imageRoutes } from './routes/images.ts'
 import { jobRoutes } from './routes/jobs.ts'
+import { lexiconRoutes } from './routes/lexicon.ts'
 import { proposalRoutes } from './routes/proposals.ts'
+import { quizRoutes } from './routes/quiz.ts'
 import { runRoutes } from './routes/runs.ts'
 import { sceneRoutes } from './routes/scenes.ts'
 import { statusRoutes } from './routes/status.ts'
@@ -24,6 +26,8 @@ export function createApp(overrides: Partial<AppContext> = {}): Hono {
   app.route('/api/scenes', sceneRoutes(ctx))
   app.route('/api/style', styleRoutes(ctx))
   app.route('/api/images', imageRoutes(ctx))
+  app.route('/api/lexicon', lexiconRoutes(ctx))
+  app.route('/api/quiz', quizRoutes(ctx))
   app.route('/api/jobs', jobRoutes(ctx))
   app.route('/api/runs', runRoutes())
   app.route('/api/git', gitRoutes())

@@ -3,17 +3,27 @@ import {
   type Bundle,
   type BundleCharacter,
   type BundleEra,
+  type BundleLexiconEntry,
+  type BundleOriginalVerse,
   type BundlePlace,
+  type BundleQuizQuestion,
+  type BundleSource,
   type BundleScene,
+  type BundleThing,
   type Character,
   type Era,
   type ImageVersion,
+  type LexiconFile,
+  type OriginalFile,
   type Place,
+  type QuizFile,
   type Scene,
   type SceneFile,
   type Source,
+  type Thing,
   type Verse,
 } from '../schema.ts'
+import { posLabel } from '../original/morph.ts'
 import { findCoverageProblems } from '../scenes/coverage.ts'
 import { audioName } from '../tts/select.ts'
 
@@ -21,15 +31,32 @@ import { audioName } from '../tts/select.ts'
 export type ImageCatalog = { versions: ImageVersion[]; files: Record<string, string[]> }
 
 // 묶음에 넣을 설정집. 승인 여부는 buildBundle이 거른다.
-export type BundleCanon = { characters: Character[]; places: Place[]; eras: Era[] }
+export type BundleCanon = { characters: Character[]; places: Place[]; eras: Era[]; things?: Thing[] }
+
+// 음성 파일 이름 → 재생 길이(ms, 모르면 null). 이름만 아는 Set도 받는다.
+export type AudioCatalog = ReadonlyMap<string, number | null> | ReadonlySet<string>
+
+// 원어, 사전, 퀴즈, 자료 출처. 없으면 묶음에서 비운다.
+export type BundleExtras = {
+  original?: OriginalFile | null
+  lexicon?: LexiconFile | null
+  quizzes?: QuizFile[]
+  sources?: BundleSource[]
+}
+
+function audioDurations(audio: AudioCatalog): ReadonlyMap<string, number | null> {
+  return audio instanceof Map ? audio : new Map([...(audio as ReadonlySet<string>)].map((name) => [name, null] as const))
+}
 
 export function buildBundle(
   source: Source,
   sceneFiles: SceneFile[],
   canon: BundleCanon,
-  audioNames: ReadonlySet<string> = new Set(),
+  audio: AudioCatalog = new Map(),
   catalog: ImageCatalog = { versions: [], files: {} },
+  extras: BundleExtras = {},
 ): Bundle {
+  const durations = audioDurations(audio)
   // 사람이 승인한 장소만 앱에 나간다. 검수 전 초안은 지도에 올리지 않는다.
   const places = canon.places.filter((place) => place.status === 'approved')
   const placeIds = new Set(places.map((place) => place.id))
@@ -52,10 +79,11 @@ export function buildBundle(
     // 본문은 원본 그대로 두고, 음성 파일이 있는 절에만 경로를 붙인다.
     const verses = sourceChapter.verses.map((verse) => {
       const name = audioName(chapter, verse.verse)
-      return { ...verse, audio: audioNames.has(name) ? `content/audio/${name}` : null }
+      const has = durations.has(name)
+      return { ...verse, audio: has ? `content/audio/${name}` : null, audioMs: has ? (durations.get(name) ?? null) : null }
     })
     const sceneFile = sceneFiles.find((file) => file.chapter === chapter)
-    if (!sceneFile) return { chapter, verses, scenes: [fallbackScene(chapter, verses.length, catalog)] }
+    if (!sceneFile) return { chapter, verses, scenes: [withSceneAudio(fallbackScene(chapter, verses.length, catalog), verses)] }
 
     checkSceneIds(sceneFile)
 
@@ -69,8 +97,42 @@ export function buildBundle(
       }
       checkGlossary(scene, chapter, sourceChapter.verses)
     }
-    return { chapter, verses, scenes: sceneFile.scenes.map((scene) => toBundleScene(scene, catalog, characterIds)) }
+    return {
+      chapter,
+      verses,
+      scenes: sceneFile.scenes.map((scene) => withSceneAudio(toBundleScene(scene, catalog, characterIds), verses)),
+    }
   })
+
+  // 원어 낱말에 한국어 품사 이름을 붙인다.
+  const originalOf = (chapter: number): BundleOriginalVerse[] | null => {
+    const found = extras.original?.chapters.find((item) => item.chapter === chapter)
+    return found
+      ? found.verses.map((verse) => ({ verse: verse.verse, words: verse.words.map((word) => ({ ...word, pos: posLabel(word.morph) })) }))
+      : null
+  }
+  // 사람이 승인한 문제만 앱에 나간다.
+  const quizOf = (chapter: number): BundleQuizQuestion[] =>
+    (extras.quizzes?.find((item) => item.chapter === chapter)?.questions ?? [])
+      .filter((question) => question.status === 'approved')
+      .map(({ id, question, options, answer, explanation, verse }) => ({ id, question, options, answer, explanation, verse }))
+  const withExtras = chapters.map((item) => ({ ...item, original: originalOf(item.chapter), quiz: quizOf(item.chapter) }))
+
+  // 사전은 묶음의 장에 나오는 번호만, 한국어 뜻은 승인된 것만
+  const used = new Set(withExtras.flatMap((item) => (item.original ?? []).flatMap((verse) => verse.words.flatMap((word) => (word.strong ? [word.strong] : [])))))
+  const lexicon: Record<string, BundleLexiconEntry> = {}
+  for (const entry of extras.lexicon?.entries ?? []) {
+    if (!used.has(entry.strong)) continue
+    const approved = entry.korean?.status === 'approved' ? entry.korean : null
+    lexicon[entry.strong] = {
+      lemma: entry.lemma,
+      xlit: entry.xlit,
+      english: entry.definition,
+      korean: approved?.meaning ?? null,
+      note: approved && approved.note !== '' ? approved.note : null,
+      count: entry.count,
+    }
+  }
 
   return {
     schemaVersion: BUNDLE_SCHEMA_VERSION,
@@ -79,10 +141,13 @@ export function buildBundle(
     places: places.map(toBundlePlace),
     characters: characters.map((character) => toBundleCharacter(character, characterIds)),
     eras: eras.map(toBundleEra),
+    things: (canon.things ?? []).filter((thing) => thing.status === 'approved').map(toBundleThing),
     imageVersions: catalog.versions,
     // 가장 나중에 추가한 버전을 기본으로 보여 준다.
     defaultImageVersion: catalog.versions.at(-1)?.id ?? null,
-    chapters,
+    lexicon,
+    sources: extras.sources ?? [],
+    chapters: withExtras,
   }
 }
 
@@ -127,7 +192,40 @@ function toBundleEra(era: Era): BundleEra {
   }
 }
 
-function fallbackScene(chapter: number, verseCount: number, catalog: ImageCatalog): BundleScene {
+function toBundleThing(thing: Thing): BundleThing {
+  return {
+    id: thing.id,
+    name: thing.name,
+    aliases: thing.aliases,
+    description: thing.facts.description,
+    details: thing.facts.details,
+    sources: thing.facts.sources,
+  }
+}
+
+type SceneWithoutAudio = Omit<BundleScene, 'audio' | 'audioMs'>
+type VerseAudio = { verse: number; audio: string | null; audioMs: number | null }
+
+// 장면 낭독에 들어가는 절 낭독 파일(묶음 안 경로)을 차례대로. writeBundle이 이 파일들을 이어 붙인다.
+// 앱은 장면마다 이 파일 하나를 재생한다. 화면을 꺼도 절마다 파일을 바꾸지 않아 끊기지 않고, 잠금 화면에는 장면 단위로 보인다.
+export function sceneAudioParts(scene: { verseStart: number; verseEnd: number }, verses: VerseAudio[]): string[] {
+  return verses.flatMap((verse) =>
+    verse.verse >= scene.verseStart && verse.verse <= scene.verseEnd && verse.audio !== null ? [verse.audio] : [],
+  )
+}
+
+function withSceneAudio(scene: SceneWithoutAudio, verses: VerseAudio[]): BundleScene {
+  const parts = verses.filter((verse) => verse.verse >= scene.verseStart && verse.verse <= scene.verseEnd && verse.audio !== null)
+  if (parts.length === 0) return { ...scene, audio: null, audioMs: null }
+  const known = parts.every((verse) => verse.audioMs !== null)
+  return {
+    ...scene,
+    audio: `content/audio/scenes/${scene.id}.mp3`,
+    audioMs: known ? parts.reduce((sum, verse) => sum + (verse.audioMs ?? 0), 0) : null,
+  }
+}
+
+function fallbackScene(chapter: number, verseCount: number, catalog: ImageCatalog): SceneWithoutAudio {
   const id = `genesis-${String(chapter).padStart(2, '0')}-00`
   return {
     id,
@@ -156,7 +254,7 @@ function imagesFor(sceneId: string, catalog: ImageCatalog): Record<string, strin
 }
 
 // 장면의 인물은 묶음에 있는 인물만 남긴다. 승인 전 인물은 오류 없이 조용히 뺀다.
-function toBundleScene(scene: Scene, catalog: ImageCatalog, characterIds: ReadonlySet<string>): BundleScene {
+function toBundleScene(scene: Scene, catalog: ImageCatalog, characterIds: ReadonlySet<string>): SceneWithoutAudio {
   return {
     id: scene.id,
     verseStart: scene.verseStart,

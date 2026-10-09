@@ -5,6 +5,9 @@ import {
   generateImages,
   generateSpeech,
   runCanon,
+  runGloss,
+  runOriginal,
+  runQuiz,
   runReviewText,
   runScenario,
   writeBundle,
@@ -26,10 +29,13 @@ const stageOptions: Record<Stage, readonly (keyof JobOptions)[]> = {
   'review-text': ['chapter', 'scenes', 'dryRun'],
   images: ['chapter', 'scenes', 'force', 'allowDraft', 'dryRun', 'limit'],
   tts: ['chapter', 'force', 'limit', 'dryRun'],
+  original: [],
+  'original-gloss': ['limit', 'force', 'dryRun'],
+  quiz: ['chapter', 'force', 'dryRun'],
   build: [],
 }
 
-const needsChapter: readonly Stage[] = ['canon', 'scenario', 'review-text', 'images', 'tts']
+const needsChapter: readonly Stage[] = ['canon', 'scenario', 'review-text', 'images', 'tts', 'quiz']
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -158,6 +164,41 @@ export function createRunner(stage: Stage, options: JobOptions): Runner {
         log(`음성 생성 완료: 성공 ${result.spoken}개, 실패 ${result.failed.length}개`)
         for (const failure of result.failed) log(`- ${chapter}:${failure.verse} ${failure.reason}`)
         if (result.failed.length > 0) throw new Error(`음성 ${result.failed.length}개를 만들지 못했습니다`)
+      }
+
+    case 'original':
+      return async (log) => {
+        const result = await runOriginal({}, log)
+        log(
+          `원어 저장 완료: ${result.chapters}장, 낱말 ${result.words}개, 사전 항목 ${result.entries}개(한국어 뜻 있음 ${result.withKorean}개)`,
+        )
+      }
+
+    case 'original-gloss':
+      return async (log) => {
+        const result = await runGloss({ limit: options.limit, force: options.force ?? false, dryRun }, log)
+        if (result.dryRun) {
+          log(`한국어 뜻을 쓸 사전 항목 ${result.selected}개 (dry-run이라 API를 부르지 않았습니다)`)
+          return
+        }
+        if (result.selected === 0) {
+          log('한국어 뜻을 쓸 사전 항목이 없습니다. 초안도 다시 쓰려면 force를 켜세요.')
+          return
+        }
+        log(`한국어 뜻 초안: ${result.written}/${result.selected}개. "원어 뜻" 화면에서 검수하세요.`)
+        if (result.missing.length > 0) {
+          log(`돌려받지 못한 항목: ${result.missing.join(', ')}`)
+          throw new Error(`한국어 뜻 ${result.missing.length}개를 돌려받지 못했습니다`)
+        }
+      }
+
+    case 'quiz':
+      return async (log) => {
+        const result = await runQuiz(chapter, { force: options.force ?? false, dryRun }, log)
+        if (result.skipped || result.dryRun) return
+        log(
+          `${chapter}장 퀴즈: ${result.written}문제(검수 통과 ${result.reviewed}, 지적 ${result.flagged}). "퀴즈" 화면에서 승인하세요.`,
+        )
       }
 
     case 'build':

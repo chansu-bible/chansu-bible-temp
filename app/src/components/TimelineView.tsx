@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
-import type { Character, Era } from '../content/types.ts'
-import type { Entity } from '../reader/names.ts'
-import { timelineLayout } from '../reader/timeline.ts'
+import type { Character, Era } from 'reader-core'
+import type { Entity } from 'reader-core'
+import { timelineLayout } from 'reader-core'
 
 // 연표 그림 부분의 높이(px)
 const plotHeight = 360

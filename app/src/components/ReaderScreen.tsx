@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import type { Bundle } from '../content/types.ts'
-import { loadImageVersion, nextImageVersion, pickImageVersion, saveImageVersion } from '../reader/imageVersion.ts'
-import type { Entity } from '../reader/names.ts'
-import { placeChange, type PlaceChange } from '../reader/placeChange.ts'
-import { loadPosition, savePosition, type Position } from '../reader/position.ts'
-import { loadReadScenes, markRead, saveReadScenes } from '../reader/progress.ts'
-import { findSceneIndex, initialPosition, nextPosition, startOfChapter, verseAt } from '../reader/readingPosition.ts'
-import { buildRoute } from '../reader/route.ts'
-import { useSettings } from '../reader/settings.ts'
-import { loadSubtitles, saveSubtitles } from '../reader/subtitles.ts'
+import type { Bundle } from 'reader-core'
+import { loadImageVersion, nextImageVersion, pickImageVersion, saveImageVersion } from 'reader-core'
+import type { Entity } from 'reader-core'
+import { placeChange, type PlaceChange } from 'reader-core'
+import { loadPosition, savePosition, type Position } from 'reader-core'
+import { loadReadScenes, markRead, saveReadScenes } from 'reader-core'
+import { findSceneIndex, initialPosition, nextPosition, startOfChapter, verseAt } from 'reader-core'
+import { buildRoute } from 'reader-core'
+import { useSettings } from '../reader/useSettings.ts'
+import { browserStore } from '../storage.ts'
+import { loadSubtitles, saveSubtitles } from 'reader-core'
 import { useNarration, verseAudioUrl } from '../reader/useNarration.ts'
 import BackgroundSheet from './BackgroundSheet.tsx'
 import ContentsScreen, { type ContentsTab } from './ContentsScreen.tsx'
@@ -30,13 +31,13 @@ type Overlay =
 
 export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   // 지금 읽는 곳은 절 단위로 들고, 장면은 절에서 정한다.
-  const [position, setPosition] = useState(() => initialPosition(bundle.chapters, loadPosition()))
+  const [position, setPosition] = useState(() => initialPosition(bundle.chapters, loadPosition(browserStore)))
   const [overlay, setOverlay] = useState<Overlay>('none')
-  const [imageVersionId, setImageVersionId] = useState(() => pickImageVersion(bundle, loadImageVersion()))
+  const [imageVersionId, setImageVersionId] = useState(() => pickImageVersion(bundle, loadImageVersion(browserStore)))
   const { settings, update: updateSettings, verseScale } = useSettings()
   // 그림 위 자막. 장면 그림의 버튼과 읽기 설정이 같은 값을 쓴다.
-  const [subtitles, setSubtitles] = useState(loadSubtitles)
-  const [readScenes, setReadScenes] = useState(loadReadScenes)
+  const [subtitles, setSubtitles] = useState(() => loadSubtitles(browserStore))
+  const [readScenes, setReadScenes] = useState(() => loadReadScenes(browserStore))
   const [contentsTab, setContentsTab] = useState<ContentsTab>('scenes')
   // 목차에서 장면으로 옮길 때마다 늘려 본문을 새로 그린다. 그래야 같은 장 안에서도 그 절로 스크롤한다.
   const [jumpCount, setJumpCount] = useState(0)
@@ -63,7 +64,7 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   }, settings.speed)
 
   useEffect(() => {
-    savePosition(position)
+    savePosition(browserStore, position)
   }, [position])
 
   // 장면의 마지막 절까지 오면 그 장면을 읽은 것으로 적는다.
@@ -72,7 +73,7 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   }, [position, scene.id, scene.verseEnd])
 
   useEffect(() => {
-    saveReadScenes(readScenes)
+    saveReadScenes(browserStore, readScenes)
   }, [readScenes])
 
   // 다른 오버레이(해설 시트 등)를 보고 있을 때는 끼어들지 않는다. 설정에서 껐으면 열지 않는다.
@@ -146,7 +147,7 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
     const next = nextImageVersion(bundle.imageVersions, imageVersionId)
     if (!next) return
     setImageVersionId(next)
-    saveImageVersion(next)
+    saveImageVersion(browserStore, next)
   }
 
   function togglePlay() {
@@ -156,7 +157,7 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
 
   function toggleSubtitles() {
     setSubtitles(!subtitles)
-    saveSubtitles(!subtitles)
+    saveSubtitles(browserStore, !subtitles)
   }
 
   return (

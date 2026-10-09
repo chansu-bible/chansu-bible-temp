@@ -11,6 +11,9 @@ export type AppContext = {
   imageVersionsFile?: string
   scenesDir?: string
   sourceFile?: string
+  // 원어 사전(lexicon.json)과 퀴즈 폴더(genesis-NN.json)
+  lexiconFile?: string
+  quizDir?: string
   // 주소로 참고 이미지를 가져올 때 쓴다. 비우면 전역 fetch.
   fetchImpl?: typeof fetch
   queue: JobQueue

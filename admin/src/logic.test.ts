@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { checkForm, emptyEntry, entryToForm, formToEntry, firstCitation } from './canonForm.ts'
 import { splitIds } from './ids.ts'
 import { buildJobOptions, describeOptions, EMPTY_JOB_FORM } from './jobForm.ts'
+import { countByFilter, matchesFilter, matchesQuery, searchKey } from './lexiconFilter.ts'
+import { countStatuses, formToEdit, questionToForm, revertStatus, toEdit } from './quizForm.ts'
 import { parseRoute, routeHref } from './route.ts'
-import type { Character, Era, Place, Thing } from './types.ts'
+import type { Character, Era, LexiconEntry, Place, QuizQuestion, Thing } from './types.ts'
 
 const adam: Character = {
   id: 'adam',
@@ -134,6 +136,15 @@ describe('jobForm', () => {
     expect(buildJobOptions('review-text', { ...EMPTY_JOB_FORM, chapter: '' }).ok).toBe(false)
   })
 
+  it('original·original-gloss·quiz의 옵션', () => {
+    const form = { chapter: '4', scenes: 'a', force: true, allowDraft: true, dryRun: true, limit: '20' }
+    expect(buildJobOptions('original', form)).toEqual({ ok: true, options: {} })
+    expect(buildJobOptions('original-gloss', form)).toEqual({ ok: true, options: { limit: 20, force: true, dryRun: true } })
+    expect(buildJobOptions('original-gloss', { ...form, chapter: '' }).ok).toBe(true)
+    expect(buildJobOptions('quiz', form)).toEqual({ ok: true, options: { chapter: 4, force: true, dryRun: true } })
+    expect(buildJobOptions('quiz', { ...form, chapter: '' }).ok).toBe(false)
+  })
+
   it('장 번호가 필요한 단계에서 빠지면 오류', () => {
     expect(buildJobOptions('canon', { ...EMPTY_JOB_FORM, chapter: '' }).ok).toBe(false)
     expect(buildJobOptions('images', { ...EMPTY_JOB_FORM, limit: '0' }).ok).toBe(false)
@@ -157,6 +168,12 @@ describe('route', () => {
     expect(parseRoute('#/jobs')).toEqual({ page: 'jobs' })
     expect(parseRoute('#/images')).toEqual({ page: 'images' })
     expect(parseRoute('#/nothing')).toEqual({ page: 'dashboard' })
+    expect(parseRoute('#/lexicon')).toEqual({ page: 'lexicon', filter: 'draft' })
+    expect(parseRoute('#/lexicon/none')).toEqual({ page: 'lexicon', filter: 'none' })
+    expect(parseRoute('#/lexicon/odd')).toEqual({ page: 'lexicon', filter: 'draft' })
+    expect(parseRoute('#/quiz/4')).toEqual({ page: 'quiz', chapter: 4 })
+    expect(parseRoute('#/quiz')).toEqual({ page: 'quiz', chapter: 1 })
+    expect(parseRoute('#/quiz/0')).toEqual({ page: 'quiz', chapter: 1 })
   })
 
   it('경로를 만들고 다시 읽으면 같다', () => {
@@ -165,9 +182,116 @@ describe('route', () => {
       { page: 'scenes', chapter: 2, sceneId: null },
       { page: 'queue' },
       { page: 'images' },
+      { page: 'lexicon', filter: 'approved' },
+      { page: 'lexicon', filter: 'all' },
+      { page: 'quiz', chapter: 7 },
     ] as const
     for (const r of routes) expect(parseRoute(routeHref(r))).toEqual(r)
     expect(routeHref({ page: 'images' })).toBe('#/images')
+  })
+})
+
+const entry = (strong: string, korean: LexiconEntry['korean'], overrides: Partial<LexiconEntry> = {}): LexiconEntry => ({
+  strong,
+  lemma: 'רֵאשִׁית',
+  xlit: 'rêʼshîyth',
+  pos: 'n-f',
+  definition: 'the first, in place, time, order or rank',
+  usage: 'beginning, chief(-est)',
+  count: 1,
+  korean,
+  ...overrides,
+})
+
+describe('lexiconFilter', () => {
+  const draft = entry('H7225', { meaning: '처음, 시작', note: '1:1의 "태초"', status: 'draft' })
+  const approved = entry('H776', { meaning: '땅', note: '', status: 'approved' }, { lemma: 'אֶרֶץ', xlit: 'ʼerets', definition: 'the earth' })
+  const none = entry('H1', null, { lemma: 'אָב', xlit: 'ʼâb', definition: 'father', usage: 'chief' })
+
+  it('거르기와 수', () => {
+    expect(countByFilter([draft, approved, none])).toEqual({ draft: 1, approved: 1, none: 1, all: 3 })
+    expect([draft, approved, none].filter((e) => matchesFilter(e, 'none'))).toEqual([none])
+    expect([draft, approved, none].filter((e) => matchesFilter(e, 'all')).length).toBe(3)
+  })
+
+  it('발음 부호를 빼고 찾는다', () => {
+    expect(searchKey('rêʼshîyth')).toBe('reshiyth')
+    expect(searchKey('רֵאשִׁית')).toBe('ראשית')
+    expect(searchKey('땅 Earth')).toBe('땅 earth')
+  })
+
+  it('번호·히브리어·음역·영어·한국어로 찾는다', () => {
+    expect(matchesQuery(draft, '')).toBe(true)
+    expect(matchesQuery(draft, 'h7225')).toBe(true)
+    expect(matchesQuery(draft, '7225')).toBe(true)
+    expect(matchesQuery(draft, 'ראשית')).toBe(true)
+    expect(matchesQuery(draft, 'reshiyth')).toBe(true)
+    expect(matchesQuery(draft, 'Rank')).toBe(true)
+    expect(matchesQuery(draft, 'beginning')).toBe(true)
+    expect(matchesQuery(draft, '시작')).toBe(true)
+    expect(matchesQuery(draft, '태초')).toBe(true)
+    expect(matchesQuery(approved, '시작')).toBe(false)
+    expect(matchesQuery(none, '아버지')).toBe(false)
+    expect(matchesQuery(none, 'ab')).toBe(true)
+  })
+})
+
+const question = (overrides: Partial<QuizQuestion> = {}): QuizQuestion => ({
+  id: 'genesis-04-q1',
+  question: '가인은 무엇을 드렸나요?',
+  options: ['땅의 소산', '양의 첫 새끼', '비둘기', '금'],
+  answer: 0,
+  explanation: '가인은 땅의 소산을 드렸어요.',
+  verse: 3,
+  status: 'reviewed',
+  issues: [],
+  ...overrides,
+})
+
+describe('quizForm', () => {
+  it('상태만 바꾼 저장 본문과 되돌릴 상태', () => {
+    const q = question()
+    expect(toEdit(q, 'approved')).toEqual({
+      question: q.question,
+      options: q.options,
+      answer: 0,
+      explanation: q.explanation,
+      verse: 3,
+      status: 'approved',
+    })
+    expect(toEdit(q).status).toBe('reviewed')
+    expect(revertStatus(question({ status: 'approved' }))).toBe('reviewed')
+    expect(revertStatus(question({ status: 'rejected', issues: ['정답이 둘이에요.'] }))).toBe('flagged')
+  })
+
+  it('상태별 수', () => {
+    const counts = countStatuses([question(), question({ status: 'approved' }), question({ status: 'approved' })])
+    expect(counts).toEqual({ draft: 0, reviewed: 1, flagged: 0, approved: 2, rejected: 0 })
+  })
+
+  it('폼 → 저장 본문은 공백을 떼고 상태를 그대로 둔다', () => {
+    const form = { ...questionToForm(question({ status: 'flagged' })), question: ' 고친 질문인가요? ', verse: ' 4 ' }
+    form.options = form.options.map((option) => ` ${option} `)
+    expect(formToEdit(form, 'flagged')).toEqual({
+      ok: true,
+      edit: {
+        question: '고친 질문인가요?',
+        options: ['땅의 소산', '양의 첫 새끼', '비둘기', '금'],
+        answer: 0,
+        explanation: '가인은 땅의 소산을 드렸어요.',
+        verse: 4,
+        status: 'flagged',
+      },
+    })
+  })
+
+  it('빈 칸, 겹치는 보기, 잘못된 절 번호를 잡는다', () => {
+    const form = questionToForm(question())
+    expect(formToEdit({ ...form, question: '  ' }, 'reviewed')).toEqual({ ok: false, error: '질문을 넣으세요' })
+    expect(formToEdit({ ...form, options: ['가', '', '다', '라'] }, 'reviewed')).toEqual({ ok: false, error: '2번 보기를 넣으세요' })
+    expect(formToEdit({ ...form, options: ['가', '가 ', '다', '라'] }, 'reviewed').ok).toBe(false)
+    expect(formToEdit({ ...form, explanation: '' }, 'reviewed').ok).toBe(false)
+    for (const verse of ['', '0', '1.5', '셋']) expect(formToEdit({ ...form, verse }, 'reviewed').ok).toBe(false)
   })
 })
 
