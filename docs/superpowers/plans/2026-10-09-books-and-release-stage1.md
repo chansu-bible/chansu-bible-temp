@@ -16,7 +16,7 @@
 - 책 id는 영어 소문자이고, 번호가 붙은 책은 `1-samuel`처럼 쓴다. 장면 id·파일 이름은 오른쪽부터 읽는다(`1-samuel-01-03` → 책 `1-samuel`, 1장, 3번 장면).
 - 묶음에 `bookId`를 더한다(키 추가라 `schemaVersion`은 1 그대로). 옛 묶음은 `book`(한국어 이름)으로 책을 찾는다.
 - 책 묶음에는 그 책에서 처음 나오는 설정집 항목만 넣고, 참조는 책을 떼어 지금과 같은 `장:절`로 쓴다. 다른 책을 가리키는 근거 절은 그 책 묶음에서 뺀다.
-- 장을 다루는 단계(canon, scenario, review-text, images, tts, quiz)는 `--book`이 꼭 있어야 한다. 돈이 들지 않는 `original`과 `build`는 `--book`이 없으면 본문이 있는 모든 책을 돈다(그래서 Pages 배포 워크플로는 그대로다). `original-gloss`는 모든 책이 함께 쓰는 사전을 채우므로 책을 받지 않는다.
+- 장을 다루는 단계(canon, scenario, review-text, images, tts, quiz)는 `--book`이 꼭 있어야 한다. `original`은 `--book`이 없으면 본문이 있는 모든 책을 돈다. `build`는 언제나 본문이 있는 모든 책을 함께 만들고 `--book`을 받지 않는다(한 책만 만들면 앱 콘텐츠 폴더를 비우면서 다른 책 묶음이 사라진다). 그래서 Pages 배포 워크플로는 그대로다. `original-gloss`는 모든 책이 함께 쓰는 사전을 채우므로 책을 받지 않는다.
 - `source`는 `--book`이 꼭 있어야 하고, `--chapters 1-10`처럼 범위를 줄 수 있다(없으면 책 전체).
 - LLM 실행 기록에 `book`을 더한다(옛 줄은 `null`).
 - 신약 책에 `original`을 돌리면 "신약 원어 자료는 아직 정하지 않았어요"로 멈춘다.
@@ -657,7 +657,9 @@ async function booksOrAll(flags: Flags): Promise<BookId[]> {
 }
 ```
 
-`canon`, `scenario`, `review-text`, `images`, `tts`, `quiz`, `source`는 `requireBook`, `original`과 `build`는 `booksOrAll`로 책을 돌며 실행한다. `original-gloss`는 책을 받지 않는다.
+`canon`, `scenario`, `review-text`, `images`, `tts`, `quiz`, `source`는 `requireBook`, `original`은 `booksOrAll`로 책을 돌며 실행한다. `build`는 `listSourceBooks()`의 모든 책을 `writeBundles`로 만들고 `--book`이 오면 오류를 낸다. `original-gloss`는 책을 받지 않는다.
+
+(실행 결과: 30a86f1, build 고침은 그다음 커밋. `writeBundles`는 모든 책을 만들고 검증한 뒤에 폴더를 비운다. `buildBundle`은 아직 `source.book`(한국어 이름)으로 책을 찾고, `runGloss`는 예문을 창세기 파일에서 읽는다. 둘은 Task 7과 Task 6에서 고친다.)
 
 - [ ] **Step 8: 시험을 고치고 돌린다**
 
@@ -761,7 +763,7 @@ export const ChapterCitationSchema = z.string().regex(/^\d{1,3}:\d{1,3}(-\d{1,3}
 
 - [ ] **Step 3: 합치기**
 
-`mergeCanon(existing, output, now, { book, verseCounts })`: 모델 출력의 인용(`firstAppearance`, `sources`, `attire[].from`, `range.from/to`)에 `qualifyRef(text, book)`로 책을 붙인 뒤 지금처럼 검증하고 합친다. `earlierCitation`은 `compareRefs(parseRef(a), parseRef(b))`로 앞선 것을 고른다. `runCanon`은 `readVerseCounts()`를 넘긴다.
+`mergeCanon(existing, output, now, { book, verseCounts })`: 모델 출력의 인용(`firstAppearance`, `sources`, `attire[].from`, `range.from/to`)에 `qualifyRef(text, book)`로 책을 붙인 뒤 지금처럼 검증하고 합친다(`qualifyRef`가 null이면 그 인용은 검증에서 걸린다). `earlierCitation(a, b)`는 둘을 `parseRef`로 읽어 하나라도 null이면 기존 값 `a`를 지키고, 둘 다 읽히면 `compareRefs`로 앞선 것을 고른다. 이때 둘 다 책이 붙어 있어야 한다(`compareRefs`는 책이 섞이면 fallback 없이 오류를 낸다). `runCanon`은 `readVerseCounts()`를 넘긴다.
 
 - [ ] **Step 4: 프롬프트**
 
@@ -811,7 +813,8 @@ git commit -m "data(canon): 설정집 절 인용에 genesis를 붙임(migrate-ca
 - `buildScenarioPrompt(book, chapter, canon, style, examples)`, `buildRevisePrompt(book, …)`, `verseLines`는 그대로
 - `buildReviewTextPrompt(book, chapter, canon, style, scene)`
 - `buildQuizPrompt(book, chapter, scenes)`, `buildQuizReviewPrompt(book, chapter, questions)`
-- `glossPrompt.ts`: "창세기 1~10장의 쓰임에서"는 "이 앱에 있는 장의 쓰임에서". `runGloss`의 예문 머리는 `${책 이름} ${장}:${절}`(예문을 모을 때 원어 파일마다 책을 안다).
+- `glossPrompt.ts`: "창세기 1~10장의 쓰임에서"는 "이 앱에 있는 장의 쓰임에서". `runGloss`는 Task 3의 `EXAMPLE_BOOK`(창세기 고정)을 지우고, `original/` 안의 모든 책 원어 파일에서 예문을 모은다. 예문 머리는 `${책 이름} ${장}:${절}`이다.
+- `runScenario`의 예시 장면: 그 책에 쓴 장면이 아직 없으면(새 책의 첫 장) 다듬어 둔 창세기 2장 장면을 예시로 쓴다. 그 책에 장면이 있으면 지금처럼 그 책의 장면을 쓴다.
 
 시험: 프롬프트 시험의 기대 글에서 "창세기"가 책 이름으로 들어가는지(창세기로 부르면 지금과 같은 글), 다른 책(`exodus`)이면 "출애굽기 3장"이 들어가는지 본다.
 
@@ -848,6 +851,10 @@ git commit -m "feat(pipeline): 프롬프트에 책 이름을 쓰고 원어를 �
 **Files:**
 - Modify: `pipeline/src/build/{buildBundle,writeBundle,sources}.ts`, `pipeline/src/schema.ts`(`BundleSchema.bookId`), `pipeline/test/buildBundle.test.ts`, `pipeline/test/sources.test.ts`, `docs/content-bundle.md`
 
+- [ ] **Step 0: 고치기 전 묶음을 다시 남긴다**
+
+Task 3의 사본은 지웠으므로, 이 작업을 시작하기 전 상태로 `npm run pipeline -- build`를 돌려 `genesis.json`을 시스템 임시 폴더(`genesis.before.json`)에 다시 남긴다(Task 3 Step 0과 같은 명령).
+
 - [ ] **Step 1: 시험을 쓴다**
 
 `buildBundle.test.ts`에 더한다:
@@ -875,7 +882,7 @@ it('장면 파일이 없는 장의 대체 장면 id와 제목에 책을 쓴다',
 
 - [ ] **Step 2: 구현**
 
-- `buildBundle(book, source, sceneFiles, canon, audio, catalog, extras)`: `bookId: book`을 넣고, `fallbackScene`은 `fallbackSceneIdOf(book, chapter)`와 `${getBook(book).name} ${chapter}장`. 설정집 항목은 `parseRef(firstAppearance)?.book === book`인 것만(시대는 `range.from`, 물건은 첫 `sources`) 넣고, 넣는 항목의 인용은 `localRef(text, book)`로 바꾸며 `null`(다른 책)은 뺀다.
+- `buildBundle(book, source, sceneFiles, canon, audio, catalog, extras)`: 책을 인자로 받는다(Task 3까지는 `source.book`으로 찾았다). `bookId: book`을 넣고, `fallbackScene`은 `fallbackSceneIdOf(book, chapter)`와 `${getBook(book).name} ${chapter}장`. 설정집 항목은 `parseRef(firstAppearance)?.book === book`인 것만(시대는 `range.from`, 물건은 첫 `sources`) 넣고, 넣는 항목의 인용은 `localRef(text, book)`로 바꾸며 `null`(다른 책)은 뺀다.
 - `writeBundles(books)`(Task 3에서 만든 것): 책마다 `buildBundle(book, …)`의 결과를 `<book>.json`으로 쓴다.
 - `buildSources(book, style)`: 개역한글판 출처를 책 이름으로 만든다.
 - `docs/content-bundle.md`: 맨 위 키 표에 `bookId`(책 id, `reader-core`의 `books.ts`)를 더한다.
@@ -933,7 +940,7 @@ git commit -m "feat(admin): 책 고르기와 책을 가리는 API(/api/books/:bo
 **Files:** `server/src/ask/{answer,passages}.ts`, `server/src/config.ts`, `server/src/index.ts`, `server/src/app.ts`, `server/test/ask.test.ts`
 
 - [ ] **Step 1:** `config.ts`의 `bundleFile`을 `bundleDir`(`BUNDLE_DIR`, 기본 `app/public/content`)로 바꾼다. 서버는 그 폴더의 `<책 id>.json`(`isBookId`인 이름만)을 모두 읽는다.
-- [ ] **Step 2:** `AskBundle`에 `bookId`. 대목 id는 `v:<book>:4:15`, `s:<장면 id>`, `c:character:<id>`. 이름표는 지금처럼 `본문 4:15`이되, 묶음이 둘 이상이면 `본문 창세기 4:15`. `Citation`에 `book`을 더한다.
+- [ ] **Step 2:** `passages.ts`의 자체 `chapterOf`(`/^(\d+):/`)를 지우고 `reader-core`의 `parseRef`로 읽는다(`server/package.json`에 `"reader-core": "*"`). `AskBundle`에 `bookId`. 대목 id는 `v:<book>:4:15`, `s:<장면 id>`, `c:character:<id>`. 이름표는 지금처럼 `본문 4:15`이되, 묶음이 둘 이상이면 `본문 창세기 4:15`. `Citation`에 `book`을 더한다.
 - [ ] **Step 3:** 요청에 `book`(선택). `chapter` 가중은 `book`과 `chapter`가 둘 다 맞는 대목에만 준다. `book`이 없고 묶음이 하나면 그 책으로 본다.
 - [ ] **Step 4:** 시스템 글의 "독자가 창세기에 대해 물으면"은 "독자가 성경에 대해 물으면"으로, 사용자 글의 읽는 곳은 `${책 이름} ${장}장`.
 - [ ] **Step 5:** 시험: 지금 시험이 그대로 통과하고, 묶음 둘(창세기·출애굽기 고정값)에서 `book`이 출애굽기인 질문의 장 가중이 출애굽기 대목에만 가는지 본다.
