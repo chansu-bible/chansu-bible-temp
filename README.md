@@ -15,6 +15,8 @@
 | `app/` | 읽기 화면 웹 목업 (React + Vite + TypeScript). 깃허브 페이지로 배포 |
 | `mobile/` | 네이티브 앱 (Expo SDK 57, React Native). 안드로이드·iOS, 확인용 Expo 웹 |
 | `packages/reader-core/` | 웹 목업과 앱이 함께 쓰는 읽기 계산 모듈과 묶음 타입 |
+| `server/` | 앱 기록 동기화 서버 (Hono, Postgres). 키클락 토큰을 검증한다 |
+| `infra/` | 개발용 Postgres·키클락 (docker compose) |
 | `pipeline/` | 콘텐츠 생성 스크립트 (Node + TypeScript) |
 | `admin/` | 로컬 관리 도구: 상태 보기, 작업 실행, 설정집 편집·승인 |
 | `content/` | 본문, 설정집, 장면, 그림, 음성 |
@@ -37,7 +39,16 @@ npm run web -w mobile        # Expo 웹으로 확인 (http://localhost:8081)
 
 폰에서 보려면 폰에 Expo Go 앱을 깔고, 같은 와이파이에서 `npm run start -w mobile`이 띄우는 QR 코드를 찍는다(1단계는 Expo Go에 들어 있는 모듈만 써서 따로 빌드할 필요가 없다). 에뮬레이터는 Android SDK가 있어야 하고 `npm run android -w mobile`로 연다. 지도, 그림 전환, 낭독, 글꼴은 모두 앱 안에 들어 있어 인터넷 없이 돈다. 여정 지도의 바탕(해안선·강)은 Natural Earth에서 만든 `mobile/src/map/basemap.generated.ts`이고, 다시 만들 때는 `npm run basemap -w mobile`을 쓴다. 앱 형 검사는 `npm run typecheck -w mobile`.
 
-앱 화면: 홈(오늘의 읽기, 계획과 진도), 읽기(장면 그림과 본문, 낱말 풀이, 인물·장소 카드, 목차·연표, 여정 지도, 낭독, 절을 길게 눌러 밑줄·메모와 장면 카드 공유), 내 메모, 검색, 인물 사전, 가계도. 기록은 기기에 저장된다.
+앱 화면: 홈(오늘의 읽기, 계획과 진도), 읽기(장면 그림과 본문, 낱말 풀이, 인물·장소 카드, 목차·연표, 여정 지도, 낭독, 절을 길게 눌러 밑줄·메모와 장면 카드 공유), 내 메모, 검색, 인물 사전, 가계도, 계정과 동기화. 기록은 기기에 저장되고, 로그인하면 계정과 맞춰진다.
+
+로그인과 기록 동기화는 도커로 띄운 키클락과 동기화 서버를 쓴다. 로그인하지 않아도 앱은 모두 돈다.
+
+```bash
+npm run infra:up             # Postgres와 키클락 (infra/README.md)
+npm run server               # 동기화 서버 (http://127.0.0.1:8790)
+```
+
+홈 머리의 계정 단추로 로그인한다(시험 계정은 `infra/README.md`). 로그인하면 읽은 장면, 읽던 곳, 계획, 밑줄·메모가 계정에 올라가고 다른 기기와 맞춰진다. 로그아웃하면 그 기기의 기록을 지우고, 다시 로그인하면 받아 온다.
 
 ## 관리 도구
 
@@ -57,6 +68,8 @@ npm run admin
 |---|---|
 | `npm run dev` | 묶음을 만들고 읽기 화면을 띄운다 |
 | `npm test` | 전체 테스트 |
+| `npm run infra:up`, `npm run infra:down` | 개발용 Postgres·키클락을 띄우고 멈춘다 |
+| `npm run server` | 동기화 서버를 띄운다 (http://127.0.0.1:8790) |
 | `npm run pipeline -- source` | 개역한글 창세기 1~10장을 받아 `content/source/genesis.json`에 저장한다 |
 | `npm run pipeline -- images --chapter 1 --allow-draft` | 1장 장면 중 그림이 없는 것을 OpenAI로 그려 `content/images/`에 저장한다 |
 | `npm run pipeline -- canon --chapter 1` | 1장 본문에서 설정집 초안(인물·장소·시대·물건)을 뽑는다. `--dry-run`은 프롬프트만 보여 준다 |

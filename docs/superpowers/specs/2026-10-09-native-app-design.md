@@ -32,14 +32,16 @@
 
 2단계 구현 완료(2026-10-09, 계획 `docs/superpowers/plans/2026-10-09-mobile-phase2-home-notes-search.md`). 홈(오늘의 읽기, 연속 읽기, 이어 읽기, 계획과 장별 진도, 바로 가기), 절을 길게 눌러 여는 밑줄·메모·즐겨찾기와 장면 카드 공유, 내 메모, 검색, 인물 사전, 가계도를 Expo 웹에서 확인했다. 기록은 기기의 SQLite(웹은 localStorage)에 줄마다 수정 시각·지운 시각·미동기화 표시와 함께 둔다. 만들면서 바꾼 것: 검색 색인을 묶음에 넣지 않고 앱이 묶음을 바로 훑는다(창세기 1~10장 규모에서 충분히 빠르다). 밑줄 색은 목업대로 셋이다. 읽기 설정은 기기마다 달라 동기화하지 않는다. "N일째"는 읽은 장면의 날짜로 센 연속 읽기다. 계획에는 시작일을 두지 않는다(오늘 분량은 오늘 이전에 읽은 장면으로 정한다).
 
+3단계 구현 완료(2026-10-09, 계획 `docs/superpowers/plans/2026-10-09-mobile-phase3-auth-sync.md`). 도커로 Postgres와 키클락을 띄우고, 동기화 서버(`server/`)와 앱의 로그인·동기화·계정 화면을 만들었다. Expo 웹에서 로그인 전 기록이 계정으로 올라가는 것, 다른 기기가 올린 메모를 받아 오는 것, 앱에서 지운 메모가 3초 뒤 서버에 지움으로 남는 것, 새로 고쳐도 로그인이 이어지는 것, 로그아웃하면 기기 기록이 비고 다시 로그인하면 돌아오는 것, 서버가 꺼졌을 때 로그아웃하면 못 올린 기록을 알리고 한 번 더 묻는 것을 확인했다. 만들면서 바꾼 것: 서버는 개발 중 호스트에서 돌리고 도커에는 Postgres와 키클락만 둔다. Drizzle 대신 SQL을 직접 쓴다(표가 하나다). 서버 시험은 도커 대신 PGlite(메모리 Postgres)로 돌린다. Expo 웹은 로그인 창을 팝업 대신 같은 창에서 연다(팝업을 막는 브라우저와 앱의 미리 보기 창에서도 되게). 로그인 창은 늘 로그인 양식을 보인다(로그아웃 뒤 다른 계정으로 들어갈 수 있게). 로그아웃하면 기기 기록을 지운다(기록은 계정에 남는다). 지운 기록은 내용을 비운다.
+
 ## 4. 저장소 구조
 
 ```
 packages/reader-core/   읽기 계산 모듈과 묶음 타입 (웹·앱 공용, 브라우저·RN API 없음)
 app/                    웹 목업 (Vite, 깃허브 페이지). reader-core를 가져다 쓴다
 mobile/                 Expo 앱 (expo-router)
-server/                 동기화·질문하기 서버 (Hono, Postgres, Drizzle)
-infra/                  docker-compose.yml, 키클락 realm 설정
+server/                 동기화 서버 (Hono, Postgres, jose). 5단계에 질문하기가 더해진다
+infra/                  docker-compose.yml(Postgres, 키클락), 키클락 realm 설정, 시험 토큰 스크립트
 pipeline/, admin/       지금 그대로. 검색 색인·원어·퀴즈를 만드는 단계가 더해진다
 ```
 
@@ -116,39 +118,42 @@ expo-router 경로로 둔다. 탭 막대는 두지 않는다(읽기 화면이 �
 | `position` | 마지막 읽기 위치(장, 장면, 절) |
 | `plan` | 계획 종류, 하루 장면 수 |
 | `marks` | 절 기록: `kind`(highlight, note, bookmark), 장·절, 색, 메모 글 |
-| `quiz_done` | 끝까지 푼 장 |
+| `quizDone` | 끝까지 푼 장 |
 | `settings` | 읽기 설정(웹과 같은 형식). 기기마다 달라 동기화하지 않고 kv에 둔다 |
 | `recent_searches` | 최근 검색어 (동기화하지 않음) |
 
-동기화하는 표의 줄은 모두 `id`(UUID), `updatedAt`(기기 시각, ms), `deletedAt`(지움 표시)을 가진다. 지울 때는 줄을 없애지 않고 `deletedAt`을 적는다.
+동기화하는 기록(`readScenes`, `position`, `plan`, `marks`, `quizDone`)은 모두 `records` 표 하나에 (컬렉션, id) 줄로 둔다(웹 미리 보기는 localStorage). 줄은 `updatedAt`(기기 시각, ms), `deletedAt`(지움 표시), 아직 안 올렸는지를 가진다. 고친 시각은 그 줄의 앞 시각보다 늘 뒤로 두어, 기기 시계가 늦어도 새로 고친 것이 이긴다. 지울 때는 줄을 없애지 않고 `deletedAt`을 적고 내용은 비운다.
 
 ### 동기화
 
-- `POST /sync` 한 번으로 밀어넣기와 당겨오기를 함께 한다. 요청: `{ since: 서버 순번, changes: 줄[] }`. 응답: `{ now: 서버 순번, changes: since 이후 다른 기기가 바꾼 줄[] }`.
-- 같은 줄이 양쪽에서 바뀌면 `updatedAt`이 늦은 쪽이 이긴다. 당겨올 위치는 서버가 매기는 단조 증가 순번으로 정해 기기 시계가 틀려도 빠뜨리지 않는다.
-- 앱이 앞으로 올 때, 기록을 바꾸고 3초 뒤, 로그인 직후에 동기화한다. 실패하면 다음 기회에 다시 한다. 로그인 전 기록은 첫 동기화 때 그 계정으로 올라간다.
+- `POST /sync` 한 번으로 밀어넣기와 당겨오기를 함께 한다. 요청: `{ since: 서버 순번, changes: 줄[] }`(한 번에 500줄까지, 앱이 나눠 올린다). 응답: `{ changes: since 이후 바뀐 줄[], now: 다음에 보낼 순번, more: 더 받을 것이 있는지 }`.
+- 같은 줄이 양쪽에서 바뀌면 `updatedAt`이 늦은 쪽이 이긴다. 당겨올 위치는 서버가 매기는 단조 증가 순번으로 정해 기기 시계가 틀려도 빠뜨리지 않는다. 서버는 같은 사용자의 동기화를 사용자별 잠금으로 차례로 처리해, 받아 간 순번보다 앞 순번이 늦게 쓰이는 일이 없다.
+- 받은 줄을 합치는 규칙(`mergeRemote`, `applySyncResponse`)은 `reader-core/src/sync.ts`의 순수 함수다. 올린 뒤 다시 고치지 않은 줄만 올린 것으로 표시하고, 받은 줄은 한 번에 쓴다(SQLite 트랜잭션 하나).
+- 앱이 앞으로 올 때, 기록을 바꾸고 3초 뒤, 로그인 직후에 동기화한다. 실패하면 다음 기회에 다시 한다. 로그인 전 기록(주인 없음)은 첫 동기화 때 그 계정으로 올라간다. 로그인이 풀린 뒤 다른 계정으로 들어오면 앞 계정의 기록은 올리지 않고 비운다.
+- 로그아웃하면 기기 기록을 지운다(다시 로그인하면 받아 온다). 못 올린 기록이 있으면 먼저 올려 보고, 못 올렸으면 한 번 더 묻는다.
 
 ## 8. 로그인과 서버
 
 ### 키클락
 
 - 개발용은 `infra/docker-compose.yml`의 키클락(`start-dev`)이고, realm 설정 파일 `infra/keycloak/chansu-bible-realm.json`을 시작할 때 읽어 들인다.
-- realm `chansu-bible`, 공개 클라이언트 `chansu-bible-app`(Authorization Code + PKCE S256). 리디렉트 주소는 앱 `chansubible://auth`, Expo 웹 `http://localhost:8081/*`. 회원 가입 켬, 한국어 화면.
+- realm `chansu-bible`, 공개 클라이언트 `chansu-bible-app`(Authorization Code + PKCE S256, `offline_access`). 리디렉트 주소는 앱 `chansubible://auth`, Expo Go `exp://`, Expo 웹 `http://localhost:8081/*`. 회원 가입 켬, 한국어 화면. 로그인 창은 늘 로그인 양식을 보인다(`prompt=login`).
+- 개발용 시험 클라이언트 `chansu-bible-test`(비밀번호로 토큰 받기)와 `infra/dev-token.mjs`로 서버를 손으로 시험한다. 운영 realm에는 만들지 않는다.
 - 시험용 계정은 realm 설정 파일에만 적는다(개발용 realm이라서). 운영 realm은 나중에 따로 만든다.
-- 앱은 `expo-auth-session`으로 로그인하고, 토큰은 `expo-secure-store`(웹은 `sessionStorage`)에 둔다. 주소는 `EXPO_PUBLIC_AUTH_ISSUER`, `EXPO_PUBLIC_API_URL`로 바꾼다(안드로이드 에뮬레이터는 `10.0.2.2`, 실제 폰은 컴퓨터의 내부망 주소).
+- 앱은 `expo-auth-session`으로 로그인한다. 앱은 앱 안 브라우저로 로그인 창을 열고, Expo 웹은 같은 창에서 갔다가 `/auth`로 돌아온다(PKCE 검증값은 그동안 sessionStorage에 둔다). 갱신 토큰은 `expo-secure-store`(웹은 `sessionStorage`)에, 액세스 토큰은 메모리에 둔다. 로그아웃하면 갱신 토큰을 키클락에서 무른다. 주소는 `EXPO_PUBLIC_AUTH_ISSUER`, `EXPO_PUBLIC_API_URL`로 바꾼다(안드로이드 에뮬레이터는 `10.0.2.2`, 실제 폰은 컴퓨터의 내부망 주소).
 
 ### 서버 (`server/`)
 
-- Hono(Node), Postgres 17, Drizzle. 개발 포트 8790, `127.0.0.1`에만 묶는다(관리 도구 8787과 겹치지 않게).
+- Hono(Node), Postgres 17(`pg`, SQL을 직접 쓴다). 개발 포트 8790, `127.0.0.1`에만 묶는다(관리 도구 8787과 겹치지 않게). 개발 중에는 호스트에서 `npm run server`(tsx watch)로 돌리고, 도커에는 Postgres와 키클락만 둔다.
 - 모든 요청은 `Authorization: Bearer`의 토큰을 키클락 JWKS로 검증한다(`jose`). `iss`, `azp`, 만료를 본다. 사용자는 토큰의 `sub`로 구분한다.
 - 경로: `GET /health`, `GET /me`, `POST /sync`, `POST /ask`(5단계).
-- 표: `marks`, `read_scenes`, `position`, `plan`, `quiz_done`, `settings`(사용자 `sub`와 줄 `id`가 키), `sync_seq`, `ask_usage`(사용자·날짜별 횟수).
+- 표: `records`(사용자 `sub`, 컬렉션, id가 키. 내용은 JSONB, `seq`는 순번 `record_seq`에서 받는다). 5단계에 `ask_usage`(사용자·날짜별 횟수)가 더해진다. 읽기 설정은 기기마다 달라 서버에 두지 않는다.
 - `POST /ask`는 서버가 시작할 때 묶음(`app/public/content/genesis.json`)을 읽어 두고, 대목 찾기(낱말 겹침 점수)로 상위 대목 몇 개를 고른 뒤 LLM에 보낸다. OpenAI 키는 서버의 `.env`에만 둔다.
 
 ## 9. 검증과 빌드 환경
 
-- `reader-core`, `server`, `pipeline`: vitest. 서버 테스트는 도커 Postgres에 붙고, 키클락 토큰 검증은 테스트용 키 쌍으로 만든 JWKS로 시험한다.
-- `mobile`: 계산·저장·동기화 로직은 `jest-expo` 단위 테스트. 화면은 Expo 웹(`npx expo start --web`)을 브라우저 창에서 열어 확인한다.
+- `reader-core`, `server`, `pipeline`: vitest. 서버 테스트는 PGlite(메모리 Postgres)로 돌려 도커 없이 된다. 키클락 토큰 검증은 테스트용 키 쌍으로 만든 JWKS로 시험하고, 실제 키클락·Postgres는 `infra/dev-token.mjs`로 손으로 확인한다.
+- `mobile`: 계산·저장·동기화 규칙은 `reader-core`로 옮겨 vitest로 시험하고, 앱은 형 검사를 한다. 화면은 Expo 웹(`npm run web -w mobile`)을 브라우저 창에서 열어 확인한다.
 - 네이티브 빌드: 이 컴퓨터에는 Android SDK가 없다(JDK 17·21은 있다). 4단계(백그라운드 낭독, 위젯)는 기기 빌드가 있어야 확인되므로, 그 전에 Android SDK를 설치할지, Expo 클라우드 빌드(EAS) 계정을 쓸지 사용자가 정한다. iOS 빌드는 맥 또는 EAS가 필요하다. Windows에서 안드로이드 새 아키텍처를 빌드할 때 경로 길이 260자 제한에 걸릴 수 있다.
 
 ## 10. 묶음 형식에 더하는 것
