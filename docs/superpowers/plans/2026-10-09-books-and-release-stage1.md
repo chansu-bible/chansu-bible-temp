@@ -20,6 +20,7 @@
 - `source`는 `--book`이 꼭 있어야 하고, `--chapters 1-10`처럼 범위를 줄 수 있다(없으면 책 전체).
 - LLM 실행 기록에 `book`을 더한다(옛 줄은 `null`).
 - 신약 책에 `original`을 돌리면 "신약 원어 자료는 아직 정하지 않았어요"로 멈춘다.
+- 원어(OSHB)는 히브리어 절 번호를 쓰므로 OSHB의 대응표(`VerseMap.xml`)로 개역한글(KJV식) 절에 맞춘다. 그래도 절 나눔이 다른 장은 원어 없이 두고 경고를 남긴다(Task 6b).
 
 ---
 
@@ -821,10 +822,10 @@ git commit -m "data(canon): 설정집 절 인용에 genesis를 붙임(migrate-ca
 
 ---
 
-### Task 6: 프롬프트의 책 이름과 책별 원어
+### Task 6: 프롬프트의 책 이름
 
 **Files:**
-- Modify: `pipeline/src/scenario/prompt.ts`, `pipeline/src/review/prompt.ts`, `pipeline/src/quiz/prompt.ts`, `pipeline/src/original/glossPrompt.ts`, `pipeline/src/original/runGloss.ts`, `pipeline/src/original/runOriginal.ts`, 관련 시험
+- Modify: `pipeline/src/scenario/prompt.ts`, `pipeline/src/review/prompt.ts`, `pipeline/src/quiz/prompt.ts`, `pipeline/src/original/glossPrompt.ts`, `pipeline/src/original/runGloss.ts`, 프롬프트를 부르는 실행 함수(`runScenario`, `runReviewText`, `runQuiz`), 관련 시험
 
 - [ ] **Step 1: 프롬프트**
 
@@ -838,32 +839,48 @@ git commit -m "data(canon): 설정집 절 인용에 genesis를 붙임(migrate-ca
 
 시험: 프롬프트 시험의 기대 글에서 "창세기"가 책 이름으로 들어가는지(창세기로 부르면 지금과 같은 글), 다른 책(`exodus`)이면 "출애굽기 3장"이 들어가는지 본다.
 
-- [ ] **Step 2: 책별 원어**
+- [ ] **Step 2: 확인과 커밋**
 
-`OSHB_BASE`와 `oshbUrl`은 Task 3에서 이미 만들었다. 이 작업 전에는 본문이 있는 책이 둘 이상일 때 `original`을 돌리지 않는다(사전을 마지막 책으로만 다시 쓴다).
-
-```ts
-// runOriginal.ts
-export const OSHB_BASE = 'https://raw.githubusercontent.com/openscriptures/morphhb/3d15126fb1ef74867fc1434be1942e837932691f/wlc'
-export function oshbUrl(book: BookId): string {
-  return `${OSHB_BASE}/${getBook(book).osis}.xml`
-}
-```
-
-`runOriginal(book, options, log)`:
-1. 신약 책이면 `신약 원어 자료는 아직 정하지 않았어요(${책 이름})`로 멈춘다.
-2. 그 책의 OSHB를 받아 `original/<book>.json`에 쓴다(지금처럼 본문과 절 수를 맞춰 본다).
-3. 사전은 `original/` 안의 모든 책 파일에서 번호마다 나온 횟수를 다시 세고, 그 번호들로 스트롱 사전 항목을 만든다. 이미 있는 한국어 뜻은 지킨다. Task 3 검토 뒤에 넣은 보호 장치(다른 책 원어가 있으면 멈춘다)는 지운다.
-
-시험(`pipeline/test/original.test.ts`에 더한다): 가짜 `fetchText`로 창세기·출애굽기 원어 파일을 차례로 만들면, 사전 항목의 `count`가 두 책을 합친 횟수이고 창세기만 돌린 뒤의 한국어 뜻이 남는지 본다. 신약 책은 오류인지 본다.
-
-- [ ] **Step 3: 확인과 커밋**
-
-Run: `npm test -w pipeline && npm run typecheck -w pipeline`
+Run: `npm test -w pipeline && npm run typecheck -w pipeline`. 창세기로 부르는 프롬프트는 지금 글과 같아야 한다(`--dry-run`으로 scenario·review-text·quiz의 프롬프트를 이 작업 전후로 비교한다).
 
 ```bash
 git add pipeline
-git commit -m "feat(pipeline): 프롬프트에 책 이름을 쓰고 원어를 책마다 만든다(사전은 모든 책에서 센다)"
+git commit -m "feat(pipeline): 프롬프트에 책 이름을 쓴다"
+```
+
+---
+
+### Task 6b: 책별 원어와 절 번호 대응
+
+히브리어 원문(OSHB의 WLC)은 히브리어 절 번호를 쓰고, 개역한글은 KJV식 절 번호를 쓴다(시편 표제가 히브리어에서는 1절, 말라기 4장은 히브리어 3:19-24, 요엘 2:28-32는 히브리어 3:1-5 등). 창세기 1~10장에는 차이가 없어 지금까지 드러나지 않았다. OSHB에는 고정한 커밋에 `wlc/VerseMap.xml`(WLC↔KJV 대응 1,979줄, `full`과 `!a`/`!b` 조각의 `partial`)이 있다. 위키문헌 개역한글은 시편 표제를 1절 안에 둔다(`[다윗의 시] 여호와여 …`).
+
+**Files:**
+- Create: `pipeline/src/original/verseMap.ts`, `pipeline/test/verseMap.test.ts`
+- Modify: `pipeline/src/original/runOriginal.ts`, `pipeline/src/original/oshb.ts`, `pipeline/src/schema.ts`(사전 `count` 설명), `pipeline/test/original.test.ts`, `content/original/README.md`
+
+- [ ] **Step 1: 대응표**
+
+`OSHB_VERSE_MAP_URL`(같은 커밋의 `wlc/VerseMap.xml`). `parseVerseMap(xml, osis)`는 그 책의 대응을 읽는다. `toKjvVerses(wlcChapters, map)`:
+- 대응표에 있는 WLC 절은 KJV 절로 옮긴다. `!a`/`!b`는 떼고, 한 WLC 절이 여러 줄에 나오면 첫 줄의 KJV 절로 간다(낱말을 나눌 경계는 대응표에 없다).
+- 대응표에 없는 절은 같은 번호로 두되, 그 번호가 다른 절의 대응 목적지이면(시편 표제) 다음 WLC 절이 가는 KJV 절 앞에 붙인다.
+- 같은 KJV 절로 가는 낱말은 WLC 순서대로 잇는다.
+
+- [ ] **Step 2: 책별 원어**
+
+`runOriginal(book, options, log)`:
+1. 신약 책이면 `신약 원어 자료는 아직 정하지 않았어요(${책 이름})`로 멈춘다.
+2. 그 책의 OSHB 전체와 대응표를 받아 KJV 절로 옮긴다. 본문의 장마다 원어 절이 정확히 1..n(본문 절 수)이면 넣고, 아니면 그 장은 빼고 `${책 이름} ${장}장은 히브리어와 개역한글의 절 나눔이 달라 원어를 넣지 않았습니다(본문 n절, 원어 m절)`를 남긴다(책 전체를 멈추지 않는다). `original/<book>.json`에 쓴다.
+3. 사전은 `original/` 안의 모든 책 파일에서 번호마다 나온 횟수를 다시 세고, 그 번호들로 스트롱 사전 항목을 만든다. 이미 있는 한국어 뜻은 지킨다. Task 3 검토 뒤에 넣은 보호 장치(다른 책 원어가 있으면 멈춘다)는 지운다.
+
+시험: 대응(시편 표제가 1절 앞에 붙는지, 말라기 3:19→4:1, 요엘 3:1→2:28, 조각 대응), 가짜 `fetchText`로 창세기·출애굽기 원어 파일을 차례로 만들면 사전 `count`가 두 책을 합친 횟수이고 한국어 뜻이 남는지, 절 나눔이 다른 장은 빠지고 경고가 남는지, 신약 책은 오류인지.
+
+- [ ] **Step 3: 확인과 커밋**
+
+Run: `npm test -w pipeline && npm run typecheck -w pipeline`. (네트워크) `original --book genesis` 뒤 `content/original/genesis.json`과 `lexicon.json`이 바뀌지 않는다. 시편·요엘·말라기는 임시 폴더로 돌려(옵션 `originalDir`, `lexiconFile`) 맞춘 장과 뺀 장의 수를 적는다(`content/`에 쓰지 않는다).
+
+```bash
+git add pipeline content/original/README.md
+git commit -m "feat(pipeline): 원어를 책마다 만들고 히브리어 절 번호를 개역한글 절에 맞춘다(사전은 모든 책에서 센다)"
 ```
 
 ---
@@ -906,6 +923,7 @@ it('장면 파일이 없는 장의 대체 장면 id와 제목에 책을 쓴다',
 
 - `buildBundle(book, source, sceneFiles, canon, audio, catalog, extras)`: 책을 인자로 받는다(Task 3까지는 `source.book`으로 찾았다). `bookId: book`을 넣고, `fallbackScene`은 `fallbackSceneIdOf(book, chapter)`와 `${getBook(book).name} ${chapter}장`. 설정집 항목은 `parseRef(firstAppearance)?.book === book`인 것만(시대는 `range.from`, 물건은 첫 `sources`) 넣고, 넣는 항목의 인용은 `localRef(text, book)`로 바꾸며(Task 5에서 `?? text`로 넣어 두었다) `null`(다른 책)은 뺀다.
 - `writeBundles(books)`(Task 3에서 만든 것): 책마다 `buildBundle(book, …)`의 결과를 `<book>.json`으로 쓴다.
+- 묶음의 사전 `count`는 그 책 묶음의 원어에서 센다(Task 6b 뒤 `lexicon.json`의 `count`는 모든 책 합계다). 창세기만 있으면 지금 값과 같다.
 - `buildSources(book, style)`: 개역한글판 출처를 책 이름으로 만든다.
 - `docs/content-bundle.md`: 맨 위 키 표에 `bookId`(책 id, `reader-core`의 `books.ts`)를 더한다.
 
@@ -978,17 +996,18 @@ git commit -m "feat(server): 질문하기가 모든 책 묶음을 읽고 책을 
 
 ---
 
-### Task 10: 앱의 책 id
+### Task 10: 앱의 책 id와 책 이름
 
-**Files:** `mobile/src/content/bundle.ts`
+**Files:** `mobile/src/content/bundle.ts`, 책 이름을 글로 박아 둔 화면(`home/HomeScreen.tsx`, `reader/VersePane.tsx`, `reader/MarkSheet.tsx`, `reader/ChapterPicker.tsx`, `notes/NotesScreen.tsx`, `search/SearchScreen.tsx`, `share/ShareCardSheet.tsx`, `library/LibraryScreen.tsx`), `packages/reader-core/src/widget.ts`
 
 - [ ] **Step 1:** `export const bookId = 'genesis'`를 지운다. `bookId`를 import하던 화면은 모두 묶음을 받는 컴포넌트 안이므로(묶음이 없으면 오류 화면이라 닿지 않는다) `bundle.bookId`로 바꾼다. 형 검사가 고칠 곳을 모두 알려 준다.
+- [ ] **Step 2:** 화면 글과 접근성 이름에 박힌 "창세기"를 묶음의 책 이름(`bundle.book`)으로 바꾼다("이어 읽기 · 창세기 4장 1절부터", "창세기 4장으로", 메모·검색·공유 카드의 위치 글 등). 위젯 머리(`오늘의 장면 · 창세기 4장`)도 묶음의 책 이름을 쓴다. 서재의 장 수는 `getBook(bundle.bookId).chapters`. 창세기 묶음에서는 화면 글이 지금과 같다. 웹 목업(`app/`)은 그대로 둔다.
 
-Run: `npm run typecheck -w mobile`
+Run: `npm test -w reader-core && npm run typecheck -w mobile`, 웹으로 띄워(Expo web) 홈·본문·메모 화면 글이 그대로인지 본다.
 
 ```bash
-git add mobile
-git commit -m "refactor(mobile): 기록 키의 책 id를 묶음에서 읽는다"
+git add mobile packages/reader-core
+git commit -m "refactor(mobile): 책 id와 책 이름을 묶음에서 읽는다"
 ```
 
 ---
