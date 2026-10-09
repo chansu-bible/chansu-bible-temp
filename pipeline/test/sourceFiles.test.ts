@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -45,6 +45,28 @@ describe('readVerseCounts', () => {
         ['exodus', [0, 4]],
       ]),
     )
+  })
+
+  it('바뀐 본문 파일은 다음에 다시 세고, 지운 파일의 책은 빠진다', async () => {
+    expect((await readVerseCounts(dir)).get('genesis')).toEqual([3, 2])
+    await writeFile(
+      path.join(dir, 'genesis.json'),
+      JSON.stringify({ book: '창세기', translation: '개역한글', chapters: [chapter(1, 3), chapter(2, 5)] }),
+    )
+    expect((await readVerseCounts(dir)).get('genesis')).toEqual([3, 5])
+    await rm(path.join(dir, 'genesis.json'))
+    expect(await readVerseCounts(dir)).toEqual(new Map([['exodus', [0, 4]]]))
+  })
+
+  it('수정 시각과 크기가 그대로인 본문 파일은 다시 읽지 않는다', async () => {
+    // 시각을 정해 두고 센 뒤 같은 크기의 깨진 글로 바꾸고 시각을 되돌린다. 다시 읽었다면 JSON 오류가 난다.
+    const file = path.join(dir, 'exodus.json')
+    const time = new Date('2026-01-01T00:00:00.000Z')
+    await utimes(file, time, time)
+    const before = await readVerseCounts(dir)
+    await writeFile(file, 'x'.repeat((await stat(file)).size))
+    await utimes(file, time, time)
+    expect(await readVerseCounts(dir)).toEqual(before)
   })
 })
 

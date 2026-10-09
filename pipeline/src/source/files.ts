@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
-import { readdir, readFile } from 'node:fs/promises'
+import { readdir, readFile, stat } from 'node:fs/promises'
+import path from 'node:path'
 import { bookOrder, findBook, getBook, hasChapter, josa, type BookId } from 'reader-core'
 import { displayPath, sourceDir as defaultSourceDir, sourceFilePath } from '../paths.ts'
 import { SourceSchema, type Source, type SourceChapter } from '../schema.ts'
@@ -40,14 +41,33 @@ export async function listSourceBooks(dir: string = defaultSourceDir): Promise<B
   return books.sort((a, b) => bookOrder(a.id) - bookOrder(b.id)).map((book) => book.id)
 }
 
+// 본문 파일(절대 경로)마다 센 절 수와 그때의 수정 시각·크기
+const verseCountCache = new Map<string, { mtimeMs: number; size: number; counts: number[] }>()
+
 // 책마다 장별 절 수를 센다(설정집 인용 검증용). 장 번호 n의 절 수는 counts[n - 1]이고, 받지 않은 장은 0이다.
+// 설정집을 읽고 쓸 때마다 부르므로, 수정 시각이나 크기가 바뀐 본문 파일만 다시 읽는다.
 export async function readVerseCounts(dir: string = defaultSourceDir): Promise<Map<BookId, number[]>> {
   const counts = new Map<BookId, number[]>()
+  const files = new Set<string>()
   for (const book of await listSourceBooks(dir)) {
-    const source = await readSource(book, dir)
-    const list: number[] = []
-    for (const chapter of source.chapters) list[chapter.chapter - 1] = chapter.verses.length
-    counts.set(book, Array.from(list, (count) => count ?? 0))
+    const file = path.resolve(sourceFilePath(book, dir))
+    files.add(file)
+    const { mtimeMs, size } = await stat(file)
+    let cached = verseCountCache.get(file)
+    if (!cached || cached.mtimeMs !== mtimeMs || cached.size !== size) {
+      const source = await readSource(book, dir)
+      const list: number[] = []
+      for (const chapter of source.chapters) list[chapter.chapter - 1] = chapter.verses.length
+      cached = { mtimeMs, size, counts: Array.from(list, (count) => count ?? 0) }
+      verseCountCache.set(file, cached)
+    }
+    // 받은 쪽이 고쳐도 기억해 둔 값은 그대로이게 복사해 준다.
+    counts.set(book, [...cached.counts])
+  }
+  // 이 폴더에서 사라진 파일은 잊는다.
+  const folder = path.resolve(dir)
+  for (const file of verseCountCache.keys()) {
+    if (path.dirname(file) === folder && !files.has(file)) verseCountCache.delete(file)
   }
   return counts
 }

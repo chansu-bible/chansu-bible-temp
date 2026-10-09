@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkForm, emptyEntry, entryToForm, formToEntry, firstCitation } from './canonForm.ts'
+import { checkForm, emptyEntry, entryToForm, formToEntry, firstCitation, withBook } from './canonForm.ts'
 import { splitIds } from './ids.ts'
 import { buildJobOptions, describeOptions, EMPTY_JOB_FORM } from './jobForm.ts'
 import { countByFilter, matchesFilter, matchesQuery, searchKey } from './lexiconFilter.ts'
@@ -7,19 +7,20 @@ import { countStatuses, formToEdit, questionToForm, revertStatus, toEdit } from 
 import { parseRoute, routeHref } from './route.ts'
 import type { Character, Era, LexiconEntry, Place, QuizQuestion, Thing } from './types.ts'
 
+// 저장된 항목. 절 인용에 책이 붙어 있다.
 const adam: Character = {
   id: 'adam',
   name: '아담',
   aliases: ['사람'],
   status: 'approved',
   facts: {
-    firstAppearance: '1:26',
+    firstAppearance: 'genesis 1:26',
     gender: '남',
     years: { born: 0, died: 930 },
     relations: [{ type: '아내', to: 'eve' }],
-    attire: [{ from: '3:21', description: '가죽옷' }],
+    attire: [{ from: 'genesis 3:21', description: '가죽옷' }],
     notes: '흙으로 지어진 사람',
-    sources: ['1:26-27', '2:7'],
+    sources: ['genesis 1:26-27', 'genesis 2:7'],
   },
   design: { build: '건장함', face: '', hair: '검은 머리', skin: '', ageNotes: '', notes: '' },
   refs: ['adam-1.png'],
@@ -30,7 +31,7 @@ const eden: Place = {
   name: '에덴',
   aliases: [],
   status: 'approved',
-  facts: { firstAppearance: '2:8', description: '동쪽의 동산', sources: ['2:8', '2:10-14'] },
+  facts: { firstAppearance: 'genesis 2:8', description: '동쪽의 동산', sources: ['genesis 2:8', 'genesis 2:10-14'] },
   location: { lat: 31.02, lng: 47.43, certainty: '추정' },
   design: { landscape: '강이 흐르는 평야', notes: '' },
 }
@@ -39,9 +40,9 @@ const flood: Era = {
   id: 'flood',
   name: '홍수',
   status: 'draft',
-  range: { from: '6:9', to: '8:22' },
+  range: { from: 'genesis 6:9', to: 'genesis 8:22' },
   years: { from: 1656, to: null },
-  facts: { description: '홍수', present: ['방주(6:14-16)'], absent: [], sources: ['6:9'] },
+  facts: { description: '홍수', present: ['방주(6:14-16)'], absent: [], sources: ['genesis 6:9'] },
   design: { visualNotes: '' },
 }
 
@@ -50,12 +51,12 @@ const ark: Thing = {
   name: '방주',
   aliases: [],
   status: 'rejected',
-  facts: { description: '잣나무로 만든 배', details: ['길이 300규빗', '삼층'], sources: ['6:14-16'] },
+  facts: { description: '잣나무로 만든 배', details: ['길이 300규빗', '삼층'], sources: ['genesis 6:14-16'] },
   design: { visualNotes: '네모난 상자 모양' },
 }
 
 describe('canonForm', () => {
-  it('항목 → 폼 → 항목이 그대로 돌아온다', () => {
+  it('항목 → 폼 → 항목이 그대로 돌아온다(책이 붙은 인용도 그대로다)', () => {
     expect(formToEntry('characters', entryToForm('characters', adam), adam)).toEqual(adam)
     expect(formToEntry('places', entryToForm('places', eden), eden)).toEqual(eden)
     expect(formToEntry('eras', entryToForm('eras', flood), flood)).toEqual(flood)
@@ -65,7 +66,7 @@ describe('canonForm', () => {
   it('폼 값을 항목 형식으로 바꾼다', () => {
     const form = entryToForm('characters', adam)
     expect(form['facts.years.born']).toBe('0')
-    expect(form['facts.sources']).toBe('1:26-27\n2:7')
+    expect(form['facts.sources']).toBe('genesis 1:26-27\ngenesis 2:7')
 
     form['facts.years.died'] = ''
     form['facts.sources'] = ' 1:26 \n\n2:7 '
@@ -75,9 +76,36 @@ describe('canonForm', () => {
     ]
     const out = formToEntry('characters', form, adam)
     expect(out.facts.years).toEqual({ born: 0, died: null })
-    expect(out.facts.sources).toEqual(['1:26', '2:7'])
+    expect(out.facts.sources).toEqual(['genesis 1:26', 'genesis 2:7'])
     expect(out.facts.relations).toEqual([{ type: '아내', to: 'eve' }])
     expect(out.status).toBe('approved')
+  })
+
+  it('책 없는 인용에는 genesis를 붙이고, 책이 붙은 인용은 그대로 둔다', () => {
+    const form = entryToForm('characters', adam)
+    form['facts.firstAppearance'] = '2:7'
+    form['facts.attire'] = [
+      { from: '3:21', description: '가죽옷' },
+      { from: 'genesis 3:7', description: '무화과나무 잎 치마' },
+    ]
+    form['facts.sources'] = '2:7-8\ngenesis 3:21\n1-samuel 3:4'
+    const out = formToEntry('characters', form, adam)
+    expect(out.facts.firstAppearance).toBe('genesis 2:7')
+    expect(out.facts.attire).toEqual([
+      { from: 'genesis 3:21', description: '가죽옷' },
+      { from: 'genesis 3:7', description: '무화과나무 잎 치마' },
+    ])
+    expect(out.facts.sources).toEqual(['genesis 2:7-8', 'genesis 3:21', '1-samuel 3:4'])
+
+    const era = entryToForm('eras', flood)
+    era['range.from'] = '6:9'
+    expect(formToEntry('eras', era, flood).range).toEqual({ from: 'genesis 6:9', to: 'genesis 8:22' })
+
+    // 인용이 아닌 글은 바꾸지 않는다(형식 검사는 checkForm과 서버가 한다)
+    expect(withBook('2:7')).toBe('genesis 2:7')
+    expect(withBook('genesis 2:7')).toBe('genesis 2:7')
+    expect(withBook('3장')).toBe('3장')
+    expect(withBook('')).toBe('')
   })
 
   it('새 항목 초기값은 초안이고 비어 있다', () => {
@@ -91,6 +119,12 @@ describe('canonForm', () => {
 
   it('checkForm은 잘못된 값을 잡는다', () => {
     expect(checkForm('characters', entryToForm('characters', adam))).toEqual([])
+    // 책이 붙은 인용과 책 없는 인용을 다 받는다
+    const mixed = entryToForm('characters', adam)
+    mixed['facts.firstAppearance'] = '2:7'
+    mixed['facts.sources'] = 'genesis 1:26\n1-samuel 3:4\n2:7-8'
+    expect(checkForm('characters', mixed)).toEqual([])
+
     const form = entryToForm('characters', emptyEntry('characters'))
     form.id = 'Adam'
     form['facts.years.born'] = '1.5'
@@ -105,9 +139,9 @@ describe('canonForm', () => {
   })
 
   it('firstCitation은 종류마다 맞는 절을 고른다', () => {
-    expect(firstCitation('characters', adam)).toBe('1:26')
-    expect(firstCitation('eras', flood)).toBe('6:9')
-    expect(firstCitation('things', ark)).toBe('6:14-16')
+    expect(firstCitation('characters', adam)).toBe('genesis 1:26')
+    expect(firstCitation('eras', flood)).toBe('genesis 6:9')
+    expect(firstCitation('things', ark)).toBe('genesis 6:14-16')
   })
 })
 

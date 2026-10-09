@@ -282,7 +282,7 @@ function nonEmptyRows(v: FormValue | undefined): Row[] {
   return (Array.isArray(v) ? v : []).filter((r) => Object.values(r).some((s) => s.trim()))
 }
 
-// 폼에 없는 필드(status 등)는 base에서 그대로 가져온다.
+// 폼에 없는 필드(status 등)는 base에서 그대로 가져온다. 책 없는 절 인용에는 책을 붙인다.
 export function formToEntry<K extends CanonKind>(kind: K, form: FormState, base: CanonEntryMap[K]): CanonEntryMap[K] {
   const out = structuredClone(base) as unknown as Record<string, unknown>
   for (const f of fieldsOf(kind)) {
@@ -290,6 +290,8 @@ export function formToEntry<K extends CanonKind>(kind: K, form: FormState, base:
     switch (f.type) {
       case 'text':
       case 'textarea':
+        setPath(out, f.path, f.citation ? withBook(str(v)) : str(v))
+        break
       case 'select':
         setPath(out, f.path, str(v))
         break
@@ -298,14 +300,23 @@ export function formToEntry<K extends CanonKind>(kind: K, form: FormState, base:
         setPath(out, f.path, s === '' ? null : Number(s))
         break
       }
-      case 'lines':
-        setPath(out, f.path, typeof v === 'string' ? splitLines(v) : [])
+      case 'lines': {
+        const items = typeof v === 'string' ? splitLines(v) : []
+        setPath(out, f.path, f.citation ? items.map(withBook) : items)
         break
+      }
       case 'table':
         setPath(
           out,
           f.path,
-          nonEmptyRows(v).map((r) => Object.fromEntries(f.columns.map((c) => [c.key, (r[c.key] ?? '').trim()]))),
+          nonEmptyRows(v).map((r) =>
+            Object.fromEntries(
+              f.columns.map((c) => {
+                const s = (r[c.key] ?? '').trim()
+                return [c.key, c.citation ? withBook(s) : s]
+              }),
+            ),
+          ),
         )
         break
     }
@@ -313,8 +324,16 @@ export function formToEntry<K extends CanonKind>(kind: K, form: FormState, base:
   return out as unknown as CanonEntryMap[K]
 }
 
-const CITATION = /^\d{1,2}:\d{1,3}(-\d{1,3})?$/
+const BARE_CITATION = /^\d{1,2}:\d{1,3}(-\d{1,3})?$/
+// 책 id가 붙은 인용("genesis 2:7", "1-samuel 3:4")이나 책 없는 인용("2:7")
+const CITATION = /^(?:[a-z0-9-]+ )?\d{1,2}:\d{1,3}(-\d{1,3})?$/
 const CANON_ID = /^[a-z][a-z0-9-]*$/
+
+// 책 없는 절 인용("2:7")에 창세기를 붙인다. 책이 붙은 인용과 인용이 아닌 글은 그대로 둔다.
+// Task 8에서 고른 책으로 바꾼다.
+export function withBook(citation: string): string {
+  return BARE_CITATION.test(citation) ? `genesis ${citation}` : citation
+}
 
 // 저장 전에 화면에서 먼저 잡는 문제. 최종 검증은 서버가 한다.
 export function checkForm(kind: CanonKind, form: FormState): string[] {
