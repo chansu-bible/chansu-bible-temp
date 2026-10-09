@@ -2,7 +2,7 @@
 
 장면으로 읽는 성경 목업입니다. 화면 위 절반에 장면 그림, 아래 절반에 성경 본문(개역한글)이 있고, 본문을 내려 읽으면 그림이 장면에 맞춰 바뀝니다.
 
-설계 문서: [docs/superpowers/specs/2026-10-04-scene-bible-reader-design.md](docs/superpowers/specs/2026-10-04-scene-bible-reader-design.md)
+설계 문서: [docs/superpowers/specs/2026-10-04-scene-bible-reader-design.md](docs/superpowers/specs/2026-10-04-scene-bible-reader-design.md), 네이티브 앱은 [docs/superpowers/specs/2026-10-09-native-app-design.md](docs/superpowers/specs/2026-10-09-native-app-design.md)
 
 ## 사이트
 
@@ -12,7 +12,9 @@
 
 | 폴더 | 내용 |
 |---|---|
-| `app/` | 읽기 화면 (React + Vite + TypeScript). 네이티브 앱의 참고 구현 |
+| `app/` | 읽기 화면 웹 목업 (React + Vite + TypeScript). 깃허브 페이지로 배포 |
+| `mobile/` | 네이티브 앱 (Expo SDK 57, React Native). 안드로이드·iOS, 확인용 Expo 웹 |
+| `packages/reader-core/` | 웹 목업과 앱이 함께 쓰는 읽기 계산 모듈과 묶음 타입 |
 | `pipeline/` | 콘텐츠 생성 스크립트 (Node + TypeScript) |
 | `admin/` | 로컬 관리 도구: 상태 보기, 작업 실행, 설정집 편집·승인 |
 | `content/` | 본문, 설정집, 장면, 그림, 음성 |
@@ -24,6 +26,16 @@
 npm install
 npm run dev
 ```
+
+## 네이티브 앱
+
+```bash
+npm run pipeline -- build    # 묶음을 만든다 (app/public/content)
+npm run content -w mobile    # 묶음·기본 그림 버전·낭독을 앱으로 복사한다
+npm run web -w mobile        # Expo 웹으로 확인 (http://localhost:8081)
+```
+
+폰에서 보려면 폰에 Expo Go 앱을 깔고, 같은 와이파이에서 `npm run start -w mobile`이 띄우는 QR 코드를 찍는다(1단계는 Expo Go에 들어 있는 모듈만 써서 따로 빌드할 필요가 없다). 에뮬레이터는 Android SDK가 있어야 하고 `npm run android -w mobile`로 연다. 지도, 그림 전환, 낭독, 글꼴은 모두 앱 안에 들어 있어 인터넷 없이 돈다. 여정 지도의 바탕(해안선·강)은 Natural Earth에서 만든 `mobile/src/map/basemap.generated.ts`이고, 다시 만들 때는 `npm run basemap -w mobile`을 쓴다. 앱 형 검사는 `npm run typecheck -w mobile`.
 
 ## 관리 도구
 
