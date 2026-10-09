@@ -49,4 +49,11 @@ export async function migrate(sql: Pick<Sql, 'query'>): Promise<void> {
     PRIMARY KEY (user_id, collection, id)
   )`)
   await sql.query('CREATE INDEX IF NOT EXISTS records_user_seq ON records (user_id, seq)')
+  // 질문하기 횟수: 사용자와 한국 날짜마다
+  await sql.query(`CREATE TABLE IF NOT EXISTS ask_usage (
+    user_id TEXT NOT NULL,
+    day TEXT NOT NULL,
+    count INTEGER NOT NULL,
+    PRIMARY KEY (user_id, day)
+  )`)
 }

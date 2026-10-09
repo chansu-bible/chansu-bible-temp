@@ -1,4 +1,8 @@
 import { Hono } from 'hono'
+import { z } from 'zod'
+import { answerQuestion, type AskModel } from './ask/answer.ts'
+import type { PassageIndex } from './ask/retrieve.ts'
+import { DEFAULT_DAILY_LIMIT, giveBack, koreaDay, takeAsk, usedToday } from './ask/usage.ts'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { createMiddleware } from 'hono/factory'
@@ -8,7 +12,15 @@ import { applyChanges, pullChanges, SyncRequestSchema } from './records.ts'
 
 type Env = { Variables: { user: User } }
 
-export function createApp(deps: { sql: Sql; verify: Verify; corsOrigins: string[] }) {
+// 질문하기에 쓰는 것. 없으면(키나 묶음이 없음) /ask는 503이다.
+export type AskDeps = { index: PassageIndex; model: AskModel; book: string; dailyLimit?: number; now?: () => number }
+
+const AskRequestSchema = z.object({
+  question: z.string().trim().min(1).max(300),
+  chapter: z.number().int().positive().optional(),
+})
+
+export function createApp(deps: { sql: Sql; verify: Verify; corsOrigins: string[]; ask?: AskDeps | null }) {
   const app = new Hono<Env>()
 
   app.use(
@@ -58,6 +70,39 @@ export function createApp(deps: { sql: Sql; verify: Verify; corsOrigins: string[
         return pullChanges(query, user.sub, parsed.data.since)
       })
       return c.json(result)
+    },
+  )
+
+  // 오늘 남은 질문 수
+  app.get('/ask/usage', authenticate, async (c) => {
+    const limit = deps.ask?.dailyLimit ?? DEFAULT_DAILY_LIMIT
+    const used = await usedToday(deps.sql.query, c.get('user').sub, koreaDay(deps.ask?.now?.()))
+    return c.json({ available: deps.ask != null, limit, remaining: Math.max(0, limit - used) })
+  })
+
+  // 질문하기: 검수된 자료에서 대목을 찾아 그 안에서만 답한다. 문장마다 근거가 없으면 "자료에 없어요"다.
+  app.post(
+    '/ask',
+    authenticate,
+    bodyLimit({ maxSize: 16 * 1024, onError: (c) => c.json({ error: '질문이 너무 깁니다' }, 413) }),
+    async (c) => {
+      const ask = deps.ask
+      if (!ask) return c.json({ error: '질문하기를 지금 쓸 수 없어요' }, 503)
+      const parsed = AskRequestSchema.safeParse(await c.req.json().catch(() => null))
+      if (!parsed.success) return c.json({ error: '질문은 1자에서 300자 사이로 써 주세요' }, 400)
+      const user = c.get('user')
+      const limit = ask.dailyLimit ?? DEFAULT_DAILY_LIMIT
+      const day = koreaDay(ask.now?.())
+      const taken = await takeAsk(deps.sql.query, user.sub, day, limit)
+      if (!taken.allowed) return c.json({ error: '오늘 질문을 모두 썼어요. 내일 다시 물어 주세요.', remaining: 0 }, 429)
+      try {
+        const result = await answerQuestion(ask.index, ask.model, parsed.data, ask.book)
+        return c.json({ ...result, remaining: Math.max(0, limit - taken.count) })
+      } catch (error) {
+        await giveBack(deps.sql.query, user.sub, day)
+        console.error('질문하기 실패:', error instanceof Error ? error.message : error)
+        return c.json({ error: '답을 만들지 못했어요. 잠시 뒤에 다시 물어 주세요.' }, 502)
+      }
     },
   )
 

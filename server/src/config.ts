@@ -1,3 +1,5 @@
+import path from 'node:path'
+
 // 서버 설정. 기본값은 infra/docker-compose.yml의 개발용 값이다. 운영에서는 환경 변수로 바꾼다.
 const list = (value: string | undefined, fallback: string[]) =>
   value ? value.split(',').map((item) => item.trim()).filter(Boolean) : fallback
@@ -13,6 +15,11 @@ export type Config = {
   // 받아들일 클라이언트(토큰의 azp)
   clients: string[]
   corsOrigins: string[]
+  // 질문하기: 대목을 만들 앱 묶음, OpenAI 키(리포 루트 .env), 모델, 하루 한도
+  bundleFile: string
+  openaiApiKey: string | null
+  askModel: string
+  askDailyLimit: number
 }
 
 export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -28,5 +35,9 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
     jwksUrl: env.AUTH_JWKS_URL ?? 'http://127.0.0.1:8080/realms/chansu-bible/protocol/openid-connect/certs',
     clients: list(env.AUTH_CLIENTS, ['chansu-bible-app', 'chansu-bible-test']),
     corsOrigins: list(env.CORS_ORIGINS, ['http://localhost:8081']),
+    bundleFile: env.BUNDLE_FILE ?? path.resolve(import.meta.dirname, '../../app/public/content/genesis.json'),
+    openaiApiKey: env.OPENAI_API_KEY || null,
+    askModel: env.ASK_MODEL || env.OPENAI_WRITER_MODEL || 'gpt-6.1-sol',
+    askDailyLimit: Number(env.ASK_DAILY_LIMIT ?? 20),
   }
 }
