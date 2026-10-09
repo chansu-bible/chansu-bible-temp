@@ -935,6 +935,7 @@ git commit -m "feat(pipeline): 책마다 묶음(bookId, 그 책의 설정집, �
   - `/api/quiz`, `/api/quiz/:chapter`, `/api/quiz/:chapter/:id` → `/api/books/:book/quiz…`
   - 설정집, 원어 뜻(사전), 그림, 작업, 실행 기록, 저장소 API는 그대로다(책을 가리지 않는다).
 - 작업 옵션에 `book`. `original`은 `book`이 없으면 모든 책, `build`는 언제나 모든 책(`book`을 받지 않는다), 나머지 단계는 `book`이 필요하다(없으면 400). `source` 작업은 `chapters`(예: `1-10`, `parseChapterRange`로 읽는다. 없으면 책 전체)를 받는다. 작업 폼에 책 고르기를 둔다. 실행 중 작업이 같은 책·같은 파일을 쓰면 저장을 막는 지금 규칙(409)은 책까지 보고 판단한다.
+- 퀴즈 저장(`PUT …/quiz/:chapter`)에서 `writeQuizFile`이 내는 검사 오류(문제 id가 그 책·그 장 것이 아님)는 장면 저장처럼 400으로 돌려준다.
 - `admin/server/book.ts`(`ADMIN_BOOK`, Task 3의 임시 상수)를 지우고, `admin/server/status.ts`에 남은 음성 파일 이름 규칙(`genesis-NN-VVV.mp3` 정규식)은 `reader-core`의 `verseAudioName`·`parseChapterStem`으로 바꾼다.
 - 화면: 머리(내비)에 책 고르기를 두고 고른 책을 `localStorage`에 기억한다. 책을 가리는 화면의 주소는 `#/<book>/dashboard`, `#/<book>/scenes/4`, `#/<book>/quiz/4`이고, 옛 주소(`#/scenes/4`, `#/quiz/4`, `#/`)는 고른 책(없으면 첫 책) 주소로 넘긴다.
 - 설정집 화면의 인용은 `formatRef(parseRef(text), 'name')`으로 보인다(창세기 2:7). 고칠 때 넣는 인용은 `genesis 2:7`이나 책 없는 `2:7`(고르고 있는 책을 붙인다)을 받는다.
