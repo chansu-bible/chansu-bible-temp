@@ -1,9 +1,11 @@
 import { bookByName, getBook, isBookId, type BookId } from './books.ts'
 import type { Bundle } from './types.ts'
 
-// 묶음의 책 id. bookId가 알려진 책이면 그것이고, 아니면 book(한국어 이름)으로 찾는다. 찾지 못하면 undefined다.
+// 묶음의 책 id. bookId가 있으면 알려진 책일 때만 그것이다(모르는 책이면 이름이 맞아도 undefined다).
+// bookId가 없는 옛 묶음은 book(한국어 이름)으로 찾는다. 찾지 못하면 undefined다.
 function bundleBookId(bundle: Bundle): BookId | undefined {
-  return typeof bundle.bookId === 'string' && isBookId(bundle.bookId) ? bundle.bookId : bookByName(bundle.book)?.id
+  if (bundle.bookId === undefined) return bookByName(bundle.book)?.id
+  return typeof bundle.bookId === 'string' && isBookId(bundle.bookId) ? bundle.bookId : undefined
 }
 
 // 묶음 본체가 이 앱이 읽을 수 있는 형식인지 본다. 아니면 오류를 던진다. 형식은 docs/content-bundle.md에 있다.
@@ -15,7 +17,7 @@ export function validateBundle(value: unknown): Bundle {
   // 책: bookId가 없는 옛 묶음은 book(한국어 이름)으로 찾는다. 찾지 못하면 받지 않는다.
   // bookId가 있는데 모르는 책이면 이름이 맞아도 받지 않는다(이름으로 bookId를 대신하지 않는다).
   const bookId = bundleBookId(bundle)
-  if (!bookId || (bundle.bookId !== undefined && bundle.bookId !== bookId)) throw new Error('묶음의 책을 알 수 없습니다')
+  if (!bookId) throw new Error('묶음의 책을 알 수 없습니다')
   // bookId와 book(이름)이 둘 다 있으면 같은 책이어야 한다.
   if (bundle.bookId !== undefined && typeof bundle.book === 'string' && getBook(bookId).name !== bundle.book) {
     throw new Error(`묶음의 책 이름(${bundle.book})이 bookId(${bookId})와 다릅니다`)

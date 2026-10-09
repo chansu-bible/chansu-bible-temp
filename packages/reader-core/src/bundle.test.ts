@@ -71,6 +71,7 @@ describe('묶음의 책', () => {
 
   it('모르는 bookId는 책 이름이 맞아도 받지 않는다', () => {
     expect(() => validateBundle({ ...oldBundle, bookId: 'nope' })).toThrow('묶음의 책을 알 수 없습니다')
+    expect(() => validateBundle({ ...oldBundle, bookId: null })).toThrow('묶음의 책을 알 수 없습니다')
   })
 
   it('bookId와 책 이름이 다른 책이면 받지 않는다', () => {
@@ -79,5 +80,9 @@ describe('묶음의 책', () => {
 
   it('fillMissing도 책을 알 수 없으면 오류를 던진다', () => {
     expect(() => fillMissing({ ...oldBundle, book: '없는 책' } as unknown as Bundle)).toThrow('묶음의 책을 알 수 없습니다')
+  })
+
+  it('fillMissing도 모르는 bookId는 책 이름으로 대신하지 않고 오류를 던진다', () => {
+    expect(() => fillMissing({ ...oldBundle, bookId: 'nope', book: '창세기' } as unknown as Bundle)).toThrow('묶음의 책을 알 수 없습니다')
   })
 })

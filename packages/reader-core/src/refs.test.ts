@@ -54,6 +54,13 @@ describe('책 붙이기와 떼기', () => {
     expect(qualifyRef('엉터리', 'genesis')).toBeNull()
   })
 
+  it('붙인 책에 없는 장이면 null', () => {
+    expect(qualifyRef('50:26', 'genesis')).toBe('genesis 50:26')
+    expect(qualifyRef('51:1', 'genesis')).toBeNull()
+    expect(qualifyRef('1:21', 'obadiah')).toBe('obadiah 1:21')
+    expect(qualifyRef('2:1', 'obadiah')).toBeNull()
+  })
+
   it('같은 책이면 떼고, 다른 책이면 null', () => {
     expect(localRef('genesis 4:1', 'genesis')).toBe('4:1')
     expect(localRef('4:1', 'genesis')).toBe('4:1')

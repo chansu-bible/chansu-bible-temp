@@ -30,10 +30,13 @@ export function formatRef(ref: VerseRef, style: 'id' | 'name' | 'bare' = 'id'): 
   return `${style === 'name' ? getBook(ref.book).name : ref.book} ${bare}`
 }
 
-// 책 없는 참조에 책을 붙인다. 이미 책이 있으면 그대로(정리한 모양으로) 돌려준다. 읽을 수 없으면 null
+// 책 없는 참조에 책을 붙인다. 이미 책이 있으면 그대로(정리한 모양으로) 돌려준다.
+// 읽을 수 없거나, 붙인 책에 없는 장이면(창세기 51장) null이다.
 export function qualifyRef(text: string, book: BookId): string | null {
   const ref = parseRef(text)
-  return ref ? formatRef({ ...ref, book: ref.book ?? book }) : null
+  if (!ref) return null
+  const qualified = formatRef({ ...ref, book: ref.book ?? book })
+  return parseRef(qualified) ? qualified : null
 }
 
 // 그 책 안의 참조("4:1")로 바꾼다. 읽을 수 없는 글이거나 다른 책을 가리키면 둘 다 null이다.
