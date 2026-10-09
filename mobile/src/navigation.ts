@@ -35,6 +35,12 @@ export function goToReader(router: Router, from: string | undefined, request: Re
   else router.push('/read')
 }
 
+// 쌓인 화면을 모두 닫고 홈(첫 화면)으로 간다. 홈이 쌓여 있지 않으면(바로 연 경우) 홈으로 바꾼다.
+export function goHome(router: Router): void {
+  if (router.canDismiss()) router.dismissAll()
+  else router.replace('/')
+}
+
 export function goBack(router: Router): void {
   if (router.canGoBack()) router.back()
   else router.replace('/')

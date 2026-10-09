@@ -20,7 +20,7 @@ import {
 import { audioSource, bookId } from '../content/bundle'
 import { markSceneRead, savedPosition, savePositionRecord, useMarks, useReadScenes } from '../data/reading'
 import MapScreen from '../map/MapScreen'
-import { goBack, onReaderRequest, takeReaderRequest, type ReaderRequest } from '../navigation'
+import { goHome, onReaderRequest, takeReaderRequest, type ReaderRequest } from '../navigation'
 import { useSettings } from '../settings/SettingsContext'
 import ShareCardSheet from '../share/ShareCardSheet'
 import BackgroundSheet from './BackgroundSheet'
@@ -231,7 +231,7 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           onOpenChapters={() => openOverlay('chapters')}
           marks={chapterMarks}
           onLongPressVerse={(target) => openOverlay({ kind: 'mark', verse: target })}
-          onGoHome={() => goBack(router)}
+          onGoHome={() => goHome(router)}
           onOpenSearch={() => router.push({ pathname: '/search', params: { from: 'read' } })}
         />
       </View>

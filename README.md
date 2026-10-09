@@ -37,6 +37,8 @@ npm run web -w mobile        # Expo 웹으로 확인 (http://localhost:8081)
 
 폰에서 보려면 폰에 Expo Go 앱을 깔고, 같은 와이파이에서 `npm run start -w mobile`이 띄우는 QR 코드를 찍는다(1단계는 Expo Go에 들어 있는 모듈만 써서 따로 빌드할 필요가 없다). 에뮬레이터는 Android SDK가 있어야 하고 `npm run android -w mobile`로 연다. 지도, 그림 전환, 낭독, 글꼴은 모두 앱 안에 들어 있어 인터넷 없이 돈다. 여정 지도의 바탕(해안선·강)은 Natural Earth에서 만든 `mobile/src/map/basemap.generated.ts`이고, 다시 만들 때는 `npm run basemap -w mobile`을 쓴다. 앱 형 검사는 `npm run typecheck -w mobile`.
 
+앱 화면: 홈(오늘의 읽기, 계획과 진도), 읽기(장면 그림과 본문, 낱말 풀이, 인물·장소 카드, 목차·연표, 여정 지도, 낭독, 절을 길게 눌러 밑줄·메모와 장면 카드 공유), 내 메모, 검색, 인물 사전, 가계도. 기록은 기기에 저장된다.
+
 ## 관리 도구
 
 ```bash

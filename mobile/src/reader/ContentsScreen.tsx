@@ -151,6 +151,7 @@ function TabButton({ label, selected, onPress }: { label: string; selected: bool
     <Pressable
       accessibilityRole="tab"
       accessibilityState={{ selected }}
+      aria-selected={selected}
       onPress={onPress}
       style={[styles.tab, { borderBottomColor: selected ? palette.accent : 'transparent' }]}
     >
