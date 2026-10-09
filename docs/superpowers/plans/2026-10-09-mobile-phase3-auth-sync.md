@@ -695,17 +695,27 @@ export async function token(
     .sign(privateKey)
 }
 
-export async function testApp() {
+async function createTestApp() {
   const sql = await memorySql()
   const { privateKey, jwks } = await testKeys()
   const verify = createVerifier({ issuers: [ISSUER], clients: ['chansu-bible-app', 'chansu-bible-test'], jwks })
   return { app: createApp({ sql, verify, corsOrigins: ['http://localhost:8081'] }), sql, privateKey }
 }
+
+// PGlite는 띄우는 데 몇 초 걸려서 시험 파일마다 하나를 같이 쓴다. 시험마다 newUser()로 다른 사용자를 써서 섞이지 않게 한다.
+let shared: ReturnType<typeof createTestApp> | null = null
+export function testApp(): ReturnType<typeof createTestApp> {
+  shared ??= createTestApp()
+  return shared
+}
+
+let users = 0
+export const newUser = (): string => `user-${++users}`
 ```
 
 ```ts path=server/test/app.test.ts
 import { describe, expect, it } from 'vitest'
-import { testApp, token } from './helpers.ts'
+import { newUser, testApp, token } from './helpers.ts'
 
 type App = Awaited<ReturnType<typeof testApp>>['app']
 type SyncResponse = {
@@ -739,21 +749,23 @@ async function sync(app: App, bearer: string, body: unknown): Promise<SyncRespon
 describe('인증', () => {
   it('토큰이 없거나, 다른 발급자이거나, 다른 앱의 토큰이거나, 만료됐으면 401이다', async () => {
     const { app, privateKey } = await testApp()
+    const sub = newUser()
     expect((await app.request('/me')).status).toBe(401)
-    const wrongIssuer = await token(privateKey, { sub: 'u1' }, { issuer: 'http://evil.test/realms/x' })
+    const wrongIssuer = await token(privateKey, { sub }, { issuer: 'http://evil.test/realms/x' })
     expect((await app.request('/me', { headers: { Authorization: `Bearer ${wrongIssuer}` } })).status).toBe(401)
-    const wrongClient = await token(privateKey, { sub: 'u1', azp: 'other-app' })
+    const wrongClient = await token(privateKey, { sub, azp: 'other-app' })
     expect((await app.request('/me', { headers: { Authorization: `Bearer ${wrongClient}` } })).status).toBe(401)
-    const expired = await token(privateKey, { sub: 'u1' }, { expiresIn: '-1m' })
+    const expired = await token(privateKey, { sub }, { expiresIn: '-1m' })
     expect((await app.request('/me', { headers: { Authorization: `Bearer ${expired}` } })).status).toBe(401)
   })
 
   it('/me는 토큰의 사용자를 알려 준다', async () => {
     const { app, privateKey } = await testApp()
-    const bearer = await token(privateKey, { sub: 'u1', name: '시험 사용자', preferred_username: 'tester' })
+    const sub = newUser()
+    const bearer = await token(privateKey, { sub, name: '시험 사용자', preferred_username: 'tester' })
     const response = await app.request('/me', { headers: { Authorization: `Bearer ${bearer}` } })
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ sub: 'u1', name: '시험 사용자', username: 'tester' })
+    expect(await response.json()).toEqual({ sub, name: '시험 사용자', username: 'tester' })
   })
 
   it('/health는 인증 없이 열린다', async () => {
@@ -765,7 +777,7 @@ describe('인증', () => {
 describe('POST /sync', () => {
   it('올린 줄을 저장해 돌려주고, 받아 간 뒤로는 새 것만 준다', async () => {
     const { app, privateKey } = await testApp()
-    const bearer = await token(privateKey, { sub: 'u1' })
+    const bearer = await token(privateKey, { sub: newUser() })
     const first = await sync(app, bearer, { since: 0, changes: [mark('a', 100, '가')] })
     expect(first.changes).toEqual([mark('a', 100, '가')])
     expect(first.now).toBeGreaterThan(0)
@@ -776,7 +788,7 @@ describe('POST /sync', () => {
 
   it('나중에 고친 쪽이 이긴다: 옛 쓰기는 버리고, 지움도 전한다', async () => {
     const { app, privateKey } = await testApp()
-    const bearer = await token(privateKey, { sub: 'u1' })
+    const bearer = await token(privateKey, { sub: newUser() })
     await sync(app, bearer, { since: 0, changes: [mark('a', 200, '새것')] })
     await sync(app, bearer, { since: 0, changes: [mark('a', 100, '옛것')] })
     expect((await sync(app, bearer, { since: 0, changes: [] })).changes).toEqual([mark('a', 200, '새것')])
@@ -786,13 +798,13 @@ describe('POST /sync', () => {
 
   it('사용자마다 기록이 따로다', async () => {
     const { app, privateKey } = await testApp()
-    await sync(app, await token(privateKey, { sub: 'u1' }), { since: 0, changes: [mark('a', 100, '가')] })
-    expect((await sync(app, await token(privateKey, { sub: 'u2' }), { since: 0, changes: [] })).changes).toEqual([])
+    await sync(app, await token(privateKey, { sub: newUser() }), { since: 0, changes: [mark('a', 100, '가')] })
+    expect((await sync(app, await token(privateKey, { sub: newUser() }), { since: 0, changes: [] })).changes).toEqual([])
   })
 
   it('모르는 컬렉션, 큰 줄, 너무 많은 줄, 깨진 JSON은 400이다', async () => {
     const { app, privateKey } = await testApp()
-    const bearer = await token(privateKey, { sub: 'u1' })
+    const bearer = await token(privateKey, { sub: newUser() })
     expect((await post(app, bearer, { since: 0, changes: [{ ...mark('a', 1, '가'), collection: 'secrets' }] })).status).toBe(400)
     expect((await post(app, bearer, { since: 0, changes: [mark('a', 1, 'x'.repeat(20_000))] })).status).toBe(400)
     const many = Array.from({ length: 501 }, (_, index) => mark(`m${index}`, 1, '가'))
@@ -818,29 +830,31 @@ describe('POST /sync', () => {
 ```ts path=server/test/records.test.ts
 import { describe, expect, it } from 'vitest'
 import { applyChanges, pullChanges, type Change } from '../src/records.ts'
-import { memorySql } from './helpers.ts'
+import { newUser, testApp } from './helpers.ts'
 
 const mark = (id: string, updatedAt: number): Change => ({ collection: 'marks', id, data: { id }, updatedAt, deletedAt: null })
 
 describe('pullChanges', () => {
   it('순번 순서로 나눠 주고, 더 있으면 more로 알린다', async () => {
-    const sql = await memorySql()
-    await applyChanges(sql.query, 'u1', [mark('a', 1), mark('b', 1), mark('c', 1)])
-    const first = await pullChanges(sql.query, 'u1', 0, 2)
+    const { sql } = await testApp()
+    const user = newUser()
+    await applyChanges(sql.query, user, [mark('a', 1), mark('b', 1), mark('c', 1)])
+    const first = await pullChanges(sql.query, user, 0, 2)
     expect(first.changes.map((change) => change.id)).toEqual(['a', 'b'])
     expect(first.more).toBe(true)
-    const second = await pullChanges(sql.query, 'u1', first.now, 2)
+    const second = await pullChanges(sql.query, user, first.now, 2)
     expect(second.changes.map((change) => change.id)).toEqual(['c'])
     expect(second.more).toBe(false)
     expect(second.now).toBeGreaterThan(first.now)
   })
 
   it('고친 줄은 새 순번을 받아, 받아 간 뒤에 다시 내려간다', async () => {
-    const sql = await memorySql()
-    await applyChanges(sql.query, 'u1', [mark('a', 1), mark('b', 1)])
-    const { now } = await pullChanges(sql.query, 'u1', 0)
-    await applyChanges(sql.query, 'u1', [mark('a', 2)])
-    expect((await pullChanges(sql.query, 'u1', now)).changes).toEqual([mark('a', 2)])
+    const { sql } = await testApp()
+    const user = newUser()
+    await applyChanges(sql.query, user, [mark('a', 1), mark('b', 1)])
+    const { now } = await pullChanges(sql.query, user, 0)
+    await applyChanges(sql.query, user, [mark('a', 2)])
+    expect((await pullChanges(sql.query, user, now)).changes).toEqual([mark('a', 2)])
   })
 })
 ```
