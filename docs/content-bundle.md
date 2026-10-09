@@ -16,7 +16,7 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 
 ## 필드
 
-**형식 버전.** 키를 더하기만 할 때는 `schemaVersion`을 올리지 않는다. `characters`, `eras`, 장면의 `characters`는 나중에 더한 키라 `schemaVersion`은 1 그대로이며, 이 키를 모르는 옛 독자는 무시하면 된다. 있던 키의 뜻이나 형식을 바꿀 때만 올린다.
+**형식 버전.** 키를 더하기만 할 때는 `schemaVersion`을 올리지 않는다. `characters`, `eras`, `things`, 장면의 `characters`, 절의 `audioMs`는 나중에 더한 키라 `schemaVersion`은 1 그대로이며, 이 키를 모르는 옛 독자는 무시하면 된다. 있던 키의 뜻이나 형식을 바꿀 때만 올린다.
 
 ### 최상위
 
@@ -28,6 +28,7 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 | `places` | Place[] | 지도에 쓰는 장소. 설정집에서 사람이 승인한(`approved`) 장소만 들어간다 |
 | `characters` | Character[] | 인물 카드와 연표에 쓰는 인물. 설정집에서 승인한 인물만, 설정집 파일 순서 |
 | `eras` | Era[] | 연표에 쓰는 시대. 설정집에서 승인한 시대만, 설정집 파일 순서 |
+| `things` | Thing[] | 검색과 설정집 카드에 쓰는 물건. 설정집에서 승인한 물건만, 설정집 파일 순서 |
 | `imageVersions` | ImageVersion[] | 그림 버전 목록. 추가한 순서 |
 | `defaultImageVersion` | string \| null | 처음 보여 줄 그림 버전 id. 목록의 마지막 버전이고, 버전이 없으면 null |
 | `chapters` | Chapter[] | 장 목록. 장 번호 순서 |
@@ -72,6 +73,19 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 | `description` | string | 설명 |
 | `present`, `absent` | string[] | 그 시대에 있는 것과 아직 없는 것 |
 
+### Thing
+
+설정집 물건의 `facts`만 옮긴다. 앱의 검색과 설정집 카드가 쓴다.
+
+| 필드 | 형식 | 뜻 |
+|---|---|---|
+| `id` | string | 물건 id |
+| `name` | string | 이름 |
+| `aliases` | string[] | 다른 이름 |
+| `description` | string | 설명. 줄바꿈(`\n`)으로 문단을 나눈다 |
+| `details` | string[] | 본문이 말하는 세부 사실 |
+| `sources` | string[] | 본문 근거 절(예: `3:21`) |
+
 ### ImageVersion
 
 `{ id: string, label: string, note: string }`. `id`는 영문 소문자·숫자·하이픈이고 그림 폴더 이름과 같다. `label`은 버전 바꾸기 버튼에 보여 줄 이름, `note`는 설명이다.
@@ -91,6 +105,7 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 | `verse` | number | 절 번호 |
 | `text` | string | 본문. 원문 그대로이며 고치지 않는다 |
 | `audio` | string \| null | 낭독 파일 경로. 아직 없으면 null |
+| `audioMs` | number \| null | 절 낭독 길이(ms). 음성이 없거나 길이를 모르면 null. 홈 화면의 "낭독으로 들으면 N분" 안내에 쓴다 |
 
 ### Scene
 

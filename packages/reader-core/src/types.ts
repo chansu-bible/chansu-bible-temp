@@ -1,5 +1,6 @@
 // audio: 사이트 루트 기준 절 낭독 파일 경로(예: content/audio/genesis-01-001.mp3). 없으면 null이다.
-export type Verse = { verse: number; text: string; audio: string | null }
+// audioMs: 낭독 길이(ms). 옛 묶음에는 없어서 불러올 때 null로 채운다.
+export type Verse = { verse: number; text: string; audio: string | null; audioMs?: number | null }
 
 // 낱말 풀이. word는 그 절 본문에 그대로 나오는 표현이다.
 export type Gloss = { verse: number; word: string; meaning: string }
@@ -61,6 +62,16 @@ export type Era = {
   absent: string[]
 }
 
+// 설정집에서 검수된 물건(생명나무, 방주 등). sources는 본문 근거 절이다.
+export type Thing = {
+  id: string
+  name: string
+  aliases: string[]
+  description: string
+  details: string[]
+  sources: string[]
+}
+
 export type Place = {
   id: string
   name: string
@@ -83,6 +94,8 @@ export type Bundle = {
   // 옛 묶음에는 없어서 불러올 때 []로 채운다.
   characters: Character[]
   eras: Era[]
+  // 옛 묶음에는 없어서 불러올 때 []로 채운다.
+  things: Thing[]
   imageVersions: ImageVersion[]
   defaultImageVersion: string | null
   chapters: Chapter[]

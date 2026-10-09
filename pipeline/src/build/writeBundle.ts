@@ -5,6 +5,7 @@ import { appContentDir, audioDir, imagesDir, repoRoot, scenesDir, sourceFile } f
 import { BundleSchema, SceneFileSchema, SourceSchema, type Bundle, type SceneFile } from '../schema.ts'
 import { readCanon } from '../canon/files.ts'
 import { readImageCatalog } from '../images/versions.ts'
+import { mp3DurationMs } from '../tts/mp3.ts'
 import { buildBundle, type ImageCatalog } from './buildBundle.ts'
 
 function relativeName(file: string): string {
@@ -48,13 +49,23 @@ function checkImages(sceneFiles: SceneFile[], catalog: ImageCatalog): void {
   }
 }
 
+// 낭독 파일마다 재생 길이를 잰다. 홈 화면의 "낭독으로 들으면 N분" 안내에 쓴다.
+async function readAudioCatalog(): Promise<Map<string, number | null>> {
+  if (!existsSync(audioDir)) return new Map()
+  const names = (await readdir(audioDir)).filter((name) => name.endsWith('.mp3'))
+  const entries = await Promise.all(
+    names.map(async (name) => [name, mp3DurationMs(await readFile(path.join(audioDir, name)))] as const),
+  )
+  return new Map(entries)
+}
+
 export async function writeBundle(): Promise<Bundle> {
   const source = await readJson(sourceFile, (value) => SourceSchema.parse(value))
-  const { characters, places, eras } = await readCanon()
+  const { characters, places, eras, things } = await readCanon()
   const sceneFiles = await readSceneFiles()
-  const audioNames = existsSync(audioDir) ? new Set(await readdir(audioDir)) : new Set<string>()
+  const audio = await readAudioCatalog()
   const catalog = await readImageCatalog()
-  const bundle = BundleSchema.parse(buildBundle(source, sceneFiles, { characters, places, eras }, audioNames, catalog))
+  const bundle = BundleSchema.parse(buildBundle(source, sceneFiles, { characters, places, eras, things }, audio, catalog))
   checkImages(sceneFiles, catalog)
 
   await rm(appContentDir, { recursive: true, force: true })

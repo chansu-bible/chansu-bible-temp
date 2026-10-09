@@ -5,6 +5,7 @@ import {
   type BundleEra,
   type BundlePlace,
   type BundleScene,
+  type BundleThing,
   type Character,
   type Era,
   type ImageVersion,
@@ -12,6 +13,7 @@ import {
   type Scene,
   type SceneFile,
   type Source,
+  type Thing,
   type Verse,
 } from '../schema.ts'
 import { findCoverageProblems } from '../scenes/coverage.ts'
@@ -21,15 +23,23 @@ import { audioName } from '../tts/select.ts'
 export type ImageCatalog = { versions: ImageVersion[]; files: Record<string, string[]> }
 
 // 묶음에 넣을 설정집. 승인 여부는 buildBundle이 거른다.
-export type BundleCanon = { characters: Character[]; places: Place[]; eras: Era[] }
+export type BundleCanon = { characters: Character[]; places: Place[]; eras: Era[]; things?: Thing[] }
+
+// 음성 파일 이름 → 재생 길이(ms, 모르면 null). 이름만 아는 Set도 받는다.
+export type AudioCatalog = ReadonlyMap<string, number | null> | ReadonlySet<string>
+
+function audioDurations(audio: AudioCatalog): ReadonlyMap<string, number | null> {
+  return audio instanceof Map ? audio : new Map([...(audio as ReadonlySet<string>)].map((name) => [name, null] as const))
+}
 
 export function buildBundle(
   source: Source,
   sceneFiles: SceneFile[],
   canon: BundleCanon,
-  audioNames: ReadonlySet<string> = new Set(),
+  audio: AudioCatalog = new Map(),
   catalog: ImageCatalog = { versions: [], files: {} },
 ): Bundle {
+  const durations = audioDurations(audio)
   // 사람이 승인한 장소만 앱에 나간다. 검수 전 초안은 지도에 올리지 않는다.
   const places = canon.places.filter((place) => place.status === 'approved')
   const placeIds = new Set(places.map((place) => place.id))
@@ -52,7 +62,8 @@ export function buildBundle(
     // 본문은 원본 그대로 두고, 음성 파일이 있는 절에만 경로를 붙인다.
     const verses = sourceChapter.verses.map((verse) => {
       const name = audioName(chapter, verse.verse)
-      return { ...verse, audio: audioNames.has(name) ? `content/audio/${name}` : null }
+      const has = durations.has(name)
+      return { ...verse, audio: has ? `content/audio/${name}` : null, audioMs: has ? (durations.get(name) ?? null) : null }
     })
     const sceneFile = sceneFiles.find((file) => file.chapter === chapter)
     if (!sceneFile) return { chapter, verses, scenes: [fallbackScene(chapter, verses.length, catalog)] }
@@ -79,6 +90,7 @@ export function buildBundle(
     places: places.map(toBundlePlace),
     characters: characters.map((character) => toBundleCharacter(character, characterIds)),
     eras: eras.map(toBundleEra),
+    things: (canon.things ?? []).filter((thing) => thing.status === 'approved').map(toBundleThing),
     imageVersions: catalog.versions,
     // 가장 나중에 추가한 버전을 기본으로 보여 준다.
     defaultImageVersion: catalog.versions.at(-1)?.id ?? null,
@@ -124,6 +136,17 @@ function toBundleEra(era: Era): BundleEra {
     description: era.facts.description,
     present: era.facts.present,
     absent: era.facts.absent,
+  }
+}
+
+function toBundleThing(thing: Thing): BundleThing {
+  return {
+    id: thing.id,
+    name: thing.name,
+    aliases: thing.aliases,
+    description: thing.facts.description,
+    details: thing.facts.details,
+    sources: thing.facts.sources,
   }
 }
 

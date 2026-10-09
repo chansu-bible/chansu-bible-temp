@@ -189,8 +189,11 @@ export const ImageVersionSchema = z.object({
   note: z.string(),
 })
 
-// 앱용 묶음
-export const BundleVerseSchema = VerseSchema.extend({ audio: z.string().nullable() })
+// 앱용 묶음. audioMs는 절 낭독 길이(ms)이고, 음성이 없거나 길이를 모르면 null이다.
+export const BundleVerseSchema = VerseSchema.extend({
+  audio: z.string().nullable(),
+  audioMs: z.number().int().nonnegative().nullable(),
+})
 
 export const BundleSceneSchema = z.object({
   id: z.string(),
@@ -247,6 +250,16 @@ export const BundleEraSchema = z.object({
   absent: z.array(z.string()),
 })
 
+// 앱의 검색과 설정집 카드가 쓰는 물건. 승인된 물건의 facts만 옮긴다.
+export const BundleThingSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  aliases: z.array(z.string()),
+  description: z.string(),
+  details: z.array(z.string()),
+  sources: z.array(z.string()),
+})
+
 // 묶음 형식이 바뀌면 올린다. 형식은 docs/content-bundle.md에 적는다.
 // 키를 더하기만 할 때는 올리지 않는다(옛 독자는 모르는 키를 무시한다).
 export const BUNDLE_SCHEMA_VERSION = 1
@@ -258,6 +271,7 @@ export const BundleSchema = z.object({
   places: z.array(BundlePlaceSchema),
   characters: z.array(BundleCharacterSchema),
   eras: z.array(BundleEraSchema),
+  things: z.array(BundleThingSchema),
   imageVersions: z.array(ImageVersionSchema),
   defaultImageVersion: z.string().nullable(),
   chapters: z.array(
@@ -284,6 +298,7 @@ export type Canon = { characters: Character[]; places: Place[]; eras: Era[]; thi
 export type BundlePlace = z.infer<typeof BundlePlaceSchema>
 export type BundleCharacter = z.infer<typeof BundleCharacterSchema>
 export type BundleEra = z.infer<typeof BundleEraSchema>
+export type BundleThing = z.infer<typeof BundleThingSchema>
 export type Gloss = z.infer<typeof GlossSchema>
 export type StyleReference = z.infer<typeof StyleReferenceSchema>
 export type Style = z.infer<typeof StyleSchema>

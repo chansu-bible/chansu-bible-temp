@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildBundle } from '../src/build/buildBundle.ts'
-import type { Character, Era, Place, Scene, Source } from '../src/schema.ts'
+import type { Character, Era, Place, Scene, Source, Thing } from '../src/schema.ts'
 
 const source: Source = {
   book: '창세기',
@@ -66,8 +66,8 @@ function era(overrides: Partial<Era> & { id: string; name: string }): Era {
   }
 }
 
-function canonOf(placeList: Place[], characters: Character[] = [], eras: Era[] = []) {
-  return { characters, places: placeList, eras }
+function canonOf(placeList: Place[], characters: Character[] = [], eras: Era[] = [], things: Thing[] = []) {
+  return { characters, places: placeList, eras, things }
 }
 
 function scene(overrides: Partial<Scene>): Scene {
@@ -117,6 +117,42 @@ describe('buildBundle', () => {
       null,
       'content/audio/genesis-01-002.mp3',
       null,
+    ])
+  })
+
+  it('음성 길이를 알면 절에 audioMs를 넣고, 모르거나 음성이 없으면 null이다', () => {
+    const audio = new Map<string, number | null>([
+      ['genesis-01-001.mp3', 4210],
+      ['genesis-01-002.mp3', null],
+    ])
+    const bundle = buildBundle(source, [], canonOf(places), audio)
+    expect(bundle.chapters[0].verses.map((verse) => verse.audioMs)).toEqual([4210, null, null])
+    expect(bundle.chapters[0].verses.map((verse) => verse.audio)).toEqual([
+      'content/audio/genesis-01-001.mp3',
+      'content/audio/genesis-01-002.mp3',
+      null,
+    ])
+  })
+
+  it('승인된 물건만 앱 형식으로 넣는다', () => {
+    const thing: Thing = {
+      id: 'tree-of-life',
+      name: '생명나무',
+      aliases: [],
+      status: 'approved',
+      facts: { description: '동산 가운데 있는 나무', details: ['길이 지켜졌다'], sources: ['2:9', '3:24'] },
+      design: { visualNotes: '' },
+    }
+    const draft: Thing = { ...thing, id: 'fig-leaves', name: '무화과나무 잎', status: 'draft' }
+    expect(buildBundle(source, [], canonOf(places, [], [], [thing, draft])).things).toEqual([
+      {
+        id: 'tree-of-life',
+        name: '생명나무',
+        aliases: [],
+        description: '동산 가운데 있는 나무',
+        details: ['길이 지켜졌다'],
+        sources: ['2:9', '3:24'],
+      },
     ])
   })
 

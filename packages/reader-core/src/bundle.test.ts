@@ -16,6 +16,7 @@ describe('fillMissing', () => {
     const filled = fillMissing(old)
     expect(filled.characters).toEqual([])
     expect(filled.eras).toEqual([])
+    expect(filled.things).toEqual([])
     expect(filled.chapters[0].scenes[0].characters).toEqual([])
   })
 
@@ -24,11 +25,14 @@ describe('fillMissing', () => {
       schemaVersion: 1,
       characters: [{ id: 'adam' }],
       eras: [{ id: 'flood' }],
-      chapters: [{ chapter: 1, verses: [], scenes: [{ id: 'a', characters: ['adam'] }] }],
+      things: [{ id: 'ark' }],
+      chapters: [{ chapter: 1, verses: [{ verse: 1, text: '', audio: null, audioMs: 1200 }], scenes: [{ id: 'a', characters: ['adam'] }] }],
     } as unknown as Bundle
     const filled = fillMissing(bundle)
     expect(filled.characters).toEqual([{ id: 'adam' }])
     expect(filled.eras).toEqual([{ id: 'flood' }])
+    expect(filled.things).toEqual([{ id: 'ark' }])
+    expect(filled.chapters[0].verses[0].audioMs).toBe(1200)
     expect(filled.chapters[0].scenes[0].characters).toEqual(['adam'])
   })
 })
