@@ -2,6 +2,7 @@
   "expo": {
     "name": "장면 성경",
     "slug": "chansu-bible",
+    "owner": "dfdfg42",
     "scheme": "chansubible",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -72,6 +73,11 @@
       ],
       "@bacons/apple-targets",
       "expo-asset"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f6365946-e071-40c0-aa87-345ad65bfe0b"
+      }
+    }
   }
 }
