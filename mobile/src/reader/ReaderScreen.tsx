@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BackHandler, Platform, StyleSheet, View } from 'react-native'
@@ -6,13 +7,9 @@ import {
   buildRoute,
   findSceneIndex,
   initialPosition,
-  loadPosition,
-  loadReadScenes,
-  markRead,
+  localDay,
   nextPosition,
   placeChange,
-  savePosition,
-  saveReadScenes,
   startOfChapter,
   verseAt,
   type Bundle,
@@ -20,14 +17,17 @@ import {
   type PlaceChange,
   type Position,
 } from 'reader-core'
-import { audioSource } from '../content/bundle'
+import { audioSource, bookId } from '../content/bundle'
+import { markSceneRead, savedPosition, savePositionRecord, useMarks, useReadScenes } from '../data/reading'
 import MapScreen from '../map/MapScreen'
+import { goBack, onReaderRequest, takeReaderRequest, type ReaderRequest } from '../navigation'
 import { useSettings } from '../settings/SettingsContext'
-import { kv } from '../storage/kv'
+import ShareCardSheet from '../share/ShareCardSheet'
 import BackgroundSheet from './BackgroundSheet'
 import ChapterPicker from './ChapterPicker'
 import ContentsScreen, { type ContentsTab } from './ContentsScreen'
 import EntityCard from './EntityCard'
+import MarkSheet from './MarkSheet'
 import ScenePane from './ScenePane'
 import SettingsSheet from './SettingsSheet'
 import { useNarration } from './useNarration'
@@ -42,15 +42,35 @@ type Overlay =
   | 'settings'
   | 'chapters'
   | { kind: 'entity'; entity: Entity; back: 'contents' | null }
+  // 절을 길게 눌러 연 밑줄·메모 시트와, 거기서 연 장면 카드 공유
+  | { kind: 'mark'; verse: number }
+  | { kind: 'share'; verse: number }
 
 // 읽기 화면: 위에 장면 그림, 아래에 본문. 웹 목업 ReaderScreen과 같은 흐름이다.
 export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   const { settings, palette } = useSettings()
+  const router = useRouter()
+  // 홈·검색·메모에서 열 때 보낸 요청(옮길 절, 열 덮개). 처음 한 번만 꺼낸다.
+  const [initialRequest] = useState(() => takeReaderRequest())
   // 지금 읽는 곳은 절 단위로 들고, 장면은 절에서 정한다.
-  const [position, setPosition] = useState(() => initialPosition(bundle.chapters, loadPosition(kv)))
-  const [overlay, setOverlay] = useState<Overlay>('none')
-  const [readScenes, setReadScenes] = useState(() => loadReadScenes(kv))
-  const [contentsTab, setContentsTab] = useState<ContentsTab>('scenes')
+  const [position, setPosition] = useState(() =>
+    initialPosition(bundle.chapters, initialRequest?.position ?? savedPosition()),
+  )
+  const [overlay, setOverlay] = useState<Overlay>(() =>
+    initialRequest?.overlay === 'map' ? 'map' : initialRequest?.overlay ? 'contents' : 'none',
+  )
+  const [contentsTab, setContentsTab] = useState<ContentsTab>(
+    initialRequest?.overlay === 'timeline' ? 'timeline' : 'scenes',
+  )
+  const { ids: readScenes } = useReadScenes()
+  const marks = useMarks()
+  const chapterMarks = useMemo(
+    () =>
+      new Map(
+        marks.filter((mark) => mark.book === bookId && mark.chapter === position.chapter).map((mark) => [mark.verse, mark]),
+      ),
+    [marks, position.chapter],
+  )
   // 목차·장면 넘기기로 옮길 때마다 늘려 본문을 새로 그린다. 그래야 같은 장 안에서도 그 절로 스크롤한다.
   const [jumpCount, setJumpCount] = useState(0)
   // 장면이 바뀌면서 장소가 달라지면 여정 지도를 저절로 열어 새 장소로 옮긴 뒤 닫는다. 그때의 변화를 든다.
@@ -75,17 +95,13 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   }, settings.speed)
 
   useEffect(() => {
-    savePosition(kv, position)
+    savePositionRecord(position)
   }, [position])
 
-  // 장면의 마지막 절까지 오면 그 장면을 읽은 것으로 적는다.
+  // 장면의 마지막 절까지 오면 그 장면을 오늘 읽은 것으로 적는다(연속 읽기와 계획이 쓴다).
   useEffect(() => {
-    if (position.verse >= scene.verseEnd) setReadScenes((current) => markRead(current, scene.id))
-  }, [position, scene.id, scene.verseEnd])
-
-  useEffect(() => {
-    saveReadScenes(kv, readScenes)
-  }, [readScenes])
+    if (position.verse >= scene.verseEnd && !readScenes.has(scene.id)) markSceneRead(scene.id, localDay(new Date()))
+  }, [position, scene.id, scene.verseEnd, readScenes])
 
   // 다른 덮개(해설 시트 등)를 보고 있을 때는 끼어들지 않는다. 설정에서 껐으면 열지 않는다.
   useEffect(() => {
@@ -108,7 +124,7 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   // 목차에서 연 인물 카드는 닫으면 목차로 돌아가고, 나머지는 모두 닫힌다.
   function closeOverlay() {
     setAutoMap(null)
-    if (typeof overlay === 'object' && overlay.back === 'contents') setOverlay('contents')
+    if (typeof overlay === 'object' && overlay.kind === 'entity' && overlay.back === 'contents') setOverlay('contents')
     else setOverlay('none')
   }
 
@@ -144,9 +160,29 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
 
   // 본문의 이름에서 열면 처음 여는 카드, 카드 안의 관계에서 열면 지금 카드를 바꾼다.
   function openEntity(entity: Entity) {
-    const back = typeof overlay === 'object' ? overlay.back : overlay === 'contents' ? 'contents' : null
+    const back =
+      typeof overlay === 'object' && overlay.kind === 'entity' ? overlay.back : overlay === 'contents' ? 'contents' : null
     openOverlay({ kind: 'entity', entity, back })
   }
+
+  // 검색·메모에서 뒤로 돌아오며 보낸 요청. 지금 그려진 읽기 화면에 바로 적용한다.
+  const applyRequest = useRef<(request: ReaderRequest) => void>(() => undefined)
+  applyRequest.current = (request) => {
+    if (request.position) jumpTo(request.position)
+    if (request.overlay === 'map') openOverlay('map')
+    else if (request.overlay) {
+      setContentsTab(request.overlay === 'timeline' ? 'timeline' : 'scenes')
+      openOverlay('contents')
+    }
+  }
+  useEffect(
+    () =>
+      onReaderRequest(() => {
+        const request = takeReaderRequest()
+        if (request) applyRequest.current(request)
+      }),
+    [],
+  )
 
   function togglePlay() {
     if (narration.playing) narration.stop()
@@ -193,6 +229,10 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           onOpenContents={() => openOverlay('contents')}
           onOpenSettings={() => openOverlay('settings')}
           onOpenChapters={() => openOverlay('chapters')}
+          marks={chapterMarks}
+          onLongPressVerse={(target) => openOverlay({ kind: 'mark', verse: target })}
+          onGoHome={() => goBack(router)}
+          onOpenSearch={() => router.push({ pathname: '/search', params: { from: 'read' } })}
         />
       </View>
 
@@ -225,7 +265,7 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           onClose={closeOverlay}
         />
       )}
-      {typeof overlay === 'object' && (
+      {typeof overlay === 'object' && overlay.kind === 'entity' && (
         <EntityCard
           key={`${overlay.entity.kind}-${overlay.entity.id}`}
           entity={overlay.entity}
@@ -234,6 +274,25 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
           sceneCharacters={scene.characters}
           onOpenEntity={openEntity}
           onOpenMap={() => openOverlay('map')}
+          onClose={closeOverlay}
+        />
+      )}
+      {typeof overlay === 'object' && overlay.kind === 'mark' && (
+        <MarkSheet
+          book={bookId}
+          chapter={chapter.chapter}
+          verse={chapter.verses.find((v) => v.verse === overlay.verse)!}
+          onShare={() => setOverlay({ kind: 'share', verse: overlay.verse })}
+          onClose={closeOverlay}
+        />
+      )}
+      {typeof overlay === 'object' && overlay.kind === 'share' && (
+        <ShareCardSheet
+          scene={chapter.scenes[findSceneIndex(chapter.scenes, overlay.verse)]!}
+          imageVersionId={bundle.defaultImageVersion}
+          chapter={chapter.chapter}
+          verse={chapter.verses.find((v) => v.verse === overlay.verse)!}
+          translation={bundle.translation}
           onClose={closeOverlay}
         />
       )}

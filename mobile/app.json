@@ -31,7 +31,8 @@
       "expo-image",
       "expo-audio",
       "expo-sqlite",
-      "expo-font"
+      "expo-font",
+      "expo-sharing"
     ]
   }
 }

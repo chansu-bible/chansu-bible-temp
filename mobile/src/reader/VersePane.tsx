@@ -17,10 +17,11 @@ import {
   type Character,
   type Entity,
   type Gloss,
+  type Mark,
   type Place,
 } from 'reader-core'
 import { useSettings } from '../settings/SettingsContext'
-import { fonts } from '../theme/palette'
+import { fonts, markColor } from '../theme/palette'
 import Icon from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
 
@@ -43,6 +44,12 @@ type Props = {
   onOpenContents: () => void
   onOpenSettings: () => void
   onOpenChapters: () => void
+  // 절 → 밑줄·메모 기록(이 장의 것만)
+  marks: ReadonlyMap<number, Mark>
+  // 절을 길게 누르면 밑줄·메모 시트를 연다.
+  onLongPressVerse: (verse: number) => void
+  onGoHome: () => void
+  onOpenSearch: () => void
 }
 
 // 화면 아래쪽 절반: 장의 본문. 장이나 이동(목차, 장면 넘기기)이 바뀌면 ReaderScreen이 key로 새로 그린다.
@@ -59,6 +66,10 @@ export default function VersePane({
   onOpenContents,
   onOpenSettings,
   onOpenChapters,
+  marks,
+  onLongPressVerse,
+  onGoHome,
+  onOpenSearch,
 }: Props) {
   const { palette, verseScale } = useSettings()
   const insets = useSafeAreaInsets()
@@ -134,7 +145,9 @@ export default function VersePane({
   return (
     <View style={[styles.pane, { backgroundColor: palette.paper }]}>
       <View style={[styles.header, { borderBottomColor: palette.line }]}>
-        <Pressable
+        <View style={styles.headerStart}>
+          <IconButton name="home" label="홈으로" color={palette.ink} onPress={onGoHome} />
+          <Pressable
           accessibilityRole="button"
           accessibilityLabel={`장 고르기. 지금 창세기 ${chapter.chapter}장`}
           onPress={onOpenChapters}
@@ -142,8 +155,10 @@ export default function VersePane({
         >
           <Text style={[styles.chapterText, { color: palette.ink }]}>창세기 {chapter.chapter}장</Text>
           <Icon name="chevronDown" size={16} color={palette.inkSoft} />
-        </Pressable>
+          </Pressable>
+        </View>
         <View style={styles.headerButtons}>
+          <IconButton name="search" label="검색" color={palette.ink} onPress={onOpenSearch} />
           <IconButton name="list" label="목차" color={palette.ink} onPress={onOpenContents} />
           <IconButton name="gear" label="읽기 설정" color={palette.ink} onPress={onOpenSettings} />
         </View>
@@ -176,51 +191,67 @@ export default function VersePane({
                   characters,
                   places,
                 )
+                const mark = marks.get(v.verse)
+                const badgeStyle = { color: palette.accent, fontFamily: fonts.sans, fontSize: 13 * verseScale }
+                const content = parts.map((part, partIndex) => {
+                  const { gloss, entity } = part
+                  if (gloss) {
+                    return (
+                      <Text
+                        key={partIndex}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${part.text} 뜻 보기`}
+                        onPress={() => setOpenGloss(gloss)}
+                        style={[styles.gloss, { textDecorationColor: palette.accent }]}
+                      >
+                        {part.text}
+                      </Text>
+                    )
+                  }
+                  if (entity) {
+                    return (
+                      <Text
+                        key={partIndex}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${part.text} ${entity.kind === 'place' ? '장소' : '인물'} 카드 보기`}
+                        onPress={() => onOpenEntity(entity)}
+                        style={[styles.name, { textDecorationColor: palette.accent }]}
+                      >
+                        {part.text}
+                      </Text>
+                    )
+                  }
+                  return <Text key={partIndex}>{part.text}</Text>
+                })
                 return (
-                  <View
+                  <Pressable
                     key={v.verse}
                     onLayout={(event) => {
                       verseTops.current.set(v.verse, event.nativeEvent.layout.y)
                       placeInitially()
                     }}
+                    onLongPress={() => onLongPressVerse(v.verse)}
+                    delayLongPress={400}
+                    accessibilityHint="길게 누르면 밑줄과 메모를 남겨요"
                     style={[styles.verseBox, v.verse === verse && { backgroundColor: palette.accentSoft }]}
                   >
                     <Text
                       style={[styles.verse, { fontSize: size, lineHeight: size * 1.75, color: active ? palette.ink : palette.inkSoft }]}
                     >
                       <Text style={[styles.verseNumber, { color: palette.accent }]}>{v.verse} </Text>
-                      {parts.map((part, partIndex) => {
-                        const { gloss, entity } = part
-                        if (gloss) {
-                          return (
-                            <Text
-                              key={partIndex}
-                              accessibilityRole="button"
-                              accessibilityLabel={`${part.text} 뜻 보기`}
-                              onPress={() => setOpenGloss(gloss)}
-                              style={[styles.gloss, { textDecorationColor: palette.accent }]}
-                            >
-                              {part.text}
-                            </Text>
-                          )
-                        }
-                        if (entity) {
-                          return (
-                            <Text
-                              key={partIndex}
-                              accessibilityRole="button"
-                              accessibilityLabel={`${part.text} ${entity.kind === 'place' ? '장소' : '인물'} 카드 보기`}
-                              onPress={() => onOpenEntity(entity)}
-                              style={[styles.name, { textDecorationColor: palette.accent }]}
-                            >
-                              {part.text}
-                            </Text>
-                          )
-                        }
-                        return <Text key={partIndex}>{part.text}</Text>
-                      })}
+                      {mark?.color ? <Text style={{ backgroundColor: markColor(mark.color, palette) }}>{content}</Text> : content}
+                      {mark && mark.note.trim() ? (
+                        <Text accessibilityLabel="메모 있음. 눌러서 보기" onPress={() => onLongPressVerse(v.verse)} style={badgeStyle}>
+                          {' ✎'}
+                        </Text>
+                      ) : null}
+                      {mark?.bookmark ? (
+                        <Text accessibilityLabel="즐겨찾기" style={badgeStyle}>
+                          {' ★'}
+                        </Text>
+                      ) : null}
                     </Text>
-                  </View>
+                  </Pressable>
                 )
               })}
             </View>
@@ -259,7 +290,8 @@ export default function VersePane({
 
 const styles = StyleSheet.create({
   pane: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 14, paddingRight: 6, borderBottomWidth: StyleSheet.hairlineWidth },
+  headerStart: { flexDirection: 'row', alignItems: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 4, paddingRight: 6, borderBottomWidth: StyleSheet.hairlineWidth },
   chapterButton: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 10 },
   chapterText: { fontSize: 15, fontWeight: '600' },
   headerButtons: { flexDirection: 'row' },
