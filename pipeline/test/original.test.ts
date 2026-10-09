@@ -1,0 +1,102 @@
+import { describe, expect, it } from 'vitest'
+import { cleanHebrew, strongOf } from '../src/original/hebrew.ts'
+import { posLabel } from '../src/original/morph.ts'
+import { parseOshb } from '../src/original/oshb.ts'
+import { parseStrongs } from '../src/original/strongs.ts'
+
+const oshb = `<chapter osisID="Gen.1">
+<verse osisID="Gen.1.1">
+  <w lemma="b/7225" n="1.0" morph="HR/Ncfsa" id="01xeN">בְּ/רֵאשִׁ֖ית</w>
+  <w lemma="1254 a" morph="HVqp3ms" id="01Nvk">בָּרָ֣א</w>
+  <w lemma="5921 a" morph="HR" id="01qNN">עַל</w><seg type="x-maqqef">־</seg><w lemma="6440" morph="HNcbpc" id="01EVS">פְּנֵ֣י</w><seg type="x-sof-pasuq">׃</seg>
+</verse>
+</chapter>
+<chapter osisID="Gen.4">
+<verse osisID="Gen.4.15">
+  <w lemma="l" morph="HR/Sp3ms" id="012bH">ל֣/וֹ</w>
+</verse>
+</chapter>
+<chapter osisID="Gen.11"><verse osisID="Gen.11.1"><w lemma="1961" morph="HVqw3ms" id="x">וַיְהִי</w></verse></chapter>`
+
+const strongs = `<div type="entry" n="7225">
+        <w gloss="2097e" lemma="רֵאשִׁית" morph="n-f" POS="ray-sheeth'" xlit="rêʼshîyth" ID="H7225" xml:lang="heb">ראשית</w>
+        <list><item>1) first</item></list>
+        <note type="exegesis">from the same as <w lemma="רֹאשׁ" POS="roshe" src="7218" xlit="rôʼsh"/>;</note>
+        <note type="explanation"><hi>the first</hi>, <hi>in place</hi>, <hi>time</hi>, <hi>order</hi> or <hi>rank</hi> (specifically, a firstfruit)</note>
+        <note type="translation">beginning, chief(-est), first(-fruits, part, time), principal thing.</note>
+      </div>
+      <div type="entry" n="1">
+        <w gloss="4a" lemma="אָב" morph="n-m" POS="awb" xlit="ʼâb" ID="H1" xml:lang="heb">אב</w>
+        <note type="explanation"><hi>father</hi>, in a literal and immediate, or figurative and remote application</note>
+        <note type="translation">chief, (fore-) father(-less), [idiom] patrimony, principal.</note>
+      </div>`
+
+describe('히브리어 낱말', () => {
+  it('칸틸레이션 부호와 형태소 구분을 빼고 모음 부호는 둔다', () => {
+    expect(cleanHebrew('בְּ/רֵאשִׁ֖ית')).toBe('בְּרֵאשִׁית')
+    expect(cleanHebrew('אֱלֹהִ֑ים')).toBe('אֱלֹהִים')
+  })
+
+  it('원형(lemma)에서 스트롱 번호를 뽑는다. 접두사뿐이면 null', () => {
+    expect(strongOf('b/7225')).toBe('H7225')
+    expect(strongOf('1254 a')).toBe('H1254')
+    expect(strongOf('c/d/776')).toBe('H776')
+    expect(strongOf('l')).toBeNull()
+  })
+})
+
+describe('posLabel', () => {
+  it('형태소마다 품사를 붙이고, 동사는 어간과 활용을 적는다', () => {
+    expect(posLabel('HR/Ncfsa')).toBe('전치사 + 명사')
+    expect(posLabel('HVqp3ms')).toBe('동사(칼 완료)')
+    expect(posLabel('HC/Vqw3ms')).toBe('접속사 + 동사(칼 연속 미완료)')
+    expect(posLabel('HTd/Ncmpa')).toBe('정관사 + 명사')
+    expect(posLabel('HNp')).toBe('고유 명사')
+    expect(posLabel('HR/Sp3ms')).toBe('전치사 + 접미 대명사')
+    expect(posLabel('HTo')).toBe('목적어 표지')
+    expect(posLabel('HVhc')).toBe('동사(히필 부정사 연계형)')
+    expect(posLabel('ANcmsa')).toBe('아람어 명사')
+  })
+})
+
+describe('parseOshb', () => {
+  it('고른 장의 절마다 낱말을 차례로 읽는다', () => {
+    expect(parseOshb(oshb, new Set([1, 4]))).toEqual([
+      {
+        chapter: 1,
+        verses: [
+          {
+            verse: 1,
+            words: [
+              { text: 'בְּרֵאשִׁית', strong: 'H7225', morph: 'HR/Ncfsa' },
+              { text: 'בָּרָא', strong: 'H1254', morph: 'HVqp3ms' },
+              { text: 'עַל', strong: 'H5921', morph: 'HR' },
+              { text: 'פְּנֵי', strong: 'H6440', morph: 'HNcbpc' },
+            ],
+          },
+        ],
+      },
+      { chapter: 4, verses: [{ verse: 15, words: [{ text: 'לוֹ', strong: null, morph: 'HR/Sp3ms' }] }] },
+    ])
+  })
+})
+
+describe('parseStrongs', () => {
+  it('원하는 번호의 원형, 음역, 품사, 정의, 번역어를 읽고 태그를 지운다', () => {
+    expect(parseStrongs(strongs, new Set(['H7225']))).toEqual(
+      new Map([
+        [
+          'H7225',
+          {
+            strong: 'H7225',
+            lemma: 'רֵאשִׁית',
+            xlit: 'rêʼshîyth',
+            pos: 'n-f',
+            definition: 'the first, in place, time, order or rank (specifically, a firstfruit)',
+            usage: 'beginning, chief(-est), first(-fruits, part, time), principal thing.',
+          },
+        ],
+      ]),
+    )
+  })
+})

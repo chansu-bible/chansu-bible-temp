@@ -19,3 +19,12 @@ export const audioDir = path.join(contentDir, 'audio')
 // LLM 실행 기록. 날짜별 YYYY-MM-DD.jsonl, 한 줄이 한 호출이다. 커밋하지 않는다.
 export const runsDir = path.join(contentDir, 'runs')
 export const appContentDir = path.join(repoRoot, 'app', 'public', 'content')
+// 원어: OSHB 낱말(genesis.json)과 스트롱 사전 항목·한국어 뜻(lexicon.json)
+export const originalDir = path.join(contentDir, 'original')
+export const originalFile = path.join(originalDir, 'genesis.json')
+export const lexiconFile = path.join(originalDir, 'lexicon.json')
+// 이해 확인 퀴즈. 장마다 genesis-NN.json
+export const quizDir = path.join(contentDir, 'quiz')
+export function quizFilePath(chapter: number, dir: string = quizDir): string {
+  return path.join(dir, `genesis-${String(chapter).padStart(2, '0')}.json`)
+}

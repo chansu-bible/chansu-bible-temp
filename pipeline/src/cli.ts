@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { writeBundle } from './build/writeBundle.ts'
 import { runCanon } from './canon/runCanon.ts'
+import { runOriginal } from './original/runOriginal.ts'
 import { generateImages } from './images/generateImages.ts'
 import { createOpenAiDraw } from './images/openaiDraw.ts'
 import { envFile } from './paths.ts'
@@ -107,6 +108,12 @@ const commands: Record<string, (flags: Flags) => Promise<void>> = {
     console.log(`음성 생성 완료: 성공 ${result.spoken}개, 실패 ${result.failed.length}개`)
     for (const failure of result.failed) console.error(`- ${chapter}:${failure.verse} ${failure.reason}`)
     if (result.failed.length > 0) process.exitCode = 1
+  },
+  async original() {
+    const result = await runOriginal({}, console.log)
+    console.log(
+      `원어 저장 완료: ${result.chapters}장, 낱말 ${result.words}개, 사전 항목 ${result.entries}개(한국어 뜻 있음 ${result.withKorean}개)`,
+    )
   },
   async build() {
     const bundle = await writeBundle()

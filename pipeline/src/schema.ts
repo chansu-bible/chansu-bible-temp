@@ -310,3 +310,38 @@ export type Scene = z.infer<typeof SceneSchema>
 export type SceneFile = z.infer<typeof SceneFileSchema>
 export type BundleScene = z.infer<typeof BundleSceneSchema>
 export type Bundle = z.infer<typeof BundleSchema>
+
+// 원어 낱말(OSHB). strong은 스트롱 번호(H7225), 접두사뿐인 낱말은 null. morph는 OSHB 형태 부호
+export const OriginalWordSchema = z.object({ text: z.string(), strong: z.string().regex(/^H\d+$/).nullable(), morph: z.string() })
+export const OriginalFileSchema = z.object({
+  chapters: z.array(
+    z.object({
+      chapter: z.number().int().positive(),
+      verses: z.array(z.object({ verse: z.number().int().positive(), words: z.array(OriginalWordSchema) })),
+    }),
+  ),
+})
+
+// 사전 항목의 한국어 뜻. draft는 original-gloss 단계의 초안, approved는 사람이 관리 도구에서 승인한 것
+export const KoreanGlossSchema = z.object({
+  meaning: z.string().min(1),
+  note: z.string(),
+  status: z.enum(['draft', 'approved']),
+})
+export const LexiconEntrySchema = z.object({
+  strong: z.string().regex(/^H\d+$/),
+  lemma: z.string(),
+  xlit: z.string(),
+  pos: z.string(),
+  definition: z.string(),
+  usage: z.string(),
+  // 이 묶음의 장(창세기 1~10장)에 나오는 횟수
+  count: z.number().int().nonnegative(),
+  korean: KoreanGlossSchema.nullable(),
+})
+export const LexiconFileSchema = z.object({ entries: z.array(LexiconEntrySchema) })
+
+export type OriginalFile = z.infer<typeof OriginalFileSchema>
+export type KoreanGloss = z.infer<typeof KoreanGlossSchema>
+export type LexiconEntry = z.infer<typeof LexiconEntrySchema>
+export type LexiconFile = z.infer<typeof LexiconFileSchema>
