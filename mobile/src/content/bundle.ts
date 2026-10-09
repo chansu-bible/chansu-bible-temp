@@ -23,3 +23,6 @@ export function imageSource(file: string | undefined): number | null {
 export function audioSource(file: string | null | undefined): number | null {
   return file ? (audioAssets[file] ?? null) : null
 }
+
+// 기록(밑줄·메모)에 쓰는 책 id. 묶음 파일 이름과 같다.
+export const bookId = 'genesis'

@@ -17,6 +17,16 @@ export type IconName =
   | 'chevronDown'
   | 'plus'
   | 'minus'
+  | 'home'
+  | 'search'
+  | 'flame'
+  | 'note'
+  | 'bookmark'
+  | 'share'
+  | 'timeline'
+  | 'tree'
+  | 'book'
+  | 'check'
 
 // 웹 목업(app/src/components/Icon.tsx)과 같은 선 아이콘
 const shapes: Record<IconName, ReactNode> = {
@@ -70,12 +80,53 @@ const shapes: Record<IconName, ReactNode> = {
   chevronDown: <Path d="M6 9l6 6 6-6" />,
   plus: <Path d="M12 5v14M5 12h14" />,
   minus: <Path d="M5 12h14" />,
+  home: <Path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />,
+  search: (
+    <>
+      <Circle cx={11} cy={11} r={7} />
+      <Path d="m20 20-3.5-3.5" />
+    </>
+  ),
+  flame: <Path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 1-3-1-6 1-10z" />,
+  note: (
+    <>
+      <Path d="M5 4h11l3 3v13H5z" />
+      <Path d="M8 10h8M8 14h5" />
+    </>
+  ),
+  bookmark: <Path d="M6 4h12v17l-6-4-6 4z" />,
+  share: (
+    <>
+      <Path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />
+      <Path d="M12 3v13M7 8l5-5 5 5" />
+    </>
+  ),
+  timeline: <Path d="M4 12h16M8 6v12M16 6v12" />,
+  tree: <Path d="M12 3v6M5 13V9h14v4M5 13v4M19 13v4M12 9v8" />,
+  book: (
+    <>
+      <Path d="M4 5h6a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H4z" />
+      <Path d="M20 5h-6a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h7z" />
+    </>
+  ),
+  check: <Path d="M4 12l5 5L20 6" />,
 }
 
-export default function Icon({ name, size = 22, color }: { name: IconName; size?: number; color: string }) {
+// filled: 안을 칠한다(즐겨찾기, 불꽃)
+export default function Icon({
+  name,
+  size = 22,
+  color,
+  filled = false,
+}: {
+  name: IconName
+  size?: number
+  color: string
+  filled?: boolean
+}) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
-      <G fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <G fill={filled ? color : 'none'} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         {shapes[name]}
       </G>
     </Svg>

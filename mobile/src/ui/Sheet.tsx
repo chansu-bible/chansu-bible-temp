@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Animated, Easing, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useSettings } from '../settings/SettingsContext'
 import { fonts } from '../theme/palette'
@@ -32,7 +32,8 @@ export function Sheet({ title, header, closeLabel, onClose, children }: Props) {
   const translateY = offset.interpolate({ inputRange: [0, 1], outputRange: [0, 400] })
 
   return (
-    <View style={styles.root} accessibilityViewIsModal>
+    // 메모를 쓸 때 키보드가 시트를 가리지 않게 한다(iOS. 안드로이드는 화면이 저절로 줄어든다).
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.root} accessibilityViewIsModal>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel={closeLabel} />
       <Animated.View
         style={[styles.sheet, { backgroundColor: palette.surface, paddingBottom: 24 + insets.bottom, transform: [{ translateY }] }]}
@@ -52,7 +53,7 @@ export function Sheet({ title, header, closeLabel, onClose, children }: Props) {
           {children}
         </ScrollView>
       </Animated.View>
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 

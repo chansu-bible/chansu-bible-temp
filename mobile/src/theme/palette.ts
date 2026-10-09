@@ -1,4 +1,5 @@
 import { Platform } from 'react-native'
+import type { MarkColor } from 'reader-core'
 
 // 웹 목업(app/src/index.css)의 색을 그대로 옮겼다. 지도 색(map*, halo)은 앱에서 새로 정했다.
 export type Palette = {
@@ -24,6 +25,10 @@ export type Palette = {
   mapRiver: string
   mapLabel: string
   halo: string
+  // 밑줄 색(목업 9번의 노랑·초록·파랑)
+  markYellow: string
+  markGreen: string
+  markBlue: string
 }
 
 export const light: Palette = {
@@ -49,6 +54,9 @@ export const light: Palette = {
   mapRiver: '#8fb0c0',
   mapLabel: '#6f8890',
   halo: '#ffffff',
+  markYellow: '#fbefd6',
+  markGreen: '#e6f0e4',
+  markBlue: '#e3ecf6',
 }
 
 export const dark: Palette = {
@@ -74,6 +82,9 @@ export const dark: Palette = {
   mapRiver: '#3e5a66',
   mapLabel: '#7f9198',
   halo: '#1d1a17',
+  markYellow: 'rgba(224, 162, 74, 0.28)',
+  markGreen: 'rgba(124, 192, 140, 0.24)',
+  markBlue: 'rgba(127, 168, 224, 0.26)',
 }
 
 // 본문 글꼴은 나눔명조(OFL, 웹 목업의 두 번째 후보 글꼴), 나머지는 기기 글꼴이다.
@@ -94,4 +105,8 @@ export function placeholderColors(hue: number, palette: Palette): { background: 
   return palette.dark
     ? { background: `hsl(${hue}, 18%, 24%)`, text: `hsl(${hue}, 25%, 72%)` }
     : { background: `hsl(${hue}, 32%, 84%)`, text: `hsl(${hue}, 30%, 32%)` }
+}
+
+export function markColor(color: MarkColor, palette: Palette): string {
+  return color === 'yellow' ? palette.markYellow : color === 'green' ? palette.markGreen : palette.markBlue
 }
