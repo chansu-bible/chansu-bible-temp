@@ -2897,7 +2897,7 @@ git commit -m "feat(mobile): 목차(장면 목록과 진도)와 인물 연표"
 import bboxClip from '@turf/bbox-clip'
 import simplify from '@turf/simplify'
 import type { Feature, FeatureCollection, LineString, MultiLineString, MultiPolygon, Polygon, Position } from 'geojson'
-import { writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { project } from 'reader-core'
 
@@ -2990,6 +2990,7 @@ const basemap = {
 }
 
 const out = path.resolve(import.meta.dirname, '../src/map/basemap.generated.ts')
+await mkdir(path.dirname(out), { recursive: true })
 await writeFile(
   out,
   [
