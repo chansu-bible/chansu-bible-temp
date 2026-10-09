@@ -46,6 +46,34 @@ export function localRef(text: string, book: BookId): string | null {
   return formatRef(ref, 'bare')
 }
 
+// 화면에 보이는 참조. book은 지금 보고 있는 책이다. 이 책의 절이면 책 없이("3:21"), 다른 책의 절이면 책 이름을 붙여("창세기 3:21") 보인다.
+// 책 없는 참조는 이 책의 것으로 본다. 읽을 수 없는 글은 그대로 둔다.
+export function displayRef(text: string, book: BookId): string {
+  const local = localRef(text, book)
+  if (local !== null) return local
+  const ref = parseRef(text)
+  return ref ? formatRef(ref, 'name') : text
+}
+
+// 두 참조를 "~"로 이은 범위(시대의 절 범위 등)를 화면에 보인다. book은 지금 보고 있는 책이다.
+// - 두 끝이 모두 이 책 안이면 책 없이("2:4~3:24")
+// - 두 끝이 같은 다른 책 안이면 책 이름을 앞에 한 번만("창세기 2:4~3:24")
+// - 두 끝이 서로 다른 책이면 끝마다 책 이름을("창세기 50:26~출애굽기 1:1"). 한 끝이 이 책이어도 이름을 쓴다.
+// - 한 끝이라도 읽을 수 없으면 끝마다 displayRef로 보인다.
+export function displayRange(from: string, to: string, book: BookId): string {
+  const start = parseRef(from)
+  const end = parseRef(to)
+  if (!start || !end) return `${displayRef(from, book)}~${displayRef(to, book)}`
+  // 책 없는 끝은 이 책의 절이다.
+  const startBook = start.book ?? book
+  const endBook = end.book ?? book
+  if (startBook !== endBook) {
+    return `${formatRef({ ...start, book: startBook }, 'name')}~${formatRef({ ...end, book: endBook }, 'name')}`
+  }
+  const bare = `${formatRef(start, 'bare')}~${formatRef(end, 'bare')}`
+  return startBook === book ? bare : `${getBook(startBook).name} ${bare}`
+}
+
 // 시작 위치(책 순서, 장, 시작 절)로 비교한다. 끝 절(verseEnd)은 보지 않는다.
 // 책 없는 참조는 fallback 책으로 보고, 둘 다 책이 없으면 같은 책으로 친다.
 // 한쪽만 책이 있는데 fallback도 없으면 어느 책인지 알 수 없어 오류를 던진다.

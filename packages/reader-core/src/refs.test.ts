@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { chapterOfReference, compareRefs, formatRef, localRef, parseRef, qualifyRef, verseOfReference } from './refs.ts'
+import {
+  chapterOfReference,
+  compareRefs,
+  displayRange,
+  displayRef,
+  formatRef,
+  localRef,
+  parseRef,
+  qualifyRef,
+  verseOfReference,
+} from './refs.ts'
 
 describe('parseRef', () => {
   it('책이 붙은 참조와 책 없는 참조를 읽는다', () => {
@@ -70,6 +80,64 @@ describe('책 붙이기와 떼기', () => {
   it('읽을 수 없는 글도 null', () => {
     expect(localRef('엉터리', 'genesis')).toBeNull()
     expect(localRef('', 'genesis')).toBeNull()
+  })
+})
+
+describe('displayRef', () => {
+  it('이 책의 절은 책 없이 보인다', () => {
+    expect(displayRef('genesis 3:21', 'genesis')).toBe('3:21')
+    expect(displayRef('genesis 4:1-5', 'genesis')).toBe('4:1-5')
+  })
+
+  it('다른 책의 절은 책 이름을 붙여 보인다', () => {
+    expect(displayRef('genesis 3:21', 'exodus')).toBe('창세기 3:21')
+    expect(displayRef('genesis 4:1-5', 'exodus')).toBe('창세기 4:1-5')
+    expect(displayRef('1-samuel 3:10', 'genesis')).toBe('사무엘상 3:10')
+  })
+
+  it('책 없는 참조는 이 책의 것으로 본다', () => {
+    expect(displayRef('4:1', 'genesis')).toBe('4:1')
+    expect(displayRef('4:1-5', 'exodus')).toBe('4:1-5')
+  })
+
+  it('읽을 수 없는 글은 그대로 둔다', () => {
+    expect(displayRef('엉터리', 'genesis')).toBe('엉터리')
+    expect(displayRef('', 'genesis')).toBe('')
+    // 그 책에 없는 장도 읽을 수 없는 글이다.
+    expect(displayRef('genesis 51:1', 'exodus')).toBe('genesis 51:1')
+  })
+})
+
+describe('displayRange', () => {
+  it('두 끝이 모두 이 책 안이면 책 없이 보인다', () => {
+    expect(displayRange('genesis 2:4', 'genesis 3:24', 'genesis')).toBe('2:4~3:24')
+    expect(displayRange('genesis 2:4-5', 'genesis 3:24', 'genesis')).toBe('2:4-5~3:24')
+  })
+
+  it('두 끝이 같은 다른 책 안이면 책 이름을 앞에 한 번만 쓴다', () => {
+    expect(displayRange('genesis 2:4', 'genesis 3:24', 'exodus')).toBe('창세기 2:4~3:24')
+    expect(displayRange('genesis 2:4-5', 'genesis 3:24', 'leviticus')).toBe('창세기 2:4-5~3:24')
+  })
+
+  it('두 끝이 서로 다른 책이면 끝마다 책 이름을 쓴다', () => {
+    expect(displayRange('genesis 50:26', 'exodus 1:1', 'leviticus')).toBe('창세기 50:26~출애굽기 1:1')
+    // 한 끝이 이 책이어도 이름을 써서 거꾸로 읽히지 않게 한다.
+    expect(displayRange('genesis 50:26', 'exodus 1:1', 'exodus')).toBe('창세기 50:26~출애굽기 1:1')
+    expect(displayRange('genesis 50:26', 'exodus 1:1', 'genesis')).toBe('창세기 50:26~출애굽기 1:1')
+  })
+
+  it('책 없는 끝은 이 책의 절로 보고 가른다', () => {
+    expect(displayRange('2:4', '3:24', 'genesis')).toBe('2:4~3:24')
+    expect(displayRange('2:4', 'genesis 3:24', 'genesis')).toBe('2:4~3:24')
+    expect(displayRange('2:4', 'genesis 3:24', 'exodus')).toBe('출애굽기 2:4~창세기 3:24')
+    expect(displayRange('genesis 50:26', '1:1', 'exodus')).toBe('창세기 50:26~출애굽기 1:1')
+  })
+
+  it('한 끝이라도 읽을 수 없으면 끝마다 displayRef로 보인다', () => {
+    expect(displayRange('엉터리', 'genesis 3:24', 'genesis')).toBe('엉터리~3:24')
+    expect(displayRange('genesis 2:4', '엉터리', 'exodus')).toBe('창세기 2:4~엉터리')
+    expect(displayRange('엉터리', '또 엉터리', 'genesis')).toBe('엉터리~또 엉터리')
+    expect(displayRange('genesis 2:4', 'genesis 51:1', 'genesis')).toBe('2:4~genesis 51:1')
   })
 })
 
