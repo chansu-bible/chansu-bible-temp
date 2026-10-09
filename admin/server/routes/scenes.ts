@@ -14,7 +14,7 @@ import type { AppContext } from '../context.ts'
 import { readSceneFile, readSource } from '../content.ts'
 import { errorMessage, HttpError, readJsonBody } from '../errors.ts'
 
-function parseChapter(raw: string): number {
+export function parseChapter(raw: string): number {
   const chapter = Number(raw)
   if (!Number.isInteger(chapter) || chapter < 1) throw new HttpError(400, `장 번호가 잘못되었습니다: ${raw}`)
   return chapter

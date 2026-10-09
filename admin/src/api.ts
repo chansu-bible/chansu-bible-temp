@@ -3,12 +3,19 @@ import type {
   CanonEntryMap,
   CanonKind,
   GitStatus,
+  GlossInput,
   ImageVersion,
   Job,
   JobOptions,
   JobStatus,
+  LexiconEntry,
+  LexiconFile,
   Proposal,
   PromptResponse,
+  QuizChapterSummary,
+  QuizEdit,
+  QuizQuestion,
+  QuizResponse,
   RunsResponse,
   Scene,
   ScenesResponse,
@@ -96,6 +103,15 @@ export const api = {
   styleImport: (body: { url: string; label?: string; source?: string }) =>
     send<StyleRefResponse>('POST', '/api/style/refs/import', body),
   styleDeleteRef: (file: string) => send<Style>('DELETE', `/api/style/refs/${encodeURIComponent(file)}`),
+
+  lexicon: () => request<LexiconFile>('/api/lexicon'),
+  lexiconSave: (strong: string, gloss: GlossInput) =>
+    send<LexiconEntry>('PUT', `/api/lexicon/${encodeURIComponent(strong)}`, gloss),
+
+  quizSummary: () => request<QuizChapterSummary[]>('/api/quiz'),
+  quiz: (chapter: number) => request<QuizResponse>(`/api/quiz/${chapter}`),
+  quizSave: (chapter: number, id: string, edit: QuizEdit) =>
+    send<QuizQuestion>('PUT', `/api/quiz/${chapter}/${encodeURIComponent(id)}`, edit),
 
   imageVersions: () => request<ImageVersion[]>('/api/images/versions'),
   imageVersionCreate: (version: ImageVersion) => send<ImageVersion[]>('POST', '/api/images/versions', version),

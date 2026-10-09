@@ -11,6 +11,9 @@ export const STAGE_OPTIONS: Record<Stage, OptionKey[]> = {
   'review-text': ['chapter', 'scenes', 'dryRun'],
   images: ['chapter', 'scenes', 'force', 'allowDraft', 'dryRun', 'limit'],
   tts: ['chapter', 'force', 'limit', 'dryRun'],
+  original: [],
+  'original-gloss': ['limit', 'force', 'dryRun'],
+  quiz: ['chapter', 'force', 'dryRun'],
   build: [],
 }
 

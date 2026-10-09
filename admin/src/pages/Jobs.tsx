@@ -5,7 +5,7 @@ import { CheckboxField, NumberField, SelectField, TextField } from '../component
 import { Empty, ErrorBox, Loading } from '../components/Notice.tsx'
 import StatusBadge from '../components/StatusBadge.tsx'
 import { buildJobOptions, describeOptions, EMPTY_JOB_FORM, STAGE_OPTIONS, type JobForm } from '../jobForm.ts'
-import { formatTime, STAGE_LABEL } from '../labels.ts'
+import { FORCE_HINT, formatTime, STAGE_LABEL } from '../labels.ts'
 import { STAGES, type Job, type JobStatus, type RunsResponse, type Stage } from '../types.ts'
 import { errorMessage, useLoad } from '../useLoad.ts'
 
@@ -151,7 +151,12 @@ export default function Jobs() {
               </div>
               <div className="check-row">
                 {keys.includes('force') && (
-                  <CheckboxField label="이미 있어도 다시 만들기 (force)" checked={form.force} onChange={(v) => set('force', v)} />
+                  <CheckboxField
+                    label="이미 있어도 다시 만들기 (force)"
+                    checked={form.force}
+                    onChange={(v) => set('force', v)}
+                    hint={FORCE_HINT[stage]}
+                  />
                 )}
                 {keys.includes('allowDraft') && (
                   <CheckboxField

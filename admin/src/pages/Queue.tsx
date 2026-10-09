@@ -8,6 +8,7 @@ import { useLoad } from '../useLoad.ts'
 
 type FlaggedScene = { chapter: number; id: string; title: string; issues: string[] }
 type DraftEntry = { kind: CanonKind; id: string; name: string }
+type QuizPending = { chapter: number; reviewed: number; flagged: number }
 
 // 확인 필요 장면: 대시보드 상태에서 flagged가 있는 장만 장면 파일을 읽는다.
 async function loadFlagged(): Promise<FlaggedScene[]> {
@@ -37,15 +38,32 @@ async function loadOpenProposals(): Promise<Proposal[]> {
   return (await api.proposals()).filter((p) => p.status === 'open')
 }
 
+// 한국어 뜻 초안 수
+async function loadGlossDrafts(): Promise<number> {
+  return (await api.lexicon()).entries.filter((e) => e.korean?.status === 'draft').length
+}
+
+// 사람이 검수할 퀴즈(검수 통과·확인 필요)가 있는 장
+async function loadQuizPending(): Promise<QuizPending[]> {
+  return (await api.quizSummary())
+    .map((s) => ({ chapter: s.chapter, reviewed: s.counts.reviewed, flagged: s.counts.flagged }))
+    .filter((c) => c.reviewed + c.flagged > 0)
+}
+
 export default function Queue() {
   const flagged = useLoad(loadFlagged, 'flagged')
   const drafts = useLoad(loadDrafts, 'drafts')
   const proposals = useLoad(loadOpenProposals, 'proposals')
+  const glossDrafts = useLoad(loadGlossDrafts, 'gloss-drafts')
+  const quizPending = useLoad(loadQuizPending, 'quiz-pending')
+  const quizTotal = quizPending.data?.reduce((sum, c) => sum + c.reviewed + c.flagged, 0) ?? 0
 
   function reloadAll() {
     flagged.reload()
     drafts.reload()
     proposals.reload()
+    glossDrafts.reload()
+    quizPending.reload()
   }
 
   return (
@@ -120,6 +138,57 @@ export default function Queue() {
             </ul>
           ) : (
             <Empty>열린 제안이 없어요</Empty>
+          ))}
+      </section>
+
+      <section className="card">
+        <h2>한국어 뜻 초안 {glossDrafts.data !== null && <span className="count">{glossDrafts.data}</span>}</h2>
+        {glossDrafts.error && <ErrorBox message={glossDrafts.error} onRetry={glossDrafts.reload} />}
+        {glossDrafts.data === null && !glossDrafts.error && <Loading />}
+        {glossDrafts.data !== null &&
+          (glossDrafts.data > 0 ? (
+            <p>
+              <a href={routeHref({ page: 'lexicon', filter: 'draft' })}>한국어 뜻 초안 {glossDrafts.data}개</a>{' '}
+              <span className="muted">· 원어 뜻 화면에서 한 줄씩 읽고 승인해요</span>
+            </p>
+          ) : (
+            <Empty>검수할 한국어 뜻 초안이 없어요</Empty>
+          ))}
+      </section>
+
+      <section className="card">
+        <h2>검수할 퀴즈 {quizPending.data && <span className="count">{quizTotal}</span>}</h2>
+        {quizPending.error && <ErrorBox message={quizPending.error} onRetry={quizPending.reload} />}
+        {!quizPending.data && !quizPending.error && <Loading />}
+        {quizPending.data &&
+          (quizTotal > 0 ? (
+            <>
+              <p>
+                <a href={routeHref({ page: 'quiz', chapter: quizPending.data[0]!.chapter })}>검수할 퀴즈 {quizTotal}문제</a>{' '}
+                <span className="muted">· 검수 통과했거나 지적된 문제예요</span>
+              </p>
+              <ul className="queue-list">
+                {quizPending.data.map((c) => (
+                  <li key={c.chapter}>
+                    <a href={routeHref({ page: 'quiz', chapter: c.chapter })}>{c.chapter}장</a>
+                    {c.reviewed > 0 && (
+                      <>
+                        {' '}
+                        <StatusBadge status="reviewed" /> {c.reviewed}
+                      </>
+                    )}
+                    {c.flagged > 0 && (
+                      <>
+                        {' '}
+                        <StatusBadge status="flagged" /> {c.flagged}
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <Empty>검수할 퀴즈가 없어요</Empty>
           ))}
       </section>
     </div>
