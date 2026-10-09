@@ -7,7 +7,7 @@
     ],
     "status": "approved",
     "facts": {
-      "firstAppearance": "2:7",
+      "firstAppearance": "genesis 2:7",
       "gender": "남",
       "years": {
         "born": 0,
@@ -33,26 +33,26 @@
       ],
       "attire": [
         {
-          "from": "3:7",
+          "from": "genesis 3:7",
           "description": "무화과 나무 잎을 엮어 만든 치마를 입었다."
         },
         {
-          "from": "3:21",
+          "from": "genesis 3:21",
           "description": "여호와 하나님이 지어 입히신 가죽옷을 입었다."
         }
       ],
       "notes": "흙으로 지어져 코에 생기를 받고 생령이 되었으며, 에덴 동산을 다스리고 지키도록 맡겨졌다. 동산 각종 나무의 실과를 먹을 수 있었으나 선악을 알게 하는 나무의 실과는 먹지 말라는 명령을 받았고, 육축과 새와 들짐승에게 이름을 주었다. 깊이 잠든 동안 갈빗대 하나가 취해졌으며, 그 갈빗대로 지어진 여자를 자신의 뼈와 살이라고 말했고 아내와 함께 벌거벗었으나 부끄러워하지 않았다.\n아내가 준 나무 실과를 먹고 벗은 몸을 알아 나무 사이에 숨었으며, 아내를 하와라 이름하였다. 종신토록 수고하여 먹고 흙으로 돌아가리라는 말씀을 들었으며, 에덴 동산에서 쫓겨나 자신의 근본된 토지를 갈게 되었다.\n하와와 동침하여 가인과 아벨을 얻었다. 다시 아내와 동침하여 셋을 얻었다.\n130세에 자기 모양 곧 자기 형상과 같은 아들을 낳아 이름을 셋이라 하였다. 셋을 낳은 후 800년 동안 자녀를 낳았으며, 930세에 죽었다.",
       "sources": [
-        "2:7-8",
-        "2:15-17",
-        "2:19-25",
-        "3:6-12",
-        "3:17-21",
-        "3:23-24",
-        "4:1-2",
-        "4:25",
-        "5:1",
-        "5:3-5"
+        "genesis 2:7-8",
+        "genesis 2:15-17",
+        "genesis 2:19-25",
+        "genesis 3:6-12",
+        "genesis 3:17-21",
+        "genesis 3:23-24",
+        "genesis 4:1-2",
+        "genesis 4:25",
+        "genesis 5:1",
+        "genesis 5:3-5"
       ]
     },
     "design": {
@@ -74,7 +74,7 @@
     ],
     "status": "approved",
     "facts": {
-      "firstAppearance": "2:22",
+      "firstAppearance": "genesis 2:22",
       "gender": "여",
       "years": {
         "born": null,
@@ -104,22 +104,22 @@
       ],
       "attire": [
         {
-          "from": "3:7",
+          "from": "genesis 3:7",
           "description": "무화과 나무 잎을 엮어 만든 치마를 입었다."
         },
         {
-          "from": "3:21",
+          "from": "genesis 3:21",
           "description": "여호와 하나님이 지어 입히신 가죽옷을 입었다."
         }
       ],
       "notes": "아담에게서 취한 갈빗대로 지어져 아담에게 이끌려 왔으며, 아담은 그를 자신의 뼈와 살이라고 말하고 여자라 칭했다. 아담의 아내로서 함께 벌거벗었으나 부끄러워하지 않았으며, 이 장에서는 아직 하와라는 이름으로 불리지 않는다.\n뱀과 대화한 뒤 나무 실과를 따먹고 함께 있던 남편에게도 주었으며, 뱀이 자신을 꾀었다고 말했다. 잉태와 출산의 고통, 남편을 사모하고 남편의 다스림을 받으리라는 말씀을 들었다. 아담에게 하와라는 이름을 받았으며, 본문은 그를 모든 산 자의 어미라고 한다.\n가인을 낳고 여호와로 말미암아 득남하였다고 말했으며, 이어 아벨을 낳았다. 뒤에 셋을 낳고 하나님이 가인에게 죽임당한 아벨 대신 다른 씨를 주셨다고 말했다.",
       "sources": [
-        "2:21-25",
-        "3:1-7",
-        "3:13-16",
-        "3:20-21",
-        "4:1-2",
-        "4:25"
+        "genesis 2:21-25",
+        "genesis 3:1-7",
+        "genesis 3:13-16",
+        "genesis 3:20-21",
+        "genesis 4:1-2",
+        "genesis 4:25"
       ]
     },
     "design": {
@@ -138,7 +138,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "3:1",
+      "firstAppearance": "genesis 3:1",
       "gender": "불명",
       "years": {
         "born": null,
@@ -153,9 +153,9 @@
       "attire": [],
       "notes": "여호와 하나님이 지으신 들짐승 중 가장 간교하며, 여자에게 실과를 먹어도 죽지 않고 눈이 밝아져 선악을 알게 되리라고 말했다. 저주를 받아 배로 다니고 종신토록 흙을 먹으며, 여자 및 그 후손과 원수가 되리라는 말씀을 들었다. 여자의 후손은 뱀의 머리를 상하게 하고 뱀은 그의 발꿈치를 상하게 하리라는 말씀도 주어졌다.",
       "sources": [
-        "3:1",
-        "3:4-5",
-        "3:13-15"
+        "genesis 3:1",
+        "genesis 3:4-5",
+        "genesis 3:13-15"
       ]
     },
     "design": {
@@ -176,7 +176,7 @@
     ],
     "status": "approved",
     "facts": {
-      "firstAppearance": "3:24",
+      "firstAppearance": "genesis 3:24",
       "gender": "불명",
       "years": {
         "born": null,
@@ -186,7 +186,7 @@
       "attire": [],
       "notes": "하나님이 에덴 동산 동편에 그룹들을 두셨다. 두루 도는 화염검과 함께 생명나무의 길을 지키게 되었다.",
       "sources": [
-        "3:24"
+        "genesis 3:24"
       ]
     },
     "design": {
@@ -205,7 +205,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "4:1",
+      "firstAppearance": "genesis 4:1",
       "gender": "남",
       "years": {
         "born": null,
@@ -232,8 +232,8 @@
       "attire": [],
       "notes": "농사하는 자로서 땅의 소산을 제물로 드렸으나 열납되지 않자 분하였고, 들에서 아우 아벨을 쳐죽였다. 땅에서 저주를 받고 피하며 유리하는 자가 되리라는 말씀을 들었으나 죽임을 면하게 하는 표를 받았다. 에덴 동편 놋에 거하며 에녹을 얻고, 성을 쌓아 아들의 이름을 따라 에녹이라 불렀다.",
       "sources": [
-        "4:1-5",
-        "4:8-17"
+        "genesis 4:1-5",
+        "genesis 4:8-17"
       ]
     },
     "design": {
@@ -252,7 +252,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "4:2",
+      "firstAppearance": "genesis 4:2",
       "gender": "남",
       "years": {
         "born": null,
@@ -275,9 +275,9 @@
       "attire": [],
       "notes": "가인의 아우이며 양 치는 자로서 양의 첫 새끼와 그 기름을 드렸고, 그와 그의 제물이 열납되었다. 들에서 형 가인에게 죽임을 당했다.",
       "sources": [
-        "4:2",
-        "4:4",
-        "4:8"
+        "genesis 4:2",
+        "genesis 4:4",
+        "genesis 4:8"
       ]
     },
     "design": {
@@ -296,7 +296,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "4:17",
+      "firstAppearance": "genesis 4:17",
       "gender": "남",
       "years": {
         "born": null,
@@ -315,7 +315,7 @@
       "attire": [],
       "notes": "가인과 그의 아내 사이에서 태어났으며, 가인이 쌓은 성은 그의 이름을 따라 에녹이라 불렸다. 이랏을 낳았다.",
       "sources": [
-        "4:17-18"
+        "genesis 4:17-18"
       ]
     },
     "design": {
@@ -334,7 +334,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "4:18",
+      "firstAppearance": "genesis 4:18",
       "gender": "남",
       "years": {
         "born": null,
@@ -353,7 +353,7 @@
       "attire": [],
       "notes": "에녹의 아들로 기록된다. 므후야엘을 낳았다.",
       "sources": [
-        "4:18"
+        "genesis 4:18"
       ]
     },
     "design": {
@@ -372,7 +372,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "4:18",
+      "firstAppearance": "genesis 4:18",
       "gender": "남",
       "years": {
         "born": null,
@@ -391,7 +391,7 @@
       "attire": [],
       "notes": "이랏의 아들로 기록된다. 므드사엘을 낳았다.",
       "sources": [
-        "4:18"
+        "genesis 4:18"
       ]
     },
     "design": {
@@ -410,7 +410,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "4:18",
+      "firstAppearance": "genesis 4:18",
       "gender": "남",
       "years": {
         "born": null,
@@ -429,7 +429,7 @@
       "attire": [],
       "notes": "므후야엘의 아들로 기록된다. 라멕을 낳았다.",
       "sources": [
-        "4:18"
+        "genesis 4:18"
       ]
     },
     "design": {
@@ -448,7 +448,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "4:18",
+      "firstAppearance": "genesis 4:18",
       "gender": "남",
       "years": {
         "born": null,
@@ -483,7 +483,7 @@
       "attire": [],
       "notes": "므드사엘의 아들로서 아다와 씰라 두 아내를 취하였다. 아내들에게 자신의 창상과 상함을 인하여 사람과 소년을 죽였다고 말하고, 가인을 위한 벌이 칠 배라면 자신을 위한 벌은 칠십칠 배라고 말했다.",
       "sources": [
-        "4:18-24"
+        "genesis 4:18-24"
       ]
     },
     "design": {
@@ -502,7 +502,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "4:19",
+      "firstAppearance": "genesis 4:19",
       "gender": "여",
       "years": {
         "born": null,
@@ -525,8 +525,8 @@
       "attire": [],
       "notes": "라멕의 두 아내 중 하나이며 야발과 유발의 어머니로 기록된다. 씰라와 함께 라멕이 자신의 살인과 칠십칠 배의 벌에 관하여 하는 말을 들었다.",
       "sources": [
-        "4:19-21",
-        "4:23-24"
+        "genesis 4:19-21",
+        "genesis 4:23-24"
       ]
     },
     "design": {
@@ -545,7 +545,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "4:19",
+      "firstAppearance": "genesis 4:19",
       "gender": "여",
       "years": {
         "born": null,
@@ -564,8 +564,8 @@
       "attire": [],
       "notes": "라멕의 두 아내 중 하나이며 두발가인을 낳았다. 아다와 함께 라멕이 자신의 살인과 칠십칠 배의 벌에 관하여 하는 말을 들었다.",
       "sources": [
-        "4:19",
-        "4:22-24"
+        "genesis 4:19",
+        "genesis 4:22-24"
       ]
     },
     "design": {
@@ -584,7 +584,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "4:20",
+      "firstAppearance": "genesis 4:20",
       "gender": "남",
       "years": {
         "born": null,
@@ -607,7 +607,7 @@
       "attire": [],
       "notes": "아다가 낳은 아들로 기록된다. 장막에 거하여 육축 치는 자의 조상이 되었다.",
       "sources": [
-        "4:19-21"
+        "genesis 4:19-21"
       ]
     },
     "design": {
@@ -626,7 +626,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "4:21",
+      "firstAppearance": "genesis 4:21",
       "gender": "남",
       "years": {
         "born": null,
@@ -649,7 +649,7 @@
       "attire": [],
       "notes": "야발의 아우로 기록된다. 수금과 퉁소를 잡는 모든 자의 조상이 되었다.",
       "sources": [
-        "4:19-21"
+        "genesis 4:19-21"
       ]
     },
     "design": {
@@ -668,7 +668,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "4:22",
+      "firstAppearance": "genesis 4:22",
       "gender": "남",
       "years": {
         "born": null,
@@ -691,8 +691,8 @@
       "attire": [],
       "notes": "씰라가 낳은 아들로서 동철로 각양 날카로운 기계를 만드는 자였다. 그의 누이는 나아마로 기록된다.",
       "sources": [
-        "4:19",
-        "4:22"
+        "genesis 4:19",
+        "genesis 4:22"
       ]
     },
     "design": {
@@ -711,7 +711,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "4:22",
+      "firstAppearance": "genesis 4:22",
       "gender": "여",
       "years": {
         "born": null,
@@ -726,7 +726,7 @@
       "attire": [],
       "notes": "두발가인의 누이로 기록된다. 이 장에는 나아마 자신의 행동이나 발언이 기록되어 있지 않다.",
       "sources": [
-        "4:22"
+        "genesis 4:22"
       ]
     },
     "design": {
@@ -745,7 +745,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "4:25",
+      "firstAppearance": "genesis 4:25",
       "gender": "남",
       "years": {
         "born": 130,
@@ -768,9 +768,9 @@
       "attire": [],
       "notes": "아담과 그의 아내 사이에서 태어났으며, 어머니는 하나님이 죽임당한 아벨 대신 다른 씨를 주셨다고 하여 그의 이름을 셋이라 하였다. 아들을 낳고 그 이름을 에노스라 하였다.\n105세에 에노스를 낳았다. 에노스를 낳은 후 807년 동안 자녀를 낳았으며, 912세에 죽었다.",
       "sources": [
-        "4:25-26",
-        "5:3",
-        "5:6-8"
+        "genesis 4:25-26",
+        "genesis 5:3",
+        "genesis 5:6-8"
       ]
     },
     "design": {
@@ -789,7 +789,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "4:26",
+      "firstAppearance": "genesis 4:26",
       "gender": "남",
       "years": {
         "born": 235,
@@ -808,10 +808,10 @@
       "attire": [],
       "notes": "셋의 아들로 태어나 에노스라는 이름을 받았다. 그 때에 사람들이 비로소 여호와의 이름을 불렀다고 기록된다.\n90세에 게난을 낳았다. 게난을 낳은 후 815년 동안 자녀를 낳았으며, 905세에 죽었다.",
       "sources": [
-        "4:26",
-        "5:3",
-        "5:6",
-        "5:9-11"
+        "genesis 4:26",
+        "genesis 5:3",
+        "genesis 5:6",
+        "genesis 5:9-11"
       ]
     },
     "design": {
@@ -830,7 +830,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "5:9",
+      "firstAppearance": "genesis 5:9",
       "gender": "남",
       "years": {
         "born": 325,
@@ -849,10 +849,10 @@
       "attire": [],
       "notes": "70세에 마할랄렐을 낳았다. 마할랄렐을 낳은 후 840년 동안 자녀를 낳았으며, 910세에 죽었다.",
       "sources": [
-        "5:3",
-        "5:6",
-        "5:9",
-        "5:12-14"
+        "genesis 5:3",
+        "genesis 5:6",
+        "genesis 5:9",
+        "genesis 5:12-14"
       ]
     },
     "design": {
@@ -871,7 +871,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "5:12",
+      "firstAppearance": "genesis 5:12",
       "gender": "남",
       "years": {
         "born": 395,
@@ -890,11 +890,11 @@
       "attire": [],
       "notes": "65세에 야렛을 낳았다. 야렛을 낳은 후 830년 동안 자녀를 낳았으며, 895세에 죽었다.",
       "sources": [
-        "5:3",
-        "5:6",
-        "5:9",
-        "5:12",
-        "5:15-17"
+        "genesis 5:3",
+        "genesis 5:6",
+        "genesis 5:9",
+        "genesis 5:12",
+        "genesis 5:15-17"
       ]
     },
     "design": {
@@ -913,7 +913,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "5:15",
+      "firstAppearance": "genesis 5:15",
       "gender": "남",
       "years": {
         "born": 460,
@@ -932,12 +932,12 @@
       "attire": [],
       "notes": "162세에 에녹을 낳았다. 에녹을 낳은 후 800년 동안 자녀를 낳았으며, 962세에 죽었다.",
       "sources": [
-        "5:3",
-        "5:6",
-        "5:9",
-        "5:12",
-        "5:15",
-        "5:18-20"
+        "genesis 5:3",
+        "genesis 5:6",
+        "genesis 5:9",
+        "genesis 5:12",
+        "genesis 5:15",
+        "genesis 5:18-20"
       ]
     },
     "design": {
@@ -956,7 +956,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "5:18",
+      "firstAppearance": "genesis 5:18",
       "gender": "남",
       "years": {
         "born": 622,
@@ -975,13 +975,13 @@
       "attire": [],
       "notes": "야렛의 아들로, 65세에 므두셀라를 낳고 그 후 300년 동안 하나님과 동행하며 자녀를 낳았다. 365세를 향수하였으며, 하나님이 그를 데려가시므로 세상에 있지 아니하였다.",
       "sources": [
-        "5:3",
-        "5:6",
-        "5:9",
-        "5:12",
-        "5:15",
-        "5:18",
-        "5:21-24"
+        "genesis 5:3",
+        "genesis 5:6",
+        "genesis 5:9",
+        "genesis 5:12",
+        "genesis 5:15",
+        "genesis 5:18",
+        "genesis 5:21-24"
       ]
     },
     "design": {
@@ -1000,7 +1000,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "5:21",
+      "firstAppearance": "genesis 5:21",
       "gender": "남",
       "years": {
         "born": 687,
@@ -1019,14 +1019,14 @@
       "attire": [],
       "notes": "187세에 라멕을 낳았다. 라멕을 낳은 후 782년 동안 자녀를 낳았으며, 969세에 죽었다.",
       "sources": [
-        "5:3",
-        "5:6",
-        "5:9",
-        "5:12",
-        "5:15",
-        "5:18",
-        "5:21",
-        "5:25-27"
+        "genesis 5:3",
+        "genesis 5:6",
+        "genesis 5:9",
+        "genesis 5:12",
+        "genesis 5:15",
+        "genesis 5:18",
+        "genesis 5:21",
+        "genesis 5:25-27"
       ]
     },
     "design": {
@@ -1045,7 +1045,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "5:25",
+      "firstAppearance": "genesis 5:25",
       "gender": "남",
       "years": {
         "born": 874,
@@ -1064,15 +1064,15 @@
       "attire": [],
       "notes": "므두셀라의 아들로, 182세에 아들을 낳아 노아라 이름하고 저주받은 땅에서 수고로이 일하는 자신들을 이 아들이 안위하리라고 말하였다. 노아를 낳은 후 595년 동안 자녀를 낳았으며, 777세에 죽었다.",
       "sources": [
-        "5:3",
-        "5:6",
-        "5:9",
-        "5:12",
-        "5:15",
-        "5:18",
-        "5:21",
-        "5:25",
-        "5:28-31"
+        "genesis 5:3",
+        "genesis 5:6",
+        "genesis 5:9",
+        "genesis 5:12",
+        "genesis 5:15",
+        "genesis 5:18",
+        "genesis 5:21",
+        "genesis 5:25",
+        "genesis 5:28-31"
       ]
     },
     "design": {
@@ -1091,7 +1091,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "5:29",
+      "firstAppearance": "genesis 5:29",
       "gender": "남",
       "years": {
         "born": 1056,
@@ -1121,36 +1121,36 @@
       ],
       "attire": [
         {
-          "from": "9:23",
+          "from": "genesis 9:23",
           "description": "셈과 야벳이 가져온 옷으로 벌거벗은 하체가 덮였다."
         }
       ],
       "notes": "라멕이 182세에 낳은 아들로, 수고로이 일하는 자신들을 안위하리라는 말과 함께 노아라는 이름을 받았다. 500세 된 후에 셈과 함과 야벳을 낳았다.\n여호와께 은혜를 입었으며, 의인이요 당세에 완전한 자로서 하나님과 동행하였다. 하나님이 그와 언약을 세우겠다고 하셨고, 방주를 지어 가족과 생물들을 들이고 먹을 것을 저축하도록 명하셨다. 노아는 하나님이 명하신 대로 다 준행하였다.\n여호와께 온 집과 함께 방주로 들어가라는 명령을 받고 명하신 대로 다 준행하였다. 홍수가 땅에 있을 때 육백 세였으며, 아들들과 아내와 자부들과 함께 홍수를 피하여 방주에 들어갔다. 지면의 생물들이 쓸어버림을 당할 때 노아와 그와 함께 방주에 있던 자들은 남았다.\n방주의 창을 열어 까마귀와 비둘기를 내어 놓았으며, 비둘기가 가져온 감람 새 잎사귀를 보고 땅에 물이 감한 줄 알았다. 육백일년 정월 일일에 방주 뚜껑을 제치고 지면에 물이 걷힌 것을 보았으며, 이후 가족과 함께 방주에서 나왔다. 여호와를 위하여 단을 쌓고 정결한 짐승과 새를 취하여 번제를 드렸다.\n아들들과 함께 생육하고 번성하라는 복을 받았으며, 다시는 홍수로 모든 생물을 멸하지 않겠다는 언약과 그 증거인 무지개에 관한 말씀을 들었다. 농업을 시작하여 포도 나무를 심고 포도주를 마셔 취한 채 장막 안에서 벌거벗었으며, 술이 깬 뒤 작은 아들이 행한 일을 알고 가나안을 저주하고 셈과 야벳에 관한 말을 하였다. 홍수 후 삼백오십 년을 더 지내고 구백오십 세에 죽었다.\n노아 자손의 족속들이 세계와 나라대로 기록된다. 홍수 후 이들에게서 땅의 열국백성이 나뉘었다.",
       "sources": [
-        "5:3",
-        "5:6",
-        "5:9",
-        "5:12",
-        "5:15",
-        "5:18",
-        "5:21",
-        "5:25",
-        "5:28-29",
-        "5:32",
-        "6:8-9",
-        "6:13-22",
-        "7:1",
-        "7:5-7",
-        "7:13",
-        "7:23",
-        "8:6-13",
-        "8:18",
-        "8:20",
-        "9:1-17",
-        "9:18",
-        "9:20-29",
-        "5:3-29",
-        "10:32"
+        "genesis 5:3",
+        "genesis 5:6",
+        "genesis 5:9",
+        "genesis 5:12",
+        "genesis 5:15",
+        "genesis 5:18",
+        "genesis 5:21",
+        "genesis 5:25",
+        "genesis 5:28-29",
+        "genesis 5:32",
+        "genesis 6:8-9",
+        "genesis 6:13-22",
+        "genesis 7:1",
+        "genesis 7:5-7",
+        "genesis 7:13",
+        "genesis 7:23",
+        "genesis 8:6-13",
+        "genesis 8:18",
+        "genesis 8:20",
+        "genesis 9:1-17",
+        "genesis 9:18",
+        "genesis 9:20-29",
+        "genesis 5:3-29",
+        "genesis 10:32"
       ]
     },
     "design": {
@@ -1169,7 +1169,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "5:32",
+      "firstAppearance": "genesis 5:32",
       "gender": "남",
       "years": {
         "born": null,
@@ -1200,16 +1200,16 @@
       "attire": [],
       "notes": "노아가 500세 된 후에 낳은 자녀로 등장한다. 함과 야벳과 함께 이름이 기록되어 있다.\n노아에게 내려진 명령에서 가족과 함께 방주에 들어갈 아들들에 포함된다. 그의 아내도 함께 들어가도록 명령되었다.\n노아 육백 세 되던 해 이월 십칠일에 가족들과 함께 방주에 들어갔다. 노아와 함께 방주에 있던 자로서 홍수 가운데 남았다.\n함의 말을 들은 뒤 야벳과 함께 옷을 어깨에 메고 뒷걸음쳐 들어가 아버지의 하체를 덮었으며, 얼굴을 돌려 하체를 보지 않았다. 노아는 셈의 하나님 여호와를 찬송하고 가나안이 셈의 종이 되기를 말하였다.\n에벨 온 자손의 조상이며 야벳의 형이라고 기록된다. 아들들은 엘람, 앗수르, 아르박삿, 룻, 아람이며, 그 자손들은 족속과 방언과 지방과 나라대로 구분된다.",
       "sources": [
-        "5:32",
-        "6:10",
-        "6:18",
-        "7:11",
-        "7:13",
-        "7:23",
-        "9:22-23",
-        "9:26",
-        "10:21-22",
-        "10:31"
+        "genesis 5:32",
+        "genesis 6:10",
+        "genesis 6:18",
+        "genesis 7:11",
+        "genesis 7:13",
+        "genesis 7:23",
+        "genesis 9:22-23",
+        "genesis 9:26",
+        "genesis 10:21-22",
+        "genesis 10:31"
       ]
     },
     "design": {
@@ -1228,7 +1228,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "5:32",
+      "firstAppearance": "genesis 5:32",
       "gender": "남",
       "years": {
         "born": null,
@@ -1259,16 +1259,16 @@
       "attire": [],
       "notes": "노아가 500세 된 후에 낳은 자녀로 등장한다. 셈과 야벳과 함께 이름이 기록되어 있다.\n노아에게 내려진 명령에서 가족과 함께 방주에 들어갈 아들들에 포함된다. 그의 아내도 함께 들어가도록 명령되었다.\n노아 육백 세 되던 해 이월 십칠일에 가족들과 함께 방주에 들어갔다. 노아와 함께 방주에 있던 자로서 홍수 가운데 남았다.\n가나안의 아비로 소개된다. 아버지 노아의 하체를 보고 밖으로 나가 두 형제에게 알렸다.\n아들들은 구스, 미스라임, 붓, 가나안으로 기록된다. 그 자손들은 족속과 방언과 지방과 나라대로 구분된다.",
       "sources": [
-        "5:32",
-        "6:10",
-        "6:18",
-        "7:11",
-        "7:13",
-        "7:23",
-        "9:18",
-        "9:22",
-        "10:6",
-        "10:20"
+        "genesis 5:32",
+        "genesis 6:10",
+        "genesis 6:18",
+        "genesis 7:11",
+        "genesis 7:13",
+        "genesis 7:23",
+        "genesis 9:18",
+        "genesis 9:22",
+        "genesis 10:6",
+        "genesis 10:20"
       ]
     },
     "design": {
@@ -1287,7 +1287,7 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "5:32",
+      "firstAppearance": "genesis 5:32",
       "gender": "남",
       "years": {
         "born": null,
@@ -1314,16 +1314,16 @@
       "attire": [],
       "notes": "노아가 500세 된 후에 낳은 자녀로 등장한다. 셈과 함과 함께 이름이 기록되어 있다.\n노아에게 내려진 명령에서 가족과 함께 방주에 들어갈 아들들에 포함된다. 그의 아내도 함께 들어가도록 명령되었다.\n노아 육백 세 되던 해 이월 십칠일에 가족들과 함께 방주에 들어갔다. 노아와 함께 방주에 있던 자로서 홍수 가운데 남았다.\n함의 말을 들은 뒤 셈과 함께 옷을 어깨에 메고 뒷걸음쳐 들어가 아버지의 하체를 덮었으며, 얼굴을 돌려 하체를 보지 않았다. 노아는 하나님이 야벳을 창대하게 하여 셈의 장막에 거하게 하시고 가나안이 그의 종이 되게 하시기를 원하였다.\n아들들은 고멜, 마곡, 마대, 야완, 두발, 메섹, 디라스로 기록된다. 이 계보에서 나온 백성들은 방언과 종족과 나라대로 나뉘어 바닷가의 땅에 머물렀다.",
       "sources": [
-        "5:32",
-        "6:10",
-        "6:18",
-        "7:11",
-        "7:13",
-        "7:23",
-        "9:22-23",
-        "9:27",
-        "10:2-5",
-        "10:21"
+        "genesis 5:32",
+        "genesis 6:10",
+        "genesis 6:18",
+        "genesis 7:11",
+        "genesis 7:13",
+        "genesis 7:23",
+        "genesis 9:22-23",
+        "genesis 9:27",
+        "genesis 10:2-5",
+        "genesis 10:21"
       ]
     },
     "design": {
@@ -1342,7 +1342,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "6:4",
+      "firstAppearance": "genesis 6:4",
       "gender": "불명",
       "years": {
         "born": null,
@@ -1352,7 +1352,7 @@
       "attire": [],
       "notes": "사람이 땅 위에 번성하던 당시에 땅에 있었다. 본문은 그 후에도 네피림이 있었다고 기록한다.",
       "sources": [
-        "6:4"
+        "genesis 6:4"
       ]
     },
     "design": {
@@ -1371,7 +1371,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "8:7",
+      "firstAppearance": "genesis 8:7",
       "gender": "불명",
       "years": {
         "born": null,
@@ -1381,7 +1381,7 @@
       "attire": [],
       "notes": "노아가 방주에서 내어 놓았다. 물이 땅에서 마르기까지 날아 왕래하였다.",
       "sources": [
-        "8:7"
+        "genesis 8:7"
       ]
     },
     "design": {
@@ -1400,7 +1400,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "8:8",
+      "firstAppearance": "genesis 8:8",
       "gender": "불명",
       "years": {
         "born": null,
@@ -1410,7 +1410,7 @@
       "attire": [],
       "notes": "노아가 지면에 물이 감한 여부를 알아보려고 내어 놓았으나, 발붙일 곳을 찾지 못해 방주로 돌아왔고 노아가 손으로 받아 들였다. 칠 일 뒤 다시 나갔다가 저녁에 감람 새 잎사귀를 입에 물고 돌아왔다. 다시 칠 일 뒤 내어 놓았을 때에는 돌아오지 않았다.",
       "sources": [
-        "8:8-12"
+        "genesis 8:8-12"
       ]
     },
     "design": {
@@ -1429,7 +1429,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "9:18",
+      "firstAppearance": "genesis 9:18",
       "gender": "남",
       "years": {
         "born": null,
@@ -1456,9 +1456,9 @@
       "attire": [],
       "notes": "함의 아들로 소개된다. 노아는 가나안이 저주를 받아 그 형제의 종들의 종이 되기를 말하고, 셈과 야벳의 종이 되기를 원하였다.\n장자 시돈과 헷을 낳고, 여러 족속의 조상을 낳았다. 이후 가나안 자손의 족속들이 흩어져 거하였으며 그 지경이 기록된다.",
       "sources": [
-        "9:18",
-        "9:25-27",
-        "10:15-19"
+        "genesis 9:18",
+        "genesis 9:25-27",
+        "genesis 10:15-19"
       ]
     },
     "design": {
@@ -1477,7 +1477,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:2",
+      "firstAppearance": "genesis 10:2",
       "gender": "남",
       "years": {
         "born": null,
@@ -1492,7 +1492,7 @@
       "attire": [],
       "notes": "야벳의 아들로 기록된다. 아들들은 아스그나스, 리밧, 도갈마이다.",
       "sources": [
-        "10:2-3"
+        "genesis 10:2-3"
       ]
     },
     "design": {
@@ -1511,7 +1511,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:2",
+      "firstAppearance": "genesis 10:2",
       "gender": "남",
       "years": {
         "born": null,
@@ -1526,7 +1526,7 @@
       "attire": [],
       "notes": "야벳의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:2"
+        "genesis 10:2"
       ]
     },
     "design": {
@@ -1545,7 +1545,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:2",
+      "firstAppearance": "genesis 10:2",
       "gender": "남",
       "years": {
         "born": null,
@@ -1560,7 +1560,7 @@
       "attire": [],
       "notes": "야벳의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:2"
+        "genesis 10:2"
       ]
     },
     "design": {
@@ -1579,7 +1579,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:2",
+      "firstAppearance": "genesis 10:2",
       "gender": "남",
       "years": {
         "born": null,
@@ -1594,8 +1594,8 @@
       "attire": [],
       "notes": "야벳의 아들로 기록된다. 아들들은 엘리사, 달시스, 깃딤, 도다님이다.",
       "sources": [
-        "10:2",
-        "10:4"
+        "genesis 10:2",
+        "genesis 10:4"
       ]
     },
     "design": {
@@ -1614,7 +1614,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:2",
+      "firstAppearance": "genesis 10:2",
       "gender": "남",
       "years": {
         "born": null,
@@ -1629,7 +1629,7 @@
       "attire": [],
       "notes": "야벳의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:2"
+        "genesis 10:2"
       ]
     },
     "design": {
@@ -1648,7 +1648,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:2",
+      "firstAppearance": "genesis 10:2",
       "gender": "남",
       "years": {
         "born": null,
@@ -1663,7 +1663,7 @@
       "attire": [],
       "notes": "야벳의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:2"
+        "genesis 10:2"
       ]
     },
     "design": {
@@ -1682,7 +1682,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:2",
+      "firstAppearance": "genesis 10:2",
       "gender": "남",
       "years": {
         "born": null,
@@ -1697,7 +1697,7 @@
       "attire": [],
       "notes": "야벳의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:2"
+        "genesis 10:2"
       ]
     },
     "design": {
@@ -1716,7 +1716,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:3",
+      "firstAppearance": "genesis 10:3",
       "gender": "남",
       "years": {
         "born": null,
@@ -1731,7 +1731,7 @@
       "attire": [],
       "notes": "고멜의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:3"
+        "genesis 10:3"
       ]
     },
     "design": {
@@ -1750,7 +1750,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:3",
+      "firstAppearance": "genesis 10:3",
       "gender": "남",
       "years": {
         "born": null,
@@ -1765,7 +1765,7 @@
       "attire": [],
       "notes": "고멜의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:3"
+        "genesis 10:3"
       ]
     },
     "design": {
@@ -1784,7 +1784,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:3",
+      "firstAppearance": "genesis 10:3",
       "gender": "남",
       "years": {
         "born": null,
@@ -1799,7 +1799,7 @@
       "attire": [],
       "notes": "고멜의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:3"
+        "genesis 10:3"
       ]
     },
     "design": {
@@ -1818,7 +1818,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:4",
+      "firstAppearance": "genesis 10:4",
       "gender": "남",
       "years": {
         "born": null,
@@ -1833,7 +1833,7 @@
       "attire": [],
       "notes": "야완의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:4"
+        "genesis 10:4"
       ]
     },
     "design": {
@@ -1852,7 +1852,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:4",
+      "firstAppearance": "genesis 10:4",
       "gender": "남",
       "years": {
         "born": null,
@@ -1867,7 +1867,7 @@
       "attire": [],
       "notes": "야완의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:4"
+        "genesis 10:4"
       ]
     },
     "design": {
@@ -1886,7 +1886,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:4",
+      "firstAppearance": "genesis 10:4",
       "gender": "불명",
       "years": {
         "born": null,
@@ -1901,7 +1901,7 @@
       "attire": [],
       "notes": "야완의 아들들 가운데 이름이 기록된다. 이 계보에서 나온 백성들은 방언과 종족과 나라대로 나뉘어 바닷가의 땅에 머물렀다.",
       "sources": [
-        "10:4-5"
+        "genesis 10:4-5"
       ]
     },
     "design": {
@@ -1920,7 +1920,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:4",
+      "firstAppearance": "genesis 10:4",
       "gender": "불명",
       "years": {
         "born": null,
@@ -1935,7 +1935,7 @@
       "attire": [],
       "notes": "야완의 아들들 가운데 이름이 기록된다. 이 계보에서 나온 백성들은 방언과 종족과 나라대로 나뉘어 바닷가의 땅에 머물렀다.",
       "sources": [
-        "10:4-5"
+        "genesis 10:4-5"
       ]
     },
     "design": {
@@ -1954,7 +1954,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:6",
+      "firstAppearance": "genesis 10:6",
       "gender": "남",
       "years": {
         "born": null,
@@ -1973,7 +1973,7 @@
       "attire": [],
       "notes": "함의 아들이며 스바, 하윌라, 삽다, 라아마, 삽드가의 아버지로 기록된다. 또 니므롯을 낳았다.",
       "sources": [
-        "10:6-8"
+        "genesis 10:6-8"
       ]
     },
     "design": {
@@ -1992,7 +1992,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:6",
+      "firstAppearance": "genesis 10:6",
       "gender": "남",
       "years": {
         "born": null,
@@ -2007,7 +2007,7 @@
       "attire": [],
       "notes": "함의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:6"
+        "genesis 10:6"
       ]
     },
     "design": {
@@ -2026,7 +2026,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:7",
+      "firstAppearance": "genesis 10:7",
       "gender": "남",
       "years": {
         "born": null,
@@ -2041,7 +2041,7 @@
       "attire": [],
       "notes": "구스의 아들로 기록된다. 같은 절에 나오는 라아마의 아들 스바와는 계보상 구별된다.",
       "sources": [
-        "10:7"
+        "genesis 10:7"
       ]
     },
     "design": {
@@ -2060,7 +2060,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:7",
+      "firstAppearance": "genesis 10:7",
       "gender": "남",
       "years": {
         "born": null,
@@ -2075,8 +2075,8 @@
       "attire": [],
       "notes": "구스의 아들로 기록된다. 욕단의 아들 하윌라와는 계보상 구별된다.",
       "sources": [
-        "10:7",
-        "10:29"
+        "genesis 10:7",
+        "genesis 10:29"
       ]
     },
     "design": {
@@ -2095,7 +2095,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:7",
+      "firstAppearance": "genesis 10:7",
       "gender": "남",
       "years": {
         "born": null,
@@ -2110,7 +2110,7 @@
       "attire": [],
       "notes": "구스의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:7"
+        "genesis 10:7"
       ]
     },
     "design": {
@@ -2129,7 +2129,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:7",
+      "firstAppearance": "genesis 10:7",
       "gender": "남",
       "years": {
         "born": null,
@@ -2144,7 +2144,7 @@
       "attire": [],
       "notes": "구스의 아들로 기록된다. 아들들은 스바와 드단이다.",
       "sources": [
-        "10:7"
+        "genesis 10:7"
       ]
     },
     "design": {
@@ -2163,7 +2163,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:7",
+      "firstAppearance": "genesis 10:7",
       "gender": "남",
       "years": {
         "born": null,
@@ -2178,8 +2178,8 @@
       "attire": [],
       "notes": "라아마의 아들로 기록된다. 구스의 아들 스바 및 욕단의 아들 스바와는 계보상 구별된다.",
       "sources": [
-        "10:7",
-        "10:28"
+        "genesis 10:7",
+        "genesis 10:28"
       ]
     },
     "design": {
@@ -2198,7 +2198,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:7",
+      "firstAppearance": "genesis 10:7",
       "gender": "남",
       "years": {
         "born": null,
@@ -2213,7 +2213,7 @@
       "attire": [],
       "notes": "라아마의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:7"
+        "genesis 10:7"
       ]
     },
     "design": {
@@ -2232,7 +2232,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:8",
+      "firstAppearance": "genesis 10:8",
       "gender": "남",
       "years": {
         "born": null,
@@ -2247,7 +2247,7 @@
       "attire": [],
       "notes": "구스의 아들로서 세상에 처음 영걸이며, 여호와 앞에서 특이한 사냥꾼이 되어 속담에 이름이 쓰였다. 그의 나라는 시날 땅의 바벨, 에렉, 악갓, 갈레에서 시작되었다. 그 땅에서 앗수르로 나아가 니느웨, 르호보딜, 갈라, 레센을 건축하였다.",
       "sources": [
-        "10:8-12"
+        "genesis 10:8-12"
       ]
     },
     "design": {
@@ -2266,7 +2266,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:13",
+      "firstAppearance": "genesis 10:13",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2281,9 +2281,9 @@
       "attire": [],
       "notes": "미스라임이 낳은 이들 가운데 이름이 기록된다. 함의 자손 계보에 포함된다.",
       "sources": [
-        "10:13",
-        "10:20",
-        "10:13-14"
+        "genesis 10:13",
+        "genesis 10:20",
+        "genesis 10:13-14"
       ]
     },
     "design": {
@@ -2302,7 +2302,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:13",
+      "firstAppearance": "genesis 10:13",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2317,9 +2317,9 @@
       "attire": [],
       "notes": "미스라임이 낳은 이들 가운데 이름이 기록된다. 함의 자손 계보에 포함된다.",
       "sources": [
-        "10:13",
-        "10:20",
-        "10:13-14"
+        "genesis 10:13",
+        "genesis 10:20",
+        "genesis 10:13-14"
       ]
     },
     "design": {
@@ -2338,7 +2338,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:13",
+      "firstAppearance": "genesis 10:13",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2353,9 +2353,9 @@
       "attire": [],
       "notes": "미스라임이 낳은 이들 가운데 이름이 기록된다. 함의 자손 계보에 포함된다.",
       "sources": [
-        "10:13",
-        "10:20",
-        "10:13-14"
+        "genesis 10:13",
+        "genesis 10:20",
+        "genesis 10:13-14"
       ]
     },
     "design": {
@@ -2374,7 +2374,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:13",
+      "firstAppearance": "genesis 10:13",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2389,9 +2389,9 @@
       "attire": [],
       "notes": "미스라임이 낳은 이들 가운데 이름이 기록된다. 함의 자손 계보에 포함된다.",
       "sources": [
-        "10:13",
-        "10:20",
-        "10:13-14"
+        "genesis 10:13",
+        "genesis 10:20",
+        "genesis 10:13-14"
       ]
     },
     "design": {
@@ -2410,7 +2410,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:14",
+      "firstAppearance": "genesis 10:14",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2425,9 +2425,9 @@
       "attire": [],
       "notes": "미스라임이 낳은 이들 가운데 이름이 기록된다. 함의 자손 계보에 포함된다.",
       "sources": [
-        "10:14",
-        "10:20",
-        "10:13-14"
+        "genesis 10:14",
+        "genesis 10:20",
+        "genesis 10:13-14"
       ]
     },
     "design": {
@@ -2446,7 +2446,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:14",
+      "firstAppearance": "genesis 10:14",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2461,8 +2461,8 @@
       "attire": [],
       "notes": "미스라임이 낳은 이들 가운데 이름이 기록된다. 블레셋이 가슬루힘에게서 나왔다.",
       "sources": [
-        "10:14",
-        "10:13-14"
+        "genesis 10:14",
+        "genesis 10:13-14"
       ]
     },
     "design": {
@@ -2481,7 +2481,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:14",
+      "firstAppearance": "genesis 10:14",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2496,9 +2496,9 @@
       "attire": [],
       "notes": "미스라임이 낳은 이들 가운데 이름이 기록된다. 함의 자손 계보에 포함된다.",
       "sources": [
-        "10:14",
-        "10:20",
-        "10:13-14"
+        "genesis 10:14",
+        "genesis 10:20",
+        "genesis 10:13-14"
       ]
     },
     "design": {
@@ -2517,7 +2517,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:14",
+      "firstAppearance": "genesis 10:14",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2532,7 +2532,7 @@
       "attire": [],
       "notes": "가슬루힘에게서 나온 무리로 기록된다. 이 장에는 별도의 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:14"
+        "genesis 10:14"
       ]
     },
     "design": {
@@ -2551,7 +2551,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:15",
+      "firstAppearance": "genesis 10:15",
       "gender": "남",
       "years": {
         "born": null,
@@ -2566,7 +2566,7 @@
       "attire": [],
       "notes": "가나안의 장자로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:15"
+        "genesis 10:15"
       ]
     },
     "design": {
@@ -2585,7 +2585,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:15",
+      "firstAppearance": "genesis 10:15",
       "gender": "남",
       "years": {
         "born": null,
@@ -2600,7 +2600,7 @@
       "attire": [],
       "notes": "가나안이 낳은 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:15"
+        "genesis 10:15"
       ]
     },
     "design": {
@@ -2619,7 +2619,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:16",
+      "firstAppearance": "genesis 10:16",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2634,7 +2634,7 @@
       "attire": [],
       "notes": "가나안이 낳은 조상에게서 나온 족속으로 기록된다. 이후 가나안 자손의 족속들이 흩어져 거하였다.",
       "sources": [
-        "10:15-18"
+        "genesis 10:15-18"
       ]
     },
     "design": {
@@ -2653,7 +2653,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:16",
+      "firstAppearance": "genesis 10:16",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2668,7 +2668,7 @@
       "attire": [],
       "notes": "가나안이 낳은 조상에게서 나온 족속으로 기록된다. 이후 가나안 자손의 족속들이 흩어져 거하였다.",
       "sources": [
-        "10:15-18"
+        "genesis 10:15-18"
       ]
     },
     "design": {
@@ -2687,7 +2687,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:16",
+      "firstAppearance": "genesis 10:16",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2702,7 +2702,7 @@
       "attire": [],
       "notes": "가나안이 낳은 조상에게서 나온 족속으로 기록된다. 이후 가나안 자손의 족속들이 흩어져 거하였다.",
       "sources": [
-        "10:15-18"
+        "genesis 10:15-18"
       ]
     },
     "design": {
@@ -2721,7 +2721,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:17",
+      "firstAppearance": "genesis 10:17",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2736,7 +2736,7 @@
       "attire": [],
       "notes": "가나안이 낳은 조상에게서 나온 족속으로 기록된다. 이후 가나안 자손의 족속들이 흩어져 거하였다.",
       "sources": [
-        "10:15-18"
+        "genesis 10:15-18"
       ]
     },
     "design": {
@@ -2755,7 +2755,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:17",
+      "firstAppearance": "genesis 10:17",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2770,7 +2770,7 @@
       "attire": [],
       "notes": "가나안이 낳은 조상에게서 나온 족속으로 기록된다. 이후 가나안 자손의 족속들이 흩어져 거하였다.",
       "sources": [
-        "10:15-18"
+        "genesis 10:15-18"
       ]
     },
     "design": {
@@ -2789,7 +2789,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:17",
+      "firstAppearance": "genesis 10:17",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2804,7 +2804,7 @@
       "attire": [],
       "notes": "가나안이 낳은 조상에게서 나온 족속으로 기록된다. 이후 가나안 자손의 족속들이 흩어져 거하였다.",
       "sources": [
-        "10:15-18"
+        "genesis 10:15-18"
       ]
     },
     "design": {
@@ -2823,7 +2823,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:18",
+      "firstAppearance": "genesis 10:18",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2838,7 +2838,7 @@
       "attire": [],
       "notes": "가나안이 낳은 조상에게서 나온 족속으로 기록된다. 이후 가나안 자손의 족속들이 흩어져 거하였다.",
       "sources": [
-        "10:15-18"
+        "genesis 10:15-18"
       ]
     },
     "design": {
@@ -2857,7 +2857,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:18",
+      "firstAppearance": "genesis 10:18",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2872,7 +2872,7 @@
       "attire": [],
       "notes": "가나안이 낳은 조상에게서 나온 족속으로 기록된다. 이후 가나안 자손의 족속들이 흩어져 거하였다.",
       "sources": [
-        "10:15-18"
+        "genesis 10:15-18"
       ]
     },
     "design": {
@@ -2891,7 +2891,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:18",
+      "firstAppearance": "genesis 10:18",
       "gender": "불명",
       "years": {
         "born": null,
@@ -2906,7 +2906,7 @@
       "attire": [],
       "notes": "가나안이 낳은 조상에게서 나온 족속으로 기록된다. 이후 가나안 자손의 족속들이 흩어져 거하였다.",
       "sources": [
-        "10:15-18"
+        "genesis 10:15-18"
       ]
     },
     "design": {
@@ -2925,7 +2925,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:22",
+      "firstAppearance": "genesis 10:22",
       "gender": "남",
       "years": {
         "born": null,
@@ -2940,7 +2940,7 @@
       "attire": [],
       "notes": "셈의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:22"
+        "genesis 10:22"
       ]
     },
     "design": {
@@ -2959,7 +2959,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:22",
+      "firstAppearance": "genesis 10:22",
       "gender": "남",
       "years": {
         "born": null,
@@ -2974,7 +2974,7 @@
       "attire": [],
       "notes": "셈의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:22"
+        "genesis 10:22"
       ]
     },
     "design": {
@@ -2993,7 +2993,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:22",
+      "firstAppearance": "genesis 10:22",
       "gender": "남",
       "years": {
         "born": null,
@@ -3008,8 +3008,8 @@
       "attire": [],
       "notes": "셈의 아들로 기록된다. 셀라를 낳았다.",
       "sources": [
-        "10:22",
-        "10:24"
+        "genesis 10:22",
+        "genesis 10:24"
       ]
     },
     "design": {
@@ -3028,7 +3028,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:22",
+      "firstAppearance": "genesis 10:22",
       "gender": "남",
       "years": {
         "born": null,
@@ -3043,7 +3043,7 @@
       "attire": [],
       "notes": "셈의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:22"
+        "genesis 10:22"
       ]
     },
     "design": {
@@ -3062,7 +3062,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:22",
+      "firstAppearance": "genesis 10:22",
       "gender": "남",
       "years": {
         "born": null,
@@ -3077,7 +3077,7 @@
       "attire": [],
       "notes": "셈의 아들로 기록된다. 아들들은 우스, 훌, 게델, 마스이다.",
       "sources": [
-        "10:22-23"
+        "genesis 10:22-23"
       ]
     },
     "design": {
@@ -3096,7 +3096,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:23",
+      "firstAppearance": "genesis 10:23",
       "gender": "남",
       "years": {
         "born": null,
@@ -3111,7 +3111,7 @@
       "attire": [],
       "notes": "아람의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:23"
+        "genesis 10:23"
       ]
     },
     "design": {
@@ -3130,7 +3130,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:23",
+      "firstAppearance": "genesis 10:23",
       "gender": "남",
       "years": {
         "born": null,
@@ -3145,7 +3145,7 @@
       "attire": [],
       "notes": "아람의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:23"
+        "genesis 10:23"
       ]
     },
     "design": {
@@ -3164,7 +3164,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:23",
+      "firstAppearance": "genesis 10:23",
       "gender": "남",
       "years": {
         "born": null,
@@ -3179,7 +3179,7 @@
       "attire": [],
       "notes": "아람의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:23"
+        "genesis 10:23"
       ]
     },
     "design": {
@@ -3198,7 +3198,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:23",
+      "firstAppearance": "genesis 10:23",
       "gender": "남",
       "years": {
         "born": null,
@@ -3213,7 +3213,7 @@
       "attire": [],
       "notes": "아람의 아들로 기록된다. 이 장에는 개별 행동이나 사건이 기록되지 않는다.",
       "sources": [
-        "10:23"
+        "genesis 10:23"
       ]
     },
     "design": {
@@ -3232,7 +3232,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:24",
+      "firstAppearance": "genesis 10:24",
       "gender": "남",
       "years": {
         "born": null,
@@ -3247,7 +3247,7 @@
       "attire": [],
       "notes": "아르박삿이 낳은 아들로 기록된다. 에벨을 낳았다.",
       "sources": [
-        "10:24"
+        "genesis 10:24"
       ]
     },
     "design": {
@@ -3266,7 +3266,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:21",
+      "firstAppearance": "genesis 10:21",
       "gender": "남",
       "years": {
         "born": null,
@@ -3281,8 +3281,8 @@
       "attire": [],
       "notes": "셀라가 낳은 아들로 기록된다. 두 아들 벨렉과 욕단을 낳았으며, 벨렉 때에 세상이 나뉘었다.",
       "sources": [
-        "10:21",
-        "10:24-25"
+        "genesis 10:21",
+        "genesis 10:24-25"
       ]
     },
     "design": {
@@ -3301,7 +3301,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:25",
+      "firstAppearance": "genesis 10:25",
       "gender": "남",
       "years": {
         "born": null,
@@ -3320,7 +3320,7 @@
       "attire": [],
       "notes": "에벨의 두 아들 중 하나이며 욕단의 형으로 기록된다. 그때에 세상이 나뉘었으므로 이름을 벨렉이라 하였다.",
       "sources": [
-        "10:25"
+        "genesis 10:25"
       ]
     },
     "design": {
@@ -3339,7 +3339,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:25",
+      "firstAppearance": "genesis 10:25",
       "gender": "남",
       "years": {
         "born": null,
@@ -3358,7 +3358,7 @@
       "attire": [],
       "notes": "에벨의 아들이며 벨렉의 아우로 기록된다. 알모닷, 셀렙, 하살마웹, 예라, 하도람, 우살, 디글라, 오발, 아비마엘, 스바, 오빌, 하윌라, 요밥을 낳았다.",
       "sources": [
-        "10:25-29"
+        "genesis 10:25-29"
       ]
     },
     "design": {
@@ -3377,7 +3377,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:26",
+      "firstAppearance": "genesis 10:26",
       "gender": "남",
       "years": {
         "born": null,
@@ -3392,8 +3392,8 @@
       "attire": [],
       "notes": "욕단의 아들로 기록된다. 이 아들들의 거주지는 메사에서부터 스발로 가는 길의 동편 산이었다.",
       "sources": [
-        "10:26",
-        "10:29-30"
+        "genesis 10:26",
+        "genesis 10:29-30"
       ]
     },
     "design": {
@@ -3412,7 +3412,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:26",
+      "firstAppearance": "genesis 10:26",
       "gender": "남",
       "years": {
         "born": null,
@@ -3427,8 +3427,8 @@
       "attire": [],
       "notes": "욕단의 아들로 기록된다. 이 아들들의 거주지는 메사에서부터 스발로 가는 길의 동편 산이었다.",
       "sources": [
-        "10:26",
-        "10:29-30"
+        "genesis 10:26",
+        "genesis 10:29-30"
       ]
     },
     "design": {
@@ -3447,7 +3447,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:26",
+      "firstAppearance": "genesis 10:26",
       "gender": "남",
       "years": {
         "born": null,
@@ -3462,8 +3462,8 @@
       "attire": [],
       "notes": "욕단의 아들로 기록된다. 이 아들들의 거주지는 메사에서부터 스발로 가는 길의 동편 산이었다.",
       "sources": [
-        "10:26",
-        "10:29-30"
+        "genesis 10:26",
+        "genesis 10:29-30"
       ]
     },
     "design": {
@@ -3482,7 +3482,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:26",
+      "firstAppearance": "genesis 10:26",
       "gender": "남",
       "years": {
         "born": null,
@@ -3497,8 +3497,8 @@
       "attire": [],
       "notes": "욕단의 아들로 기록된다. 이 아들들의 거주지는 메사에서부터 스발로 가는 길의 동편 산이었다.",
       "sources": [
-        "10:26",
-        "10:29-30"
+        "genesis 10:26",
+        "genesis 10:29-30"
       ]
     },
     "design": {
@@ -3517,7 +3517,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:27",
+      "firstAppearance": "genesis 10:27",
       "gender": "남",
       "years": {
         "born": null,
@@ -3532,8 +3532,8 @@
       "attire": [],
       "notes": "욕단의 아들로 기록된다. 이 아들들의 거주지는 메사에서부터 스발로 가는 길의 동편 산이었다.",
       "sources": [
-        "10:27",
-        "10:29-30"
+        "genesis 10:27",
+        "genesis 10:29-30"
       ]
     },
     "design": {
@@ -3552,7 +3552,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:27",
+      "firstAppearance": "genesis 10:27",
       "gender": "남",
       "years": {
         "born": null,
@@ -3567,8 +3567,8 @@
       "attire": [],
       "notes": "욕단의 아들로 기록된다. 이 아들들의 거주지는 메사에서부터 스발로 가는 길의 동편 산이었다.",
       "sources": [
-        "10:27",
-        "10:29-30"
+        "genesis 10:27",
+        "genesis 10:29-30"
       ]
     },
     "design": {
@@ -3587,7 +3587,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:27",
+      "firstAppearance": "genesis 10:27",
       "gender": "남",
       "years": {
         "born": null,
@@ -3602,8 +3602,8 @@
       "attire": [],
       "notes": "욕단의 아들로 기록된다. 이 아들들의 거주지는 메사에서부터 스발로 가는 길의 동편 산이었다.",
       "sources": [
-        "10:27",
-        "10:29-30"
+        "genesis 10:27",
+        "genesis 10:29-30"
       ]
     },
     "design": {
@@ -3622,7 +3622,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:28",
+      "firstAppearance": "genesis 10:28",
       "gender": "남",
       "years": {
         "born": null,
@@ -3637,7 +3637,7 @@
       "attire": [],
       "notes": "욕단의 아들로 기록된다. 이 아들들의 거주지는 메사에서부터 스발로 가는 길의 동편 산이었다.",
       "sources": [
-        "10:28-30"
+        "genesis 10:28-30"
       ]
     },
     "design": {
@@ -3656,7 +3656,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:28",
+      "firstAppearance": "genesis 10:28",
       "gender": "남",
       "years": {
         "born": null,
@@ -3671,7 +3671,7 @@
       "attire": [],
       "notes": "욕단의 아들로 기록된다. 이 아들들의 거주지는 메사에서부터 스발로 가는 길의 동편 산이었다.",
       "sources": [
-        "10:28-30"
+        "genesis 10:28-30"
       ]
     },
     "design": {
@@ -3690,7 +3690,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:28",
+      "firstAppearance": "genesis 10:28",
       "gender": "남",
       "years": {
         "born": null,
@@ -3705,8 +3705,8 @@
       "attire": [],
       "notes": "욕단의 아들로 기록된다. 구스의 아들 스바 및 라아마의 아들 스바와는 계보상 구별된다.",
       "sources": [
-        "10:7",
-        "10:28-29"
+        "genesis 10:7",
+        "genesis 10:28-29"
       ]
     },
     "design": {
@@ -3725,7 +3725,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:29",
+      "firstAppearance": "genesis 10:29",
       "gender": "남",
       "years": {
         "born": null,
@@ -3740,7 +3740,7 @@
       "attire": [],
       "notes": "욕단의 아들로 기록된다. 이 아들들의 거주지는 메사에서부터 스발로 가는 길의 동편 산이었다.",
       "sources": [
-        "10:29-30"
+        "genesis 10:29-30"
       ]
     },
     "design": {
@@ -3759,7 +3759,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:29",
+      "firstAppearance": "genesis 10:29",
       "gender": "남",
       "years": {
         "born": null,
@@ -3774,8 +3774,8 @@
       "attire": [],
       "notes": "욕단의 아들로 기록된다. 구스의 아들 하윌라와는 계보상 구별된다.",
       "sources": [
-        "10:7",
-        "10:29"
+        "genesis 10:7",
+        "genesis 10:29"
       ]
     },
     "design": {
@@ -3794,7 +3794,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:29",
+      "firstAppearance": "genesis 10:29",
       "gender": "남",
       "years": {
         "born": null,
@@ -3809,7 +3809,7 @@
       "attire": [],
       "notes": "욕단의 아들로 기록된다. 이 아들들의 거주지는 메사에서부터 스발로 가는 길의 동편 산이었다.",
       "sources": [
-        "10:29-30"
+        "genesis 10:29-30"
       ]
     },
     "design": {
@@ -3828,7 +3828,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:6",
+      "firstAppearance": "genesis 10:6",
       "gender": "남",
       "years": {
         "born": null,
@@ -3871,8 +3871,8 @@
       "attire": [],
       "notes": "함의 아들로 기록되어 있다. 루딤과 아나밈과 르하빔과 납두힘과 바드루심과 가슬루힘과 갑도림을 낳았다.",
       "sources": [
-        "10:6",
-        "10:13-14"
+        "genesis 10:6",
+        "genesis 10:13-14"
       ]
     },
     "design": {
@@ -3891,7 +3891,7 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:7",
+      "firstAppearance": "genesis 10:7",
       "gender": "남",
       "years": {
         "born": null,
@@ -3906,7 +3906,7 @@
       "attire": [],
       "notes": "구스의 아들로 기록되어 있다. 스바와 하윌라와 삽다와 라아마와 함께 구스의 아들 명단에 나온다.",
       "sources": [
-        "10:7"
+        "genesis 10:7"
       ]
     },
     "design": {

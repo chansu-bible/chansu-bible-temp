@@ -5,11 +5,11 @@
     "aliases": [],
     "status": "approved",
     "facts": {
-      "firstAppearance": "2:8",
+      "firstAppearance": "genesis 2:8",
       "description": "여호와 하나님이 동산을 만드신 동방의 땅이에요. 어디였는지는 알려지지 않았어요. 지도에는 여러 추정지 가운데 티그리스와 유프라테스가 만나는 곳을 표시했어요.",
       "sources": [
-        "2:8",
-        "2:10-14"
+        "genesis 2:8",
+        "genesis 2:10-14"
       ]
     },
     "location": {
@@ -28,10 +28,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "2:11",
+      "firstAppearance": "genesis 2:11",
       "description": "에덴에서 발원한 강이 갈라진 네 근원 가운데 첫째 강이다. 금이 있는 하윌라 온 땅에 둘렸다.",
       "sources": [
-        "2:10-11"
+        "genesis 2:10-11"
       ]
     },
     "location": {
@@ -50,10 +50,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "2:11",
+      "firstAppearance": "genesis 2:11",
       "description": "비손 강이 온 땅에 둘린 곳이다. 정금과 베델리엄과 호마노가 있다.",
       "sources": [
-        "2:11-12"
+        "genesis 2:11-12"
       ]
     },
     "location": {
@@ -72,11 +72,11 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "2:13",
+      "firstAppearance": "genesis 2:13",
       "description": "에덴에서 발원한 강이 갈라진 네 근원 가운데 둘째 강이다. 구스 온 땅에 둘렸다.",
       "sources": [
-        "2:10",
-        "2:13"
+        "genesis 2:10",
+        "genesis 2:13"
       ]
     },
     "location": {
@@ -95,10 +95,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "2:13",
+      "firstAppearance": "genesis 2:13",
       "description": "기혼 강이 온 땅에 둘린 곳이다.",
       "sources": [
-        "2:13"
+        "genesis 2:13"
       ]
     },
     "location": {
@@ -117,11 +117,11 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "2:14",
+      "firstAppearance": "genesis 2:14",
       "description": "에덴에서 발원한 강이 갈라진 네 근원 가운데 셋째 강이다. 앗수르 동편으로 흐른다.",
       "sources": [
-        "2:10",
-        "2:14"
+        "genesis 2:10",
+        "genesis 2:14"
       ]
     },
     "location": {
@@ -140,11 +140,11 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "2:14",
+      "firstAppearance": "genesis 2:14",
       "description": "힛데겔 강이 그 동편으로 흐른다고 언급된 곳이다.\n니므롯이 시날 땅에서 나아간 곳. 이어 니느웨, 르호보딜, 갈라, 레센의 건축이 기록된다.",
       "sources": [
-        "2:14",
-        "10:11-12"
+        "genesis 2:14",
+        "genesis 10:11-12"
       ]
     },
     "location": {
@@ -163,11 +163,11 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "2:14",
+      "firstAppearance": "genesis 2:14",
       "description": "에덴에서 발원한 강이 갈라진 네 근원 가운데 넷째 강이다.",
       "sources": [
-        "2:10",
-        "2:14"
+        "genesis 2:10",
+        "genesis 2:14"
       ]
     },
     "location": {
@@ -188,10 +188,10 @@
     ],
     "status": "approved",
     "facts": {
-      "firstAppearance": "4:16",
+      "firstAppearance": "genesis 4:16",
       "description": "에덴 동편에 있는 땅으로, 가인이 여호와의 앞을 떠나 나가 거한 곳이다. 어디였는지는 알려지지 않았고, 지도에는 에덴 추정지의 동쪽을 표시했다.",
       "sources": [
-        "4:16"
+        "genesis 4:16"
       ]
     },
     "location": {
@@ -210,10 +210,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "4:17",
+      "firstAppearance": "genesis 4:17",
       "description": "가인이 쌓고 자기 아들 에녹의 이름을 따라 이름 붙인 성이다.",
       "sources": [
-        "4:17"
+        "genesis 4:17"
       ]
     },
     "location": {
@@ -232,10 +232,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "8:4",
+      "firstAppearance": "genesis 8:4",
       "description": "칠월 십칠일에 방주가 머무른 산이다.",
       "sources": [
-        "8:4"
+        "genesis 8:4"
       ]
     },
     "location": {
@@ -254,10 +254,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:10",
+      "firstAppearance": "genesis 10:10",
       "description": "니므롯의 나라가 시작된 바벨, 에렉, 악갓, 갈레가 있는 땅.",
       "sources": [
-        "10:10"
+        "genesis 10:10"
       ]
     },
     "location": {
@@ -276,10 +276,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:10",
+      "firstAppearance": "genesis 10:10",
       "description": "시날 땅에 있으며 니므롯의 나라가 시작된 곳 중 하나.",
       "sources": [
-        "10:10"
+        "genesis 10:10"
       ]
     },
     "location": {
@@ -298,10 +298,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:10",
+      "firstAppearance": "genesis 10:10",
       "description": "시날 땅에 있으며 니므롯의 나라가 시작된 곳 중 하나.",
       "sources": [
-        "10:10"
+        "genesis 10:10"
       ]
     },
     "location": {
@@ -320,10 +320,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:10",
+      "firstAppearance": "genesis 10:10",
       "description": "시날 땅에 있으며 니므롯의 나라가 시작된 곳 중 하나.",
       "sources": [
-        "10:10"
+        "genesis 10:10"
       ]
     },
     "location": {
@@ -342,10 +342,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:10",
+      "firstAppearance": "genesis 10:10",
       "description": "시날 땅에 있으며 니므롯의 나라가 시작된 곳 중 하나.",
       "sources": [
-        "10:10"
+        "genesis 10:10"
       ]
     },
     "location": {
@@ -364,10 +364,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:11",
+      "firstAppearance": "genesis 10:11",
       "description": "니므롯이 건축한 성읍. 레센은 니느웨와 갈라 사이에 있다.",
       "sources": [
-        "10:11-12"
+        "genesis 10:11-12"
       ]
     },
     "location": {
@@ -386,10 +386,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:11",
+      "firstAppearance": "genesis 10:11",
       "description": "니므롯이 앗수르로 나아가 건축한 성읍 중 하나.",
       "sources": [
-        "10:11"
+        "genesis 10:11"
       ]
     },
     "location": {
@@ -408,10 +408,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:11",
+      "firstAppearance": "genesis 10:11",
       "description": "니므롯이 건축한 성읍. 레센은 니느웨와 갈라 사이에 있다.",
       "sources": [
-        "10:11-12"
+        "genesis 10:11-12"
       ]
     },
     "location": {
@@ -430,10 +430,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:12",
+      "firstAppearance": "genesis 10:12",
       "description": "니느웨와 갈라 사이에 있으며 니므롯이 건축한 성읍. 본문에서 큰 성이라고 언급된다.",
       "sources": [
-        "10:12"
+        "genesis 10:12"
       ]
     },
     "location": {
@@ -452,10 +452,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:19",
+      "firstAppearance": "genesis 10:19",
       "description": "가나안의 지경을 설명할 때 출발점으로 언급되는 곳.",
       "sources": [
-        "10:19"
+        "genesis 10:19"
       ]
     },
     "location": {
@@ -474,10 +474,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:19",
+      "firstAppearance": "genesis 10:19",
       "description": "가나안의 지경을 설명할 때 시돈에서 가사로 이어지는 구간에서 지나가는 곳.",
       "sources": [
-        "10:19"
+        "genesis 10:19"
       ]
     },
     "location": {
@@ -496,10 +496,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:19",
+      "firstAppearance": "genesis 10:19",
       "description": "가나안의 지경이 시돈에서 그랄을 지나 이르는 곳으로 언급된다.",
       "sources": [
-        "10:19"
+        "genesis 10:19"
       ]
     },
     "location": {
@@ -518,10 +518,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:19",
+      "firstAppearance": "genesis 10:19",
       "description": "가나안의 지경을 설명할 때 라사에 이르기까지 지나가는 곳 중 하나.",
       "sources": [
-        "10:19"
+        "genesis 10:19"
       ]
     },
     "location": {
@@ -540,10 +540,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:19",
+      "firstAppearance": "genesis 10:19",
       "description": "가나안의 지경을 설명할 때 라사에 이르기까지 지나가는 곳 중 하나.",
       "sources": [
-        "10:19"
+        "genesis 10:19"
       ]
     },
     "location": {
@@ -562,10 +562,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:19",
+      "firstAppearance": "genesis 10:19",
       "description": "가나안의 지경을 설명할 때 라사에 이르기까지 지나가는 곳 중 하나.",
       "sources": [
-        "10:19"
+        "genesis 10:19"
       ]
     },
     "location": {
@@ -584,10 +584,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:19",
+      "firstAppearance": "genesis 10:19",
       "description": "가나안의 지경을 설명할 때 라사에 이르기까지 지나가는 곳 중 하나.",
       "sources": [
-        "10:19"
+        "genesis 10:19"
       ]
     },
     "location": {
@@ -606,10 +606,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:19",
+      "firstAppearance": "genesis 10:19",
       "description": "가나안의 지경이 소돔, 고모라, 아드마, 스보임을 지나 이르는 곳으로 언급된다.",
       "sources": [
-        "10:19"
+        "genesis 10:19"
       ]
     },
     "location": {
@@ -628,10 +628,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:30",
+      "firstAppearance": "genesis 10:30",
       "description": "욕단의 아들들의 거주 범위를 설명할 때 시작점으로 언급되는 곳.",
       "sources": [
-        "10:30"
+        "genesis 10:30"
       ]
     },
     "location": {
@@ -650,10 +650,10 @@
     "aliases": [],
     "status": "draft",
     "facts": {
-      "firstAppearance": "10:30",
+      "firstAppearance": "genesis 10:30",
       "description": "욕단의 아들들의 거주지는 메사에서부터 스발로 가는 길의 동편 산이라고 기록된다.",
       "sources": [
-        "10:30"
+        "genesis 10:30"
       ]
     },
     "location": {
