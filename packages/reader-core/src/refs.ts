@@ -89,6 +89,7 @@ export function compareRefs(a: VerseRef, b: VerseRef, fallback?: BookId): number
 
 // "4:17"이나 "genesis 4:17" → 4. 읽을 수 없으면 0이다.
 // 책 묶음 안의 참조용이다. 책이 붙어 있어도 책은 보지 않는다.
+// 뒤 책 묶음에 든 앞 책 인용("창세기 2:7")은 책 이름을 읽지 못해 0이다. 묶음에서 0장은 이 책을 읽기 전에 이미 만난 것이다.
 export function chapterOfReference(reference: string): number {
   return parseRef(reference)?.chapter ?? 0
 }

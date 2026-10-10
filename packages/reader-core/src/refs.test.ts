@@ -181,4 +181,10 @@ describe('장과 절만 꺼내기', () => {
     expect(chapterOfReference('genesis 4:17')).toBe(4)
     expect(verseOfReference('exodus 3:2')).toBe(2)
   })
+
+  it('책 이름이 붙은 참조(뒤 책 묶음에 든 앞 책 인용)는 읽지 못해 0이다', () => {
+    // 묶음은 앞 책 인용을 "창세기 2:7"로 쓴다. 0장은 이 책을 읽기 전에 이미 만난 것이다.
+    expect(chapterOfReference('창세기 2:7')).toBe(0)
+    expect(verseOfReference('창세기 2:7')).toBe(0)
+  })
 })

@@ -145,6 +145,16 @@ describe('linkNames', () => {
     ])
   })
 
+  it('앞 책 인용("창세기 2:7")으로 처음 나온 인물은 0장에 나온 것으로 읽어 1장부터 잇는다', () => {
+    // 뒤 책(출애굽기) 묶음은 앞 책 인용을 책 이름을 붙여 쓴다. 그 인물은 이 책을 읽기 전에 이미 만났다.
+    const earlier = person('adam', '아담', '창세기 2:7')
+    expect(links(linkNames('아담이 그 아내를', 1, [earlier], places))).toEqual([['아담', 'adam']])
+    // 같은 이름이면 이 책에서 처음 나온 뒤로는 이 책의 인물이다.
+    const later = person('adam-2', '아담', '3:1')
+    expect(links(linkNames('아담이', 2, [earlier, later], places))).toEqual([['아담', 'adam']])
+    expect(links(linkNames('아담이', 3, [earlier, later], places))).toEqual([['아담', 'adam-2']])
+  })
+
   it('같은 이름이 둘이면 그 장에 처음 나온 인물, 없으면 그 장 이전에 가장 늦게 나온 인물이다', () => {
     expect(links(linkNames('에녹이 이랏을 낳았고 므드사엘은 라멕을 낳았더라', 4, characters, places))).toEqual([
       ['에녹', 'enoch'],

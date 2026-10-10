@@ -30,6 +30,7 @@ type Candidate = { name: string; entity: Entity }
 
 // 그 장에서 찾을 이름들. 인물은 이 장까지 처음 나온 인물만 넣고, 같은 이름이면 가장 늦게 처음 나온 인물을 고른다.
 // 그래서 4장의 "에녹"은 가인의 아들, 5장부터는 야렛의 아들이다. 긴 이름부터 본다(두발가인 > 가인).
+// 뒤 책 묶음은 앞 책 인용을 책 이름을 붙여("창세기 2:7") 쓴다. chapterOfReference는 이를 0으로 읽으므로 그 인물은 1장부터 이미 만난 인물이다.
 function candidatesFor(chapter: number, characters: Character[], places: Place[]): Candidate[] {
   const byName = new Map<string, Character>()
   for (const character of characters) {
