@@ -350,18 +350,21 @@ function Reply({
           )}
           <View style={styles.citations}>
             {reply.citations.map((citation) => {
-              // 열 수 없는 근거(다른 책의 본문·해설, 이 묶음에 없는 설정집 항목)는 누르는 표식이 아니라 글로만 보인다.
+              // 열 수 없는 근거(다른 책의 본문·해설, 이 묶음에 없는 설정집 항목)는 눌리지 않는 표식으로 보인다.
+              // 웹은 accessible을 버리고 역할 없는 div의 aria-label은 읽히지 않는 일이 많아서, NotesScreen의 다른 책 기록처럼
+              // 꺼진 단추(Pressable)로 그려 이름표를 읽히게 한다. 꺼져 있어도 색을 더 흐리게 하지는 않는다.
               // 서버는 책 묶음을 둘 이상 읽을 때만 본문·해설 이름표에 책 이름을 붙이고, 설정집 이름표에는 붙이지 않는다.
               if (!opensHere(citation, bundle)) {
                 return (
-                  <View
+                  <Pressable
                     key={citation.id}
-                    accessible
+                    accessibilityRole="button"
                     accessibilityLabel={`${citation.label}, 지금은 열 수 없어요`}
+                    disabled
                     style={[styles.citation, { backgroundColor: palette.line }]}
                   >
                     <Text style={[styles.citationText, { color: palette.inkSoft }]}>{citation.label}</Text>
-                  </View>
+                  </Pressable>
                 )
               }
               const canon = citation.kind === 'canon'

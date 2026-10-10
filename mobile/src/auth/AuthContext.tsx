@@ -46,25 +46,45 @@ function sameUser(a: AuthUser, b: AuthUser): boolean {
 
 // 로그인 서버(키클락)의 발견 문서를 받는다. AuthSession.useAutoDiscovery는 실패를 잡지 않아서
 // 서버가 꺼져 있으면 처리되지 않은 오류가 나므로 직접 받는다.
-// 못 받으면 discovery는 null로 남고 onFailed를 부른다(바뀌지 않는 함수를 줘야 한다).
-// retry를 부르면 다시 받고, 앞서 보낸 요청의 답은 버린다(매달린 요청이 다시 받기를 막지 않게). 이미 받았으면 부르지 않는다.
+// 못 받으면 discovery는 null로 남고 onFailed를 부른다. 발견 문서가 아닌 응답(없는 realm의 404 본문 등)도 못 받은 것이다.
+// retry를 부르면 다시 받는다(매달린 요청이 다시 받기를 막지 않게). 이미 받았으면 부르지 않는다.
+// 발급자는 바뀌지 않으니 앞서 보낸 요청의 늦은 성공도 받아 둔다.
+// 늦은 실패는 버린다(새 요청이 답하기 전에 못 받았다고 알리지 않게).
 function useDiscovery(issuer: string, onFailed: () => void) {
   const [discovery, setDiscovery] = useState<AuthSession.DiscoveryDocument | null>(null)
   const [attempt, setAttempt] = useState(0)
+  const mounted = useRef(true)
+  // onFailed는 최신 것을 ref에 둔다(어떤 함수를 줘도 다시 받지 않는다).
+  const failed = useRef(onFailed)
+  useEffect(() => {
+    failed.current = onFailed
+  }, [onFailed])
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   useEffect(() => {
     let alive = true
-    void AuthSession.fetchDiscoveryAsync(issuer).then(
-      (found) => {
-        if (alive) setDiscovery(found)
-      },
-      () => {
-        if (alive) onFailed()
-      },
-    )
+    void AuthSession.fetchDiscoveryAsync(issuer)
+      .then((found) => {
+        // fetchDiscoveryAsync는 상태 코드를 보지 않아서 오류 응답도 엔드포인트 없는 문서로 돌려준다.
+        if (!found.authorizationEndpoint || !found.tokenEndpoint) throw new Error('발견 문서에 엔드포인트가 없습니다')
+        return found
+      })
+      .then(
+        (found) => {
+          if (mounted.current) setDiscovery((had) => had ?? found)
+        },
+        () => {
+          if (alive) failed.current()
+        },
+      )
     return () => {
       alive = false
     }
-  }, [issuer, onFailed, attempt])
+  }, [issuer, attempt])
   const retry = useCallback(() => setAttempt((count) => count + 1), [])
   return { discovery, retry }
 }

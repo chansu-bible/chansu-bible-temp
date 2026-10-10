@@ -6,6 +6,10 @@ const key = 'auth-pending'
 
 type Pending = { state: string; codeVerifier: string; redirectUri: string }
 
+// 돌아온 주소의 쿼리는 이 모듈이 읽힐 때 한 번 잡아 둔다. 로그인 서버를 못 받아 /auth에서 /account로 옮겨 간 뒤에
+// 서버를 받아도 take는 그때의 주소가 아니라 이 값을 쓰므로, 돌아온 코드를 잃지 않는다.
+let returned: URLSearchParams | null = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search)
+
 export const webRedirect = {
   supported: true,
   start(url: string, pending: Pending): void {
@@ -14,7 +18,9 @@ export const webRedirect = {
   },
   // 로그인 창에서 돌아왔으면 코드와 검증값을 꺼낸다(한 번만). 돌아온 것이 아니면 null.
   take(): ReturnedLogin | null {
-    const params = new URLSearchParams(window.location.search)
+    const params = returned
+    returned = null
+    if (params === null) return null
     const saved = sessionStorage.getItem(key)
     if (saved === null || (!params.has('code') && !params.has('error'))) return null
     sessionStorage.removeItem(key)
