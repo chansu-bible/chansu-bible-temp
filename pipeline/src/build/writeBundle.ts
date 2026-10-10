@@ -181,10 +181,10 @@ export async function writeBundles(books: BookId[], dirs: BundleDirs = {}): Prom
     if (!existsSync(from)) continue
     await cp(from, path.join(appContentDir, to), {
       recursive: true,
-      // 숨김 파일과 버전 목록 파일은 앱에 필요 없다.
+      // 숨김 파일, 버전 목록 파일, 끊긴 작업이 남긴 임시 파일(<파일>.tmp)은 앱에 필요 없다.
       filter: (src) => {
         const name = path.basename(src)
-        return src === from || !(name.startsWith('.') || name === 'versions.json')
+        return src === from || !(name.startsWith('.') || name === 'versions.json' || name.endsWith('.tmp'))
       },
     })
   }

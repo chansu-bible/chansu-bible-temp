@@ -142,6 +142,9 @@ describe('writeBundles', () => {
     await put('content/images/v1/genesis-01-01.png', Buffer.from([0x89, 0x50, 0x4e, 0x47]))
     await put('content/audio/genesis-01-001.mp3', verse1Audio)
     await put('content/audio/genesis-01-002.mp3', verse2Audio)
+    // 끊긴 작업이 남긴 임시 파일. 앱 콘텐츠 폴더로 복사하지 않는다.
+    await put('content/audio/genesis-01-003.mp3.tmp', verse2Audio)
+    await put('content/images/versions.json.tmp', [])
     await put('content/quiz/genesis-01.json', {
       chapter: 1,
       questions: [
@@ -219,7 +222,7 @@ describe('writeBundles', () => {
       'content/audio/genesis-01-002.mp3',
       null,
     ])
-    // 앱 콘텐츠 폴더에는 묶음, 그림, 낭독만 있다(그림 버전 목록 파일은 복사하지 않는다).
+    // 앱 콘텐츠 폴더에는 묶음, 그림, 낭독만 있다(그림 버전 목록 파일과 임시 파일은 복사하지 않는다).
     expect(Object.keys(await snapshot(dirs.appContentDir)).sort()).toEqual([
       'audio/genesis-01-001.mp3',
       'audio/genesis-01-002.mp3',
