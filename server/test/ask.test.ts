@@ -434,13 +434,19 @@ describe('POST /ask', () => {
     expect(await usage.json()).toMatchObject({ remaining: 1 })
   })
 
-  it('장 번호가 문자열이거나 1보다 작거나 정수가 아니면 장 오류이고, 하루 횟수를 쓰지 않는다', async () => {
+  it('장 번호가 문자열이거나 1보다 작거나 정수가 아니거나 그 책에 없으면 장 오류이고, 하루 횟수를 쓰지 않는다', async () => {
     const { app, bearer } = await askApp(good, 1, multi)
     const question = '가인의 표가 뭐예요?'
     for (const chapter of ['3', 0, 1.5]) {
       const reply = await post(app, bearer, { question, chapter })
       expect(reply.status).toBe(400)
       // 질문이 맞는데도 질문 오류로 알리지 않고, 그 입력은 되돌려 주지 않는다.
+      expect(await reply.json()).toEqual({ error: '장 번호가 맞지 않습니다' })
+    }
+    // 그 책에 없는 장도 장 오류다(오바댜는 1장뿐이다).
+    for (const [book, chapter] of [['obadiah', 2], ['genesis', 51]] as const) {
+      const reply = await post(app, bearer, { question, book, chapter })
+      expect(reply.status).toBe(400)
       expect(await reply.json()).toEqual({ error: '장 번호가 맞지 않습니다' })
     }
     // 질문이 틀렸으면 질문 오류다.

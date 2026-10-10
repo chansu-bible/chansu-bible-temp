@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { isBookId } from 'reader-core'
+import { hasChapter, isBookId } from 'reader-core'
 import { z } from 'zod'
 import { answerQuestion, type AskModel } from './ask/answer.ts'
 import type { PassageIndex } from './ask/retrieve.ts'
@@ -104,6 +104,8 @@ export function createApp(deps: { sql: Sql; verify: Verify; corsOrigins: string[
       }
       const { question, chapter, book } = parsed.data
       if (book !== undefined && !isBookId(book)) return c.json({ error: `알 수 없는 책입니다: ${book}` }, 400)
+      // 그 책에 없는 장(오바댜 999장)도 장 오류다. 책을 보내지 않은 옛 앱은 장만 보내므로 책과 맞춰 보지 않는다.
+      if (book !== undefined && chapter !== undefined && !hasChapter(book, chapter)) return c.json({ error: '장 번호가 맞지 않습니다' }, 400)
       const user = c.get('user')
       const limit = ask.dailyLimit ?? DEFAULT_DAILY_LIMIT
       const day = koreaDay(ask.now?.())
