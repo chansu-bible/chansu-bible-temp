@@ -15,7 +15,7 @@
 
 넣는 것:
 - `deploy/` 폴더: Compose 파일, Caddyfile, 운영용 키클락 realm, 서버 Dockerfile, `.env.example`, 올리기·백업 스크립트, 맥미니 준비 문서
-- 서버의 상태 확인(`GET /health`)
+- 서버의 상태 확인(`GET /health`)이 DB까지 보게 함
 - 질문하기의 서버 전체 하루 한도
 - 앱 빌드에 맥미니 주소를 넣는 방법(EAS 환경 변수)
 
@@ -49,7 +49,7 @@ Caddy는 HTTP로만 받는다. TLS는 Funnel이 맡는다(도메인으로 바꾼
 | `/auth/*` | 키클락(`KC_HTTP_RELATIVE_PATH=/auth`) |
 | 그 밖(`/sync`, `/ask`, `/ask/usage`, `/health`, 2단계부터 `/content/*`) | 서버 |
 
-- 키클락은 요청이 HTTPS로 왔는지를 `X-Forwarded-Proto`로 판단한다. 판단이 틀리면 밖에서 온 요청에 "HTTPS required"를 낸다. Funnel이 그 머리글을 보내는지에 기대지 않는다. Caddy가 공개 주소의 스킴(`PUBLIC_SCHEME`, 기본 `https`)으로 `X-Forwarded-Proto`를 정해서 보낸다. `X-Forwarded-Host`는 공개 주소의 호스트로 정한다.
+- 키클락은 요청이 HTTPS로 왔는지를 `X-Forwarded-Proto`로 판단한다. 판단이 틀리면 밖에서 온 요청에 "HTTPS required"를 낸다. Funnel이 그 머리글을 보내는지에 기대지 않는다. Caddy가 공개 주소의 스킴(`PUBLIC_SCHEME`, 기본 `https`)으로 `X-Forwarded-Proto`를 정해서 보낸다. 호스트는 `KC_HOSTNAME`이 전체 주소로 정하므로 머리글에 기대지 않는다.
 - 키클락 설정:
   - `KC_HOSTNAME=${PUBLIC_URL}/auth`
   - `KC_HOSTNAME_ADMIN=http://127.0.0.1:${KC_ADMIN_PORT}/auth`: 관리 화면은 SSH 포트 전달 주소로 연다.
@@ -86,12 +86,12 @@ realm 파일은 키클락이 처음 뜰 때 한 번만 읽는다(`--import-realm
 - **환경 변수**(Compose가 `deploy/.env`에서 넘긴다):
   - `HOST=0.0.0.0`, `DATABASE_URL`
   - 4절의 `AUTH_*` 셋
-  - `CORS_ORIGINS`: 비움. 네이티브 앱은 CORS를 쓰지 않는다.
+  - `CORS_ORIGINS`는 정하지 않는다. 네이티브 앱은 CORS를 쓰지 않는다. 비우면 서버가 개발 기본값을 쓰는데, 그래도 상관없다.
   - `OPENAI_API_KEY`, `ASK_MODEL`, `ASK_DAILY_LIMIT`, `ASK_GLOBAL_DAILY_LIMIT`
 - **질문하기의 묶음:**
   - 1단계 코드에서는 `BUNDLE_DIR=/content`이고, 맥미니 리포의 `app/public/content`를 읽기 전용으로 붙인다.
   - 2단계 Task 9가 `BUNDLE_DIR`를 지우고 `CONTENT_DIR`(`publish/`)로 바꿀 때 Compose 파일도 함께 고친다. 이것을 2단계 계획에 적는다.
-- **`GET /health`:**
+- **`GET /health`:** 이미 있다. 이번에는 DB까지 보게 고친다.
   - 인증 없이 `{ ok: true }`를 돌려준다. Compose 상태 확인과 Funnel 확인에 쓴다.
   - DB가 끊겼으면 503이다. 질문하기가 켜졌는지 같은 내부 정보는 보이지 않는다.
 - **서버 전체 하루 한도:**
