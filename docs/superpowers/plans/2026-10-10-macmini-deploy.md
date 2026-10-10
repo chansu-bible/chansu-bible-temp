@@ -683,7 +683,7 @@ npm run pipeline -- build
 port=$(grep -E '^PROXY_PORT=' deploy/.env | cut -d= -f2)
 port=${port:-8443}
 for _ in $(seq 1 30); do
-  if curl -fsS "http://127.0.0.1:${port}/health" >/dev/null; then
+  if curl -fsS --max-time 5 "http://127.0.0.1:${port}/health" >/dev/null; then
     echo "서버가 떴습니다: http://127.0.0.1:${port}/health"
     exit 0
   fi
@@ -848,6 +848,10 @@ git commit -F <메시지 파일>   # feat(deploy): 맥미니 올리기(update.sh
 
 폰에 깐 앱이 집 밖에서도 로그인·동기화·질문하기를 쓰게, 사용자의 맥미니에 Postgres·키클락·서버·입구(Caddy)를 Docker Compose로 띄우고 Tailscale Funnel로 연다. 준비와 올리기, 백업은 [deploy/README.md](deploy/README.md)에 있다. 설계는 [docs/superpowers/specs/2026-10-10-macmini-deploy-design.md](docs/superpowers/specs/2026-10-10-macmini-deploy-design.md).
 ```
+
+- [ ] **Step 3b: `README.md`의 질문하기 문단**
+  - "한도는 계정마다 하루 `ASK_DAILY_LIMIT`번(비우면 20)이다" 뒤에 서버 전체 한도를 적는다.
+  - 문구: "서버 전체로도 하루 `ASK_GLOBAL_DAILY_LIMIT`번(비우면 200)까지만 답하고, 넘으면 그날은 모두에게 '오늘은 질문을 더 받을 수 없어요'로 답한다."
 
 - [ ] **Step 4: 2단계 계획에 메모**: `docs/superpowers/plans/2026-10-10-books-and-release-stage2.md`
 
