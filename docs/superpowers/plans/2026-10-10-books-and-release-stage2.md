@@ -391,6 +391,7 @@ git commit -m "feat(pipeline): publish 단계(꾸러미, 공용 설정집·사�
 - [ ] **Step 1:** 설정 `contentDir`(`CONTENT_DIR`, 기본 리포 루트의 `publish`)와 `contentPreview`(`CONTENT_PREVIEW=1`).
   - 리포 루트 `.env.example`의 서버 설정 옆에 둘을 짧은 주석과 함께 적는다.
   - 이 Task에서 `.env.example`도 고치므로 커밋에 넣는다.
+  - `deploy/compose.yaml`의 `server`에 `CONTENT_DIR=/publish`와 `../publish:/publish:ro`를 더한다(`CONTENT_PREVIEW`는 맥미니에서 켜지 않는다). Caddy는 `/content`를 이미 서버로 보낸다.
 - [ ] **Step 2:** `GET /content/*`:
 - 폴더 밖을 가리키는 경로(`..`, 절대 경로, 역슬래시)는 404.
 - `catalog.json`, `preview/catalog.json`: `Cache-Control: no-cache`, 내용 해시로 만든 `ETag`, `If-None-Match`가 같으면 304.
@@ -405,7 +406,7 @@ Run: `npm test -w server && npm run typecheck -w server`
 - [ ] **Step 4: 커밋**
 
 ```bash
-git add server .env.example
+git add server .env.example deploy
 git commit -m "feat(server): 공개 콘텐츠를 /content로 낸다(목록은 매번 확인, 해시 파일은 오래 캐시)"
 ```
 
@@ -429,6 +430,7 @@ git commit -m "feat(server): 공개 콘텐츠를 /content로 낸다(목록은 �
   - 지울 것: `server/src/config.ts`의 `bundleDir`, 리포 루트 `.env.example`의 `BUNDLE_DIR`와 그 주석, `ask/bundles.ts`의 `readBundles`·`loadAskIndex`와 그 시험(링크 시험 포함).
   - 새 읽기는 목록이 가리키는 파일만 읽으므로 폴더를 훑지 않는다. 그래서 링크를 따로 다룰 일이 없다.
   - 1단계에서 지킨 규칙은 그대로다. 목록이나 꾸러미 하나라도 읽지 못하면 질문하기만 끄고, 경고에 파일 이름을 밝히고, 서버는 뜬다. 공개된 장이 없으면 질문하기는 503(지금과 같은 글). 미리 보기가 켜져 있으면(`CONTENT_PREVIEW=1`, 개발용) `preview/catalog.json`을 읽어 미리 보기 장도 근거로 쓴다(지금은 공개된 장이 없으므로 개발 중 질문하기는 미리 보기로 확인한다).
+  - `deploy/compose.yaml`에서 `BUNDLE_DIR`와 `../app/public/content` 붙이기를 지우고, `deploy/update.sh`는 `npm run pipeline -- build` 대신 `npm run pipeline -- publish`를 돈다. `deploy/README.md`의 `build`와 `app/public/content` 설명도 `publish`와 `publish/`에 맞게 고친다.
 - [ ] **Step 4: 시험** — 임시 콘텐츠 폴더(목록, 꾸러미 둘, 설정집)로: 공개된 장의 대목만 있다, 미리 보기 장은 없다, 목록을 바꾸면 다음 요청에서 다시 읽는다, 목록이 없으면 503.
 
 Run: `npm test -w server && npm run typecheck -w server`
@@ -436,7 +438,7 @@ Run: `npm test -w server && npm run typecheck -w server`
 - [ ] **Step 5: 커밋**
 
 ```bash
-git add server .env.example
+git add server .env.example deploy
 git commit -m "feat(server): 질문하기가 공개 목록의 꾸러미와 공용 설정집만 근거로 쓴다"
 ```
 
