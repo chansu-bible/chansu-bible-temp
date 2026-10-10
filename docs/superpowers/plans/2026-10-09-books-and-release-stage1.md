@@ -966,9 +966,9 @@ git commit -m "feat(pipeline): 책마다 묶음(bookId, 그 책까지의 설정�
 
 **계약(하위 에이전트에게 그대로 준다):**
 - `admin/package.json`의 `dependencies`에 `"reader-core": "*"`를 더한다(책 목록과 참조 함수).
-- `GET /api/books` → 본문 파일이 있는 책 `[{ id, name, chapters, sourceChapters }]`(성경 순서). `sourceChapters`는 본문에 있는 장 수.
+- `GET /api/books` → 본문 파일이 있는 책 `[{ id, name, chapters, sourceChapters, sourceRange, error? }]`(성경 순서). `sourceChapters`는 본문에 있는 장 수, `sourceRange`는 첫 장~마지막 장, 본문을 읽지 못한 책은 `error`(파일 이름이 든 글)와 함께 오른다(한 책이 깨져도 나머지는 쓴다).
 - 책을 가리는 API는 `/api/books/:book/…`로 옮긴다. 알 수 없는 책은 404.
-  - `/api/status` → `/api/books/:book/status`(지금 응답과 같은 모양, 그 책의 장만)
+  - `/api/status` → `/api/books/:book/status`(그 책의 장만. 설정집을 읽지 못하면 `canon`·`proposalsOpen`이 `null`이고 `canonError`가 붙는다)
   - `/api/scenes/:chapter…` → `/api/books/:book/scenes/:chapter…`
   - `/api/quiz`, `/api/quiz/:chapter`, `/api/quiz/:chapter/:id` → `/api/books/:book/quiz…`
   - 설정집, 원어 뜻(사전), 그림, 작업, 실행 기록, 저장소 API는 그대로다(책을 가리지 않는다).
