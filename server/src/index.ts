@@ -32,8 +32,15 @@ function loadAsk(): AskDeps | null {
   }
   const index = loadAskIndex(config.bundleDir, console.warn)
   if (!index) return null
-  console.log(`질문하기: 책 ${index.books.length}권, 대목 ${index.passages.length}개, 모델 ${config.askModel}, 하루 ${config.askDailyLimit}번`)
-  return { index, model: createOpenAiAskModel(config.openaiApiKey, config.askModel), dailyLimit: config.askDailyLimit }
+  console.log(
+    `질문하기: 책 ${index.books.length}권, 대목 ${index.passages.length}개, 모델 ${config.askModel}, 하루 ${config.askDailyLimit}번, 서버 전체 하루 ${config.askGlobalDailyLimit}번`,
+  )
+  return {
+    index,
+    model: createOpenAiAskModel(config.openaiApiKey, config.askModel),
+    dailyLimit: config.askDailyLimit,
+    globalDailyLimit: config.askGlobalDailyLimit,
+  }
 }
 
 const app = createApp({ sql, verify, corsOrigins: config.corsOrigins, ask: loadAsk() })

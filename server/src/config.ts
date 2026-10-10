@@ -26,6 +26,8 @@ export type Config = {
   openaiApiKey: string | null
   askModel: string
   askDailyLimit: number
+  // 서버 전체 하루 질문 수
+  askGlobalDailyLimit: number
 }
 
 export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -45,5 +47,6 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
     openaiApiKey: env.OPENAI_API_KEY || null,
     askModel: env.ASK_MODEL || env.OPENAI_WRITER_MODEL || 'gpt-6.1-sol',
     askDailyLimit: positiveInt(env.ASK_DAILY_LIMIT, 20),
+    askGlobalDailyLimit: positiveInt(env.ASK_GLOBAL_DAILY_LIMIT, 200),
   }
 }

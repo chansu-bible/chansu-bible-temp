@@ -3,7 +3,7 @@ import { hasChapter, isBookId } from 'reader-core'
 import { z } from 'zod'
 import { answerQuestion, type AskModel } from './ask/answer.ts'
 import type { PassageIndex } from './ask/retrieve.ts'
-import { DEFAULT_DAILY_LIMIT, giveBack, koreaDay, takeAsk, usedToday } from './ask/usage.ts'
+import { DEFAULT_DAILY_LIMIT, DEFAULT_GLOBAL_DAILY_LIMIT, giveBack, giveBackGlobal, koreaDay, takeAsk, takeGlobalAsk, usedToday } from './ask/usage.ts'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { createMiddleware } from 'hono/factory'
@@ -14,7 +14,14 @@ import { applyChanges, pullChanges, SyncRequestSchema } from './records.ts'
 type Env = { Variables: { user: User } }
 
 // 질문하기에 쓰는 것. 없으면(키나 묶음이 없음) /ask는 503이다. 읽어 둔 책은 index.books에 있다.
-export type AskDeps = { index: PassageIndex; model: AskModel; dailyLimit?: number; now?: () => number }
+export type AskDeps = {
+  index: PassageIndex
+  model: AskModel
+  dailyLimit?: number
+  // 서버 전체 하루 한도. 없으면 200이다.
+  globalDailyLimit?: number
+  now?: () => number
+}
 
 // book은 독자가 읽고 있는 책의 id다. 성경 책 id가 아니면 400이다(오류 글이 입력을 되돌려 주므로 길이를 막아 둔다).
 // chapter는 그 책 안의 장 번호(1 이상의 정수)다. 아니면 400이다.
@@ -37,7 +44,15 @@ export function createApp(deps: { sql: Sql; verify: Verify; corsOrigins: string[
     return c.json({ error: '서버 오류가 났습니다' }, 500)
   })
 
-  app.get('/health', (c) => c.json({ ok: true }))
+  // 상태 확인(Compose, 입구). DB까지 닿는지 본다. 끊겼으면 503이다.
+  app.get('/health', async (c) => {
+    try {
+      await deps.sql.query('SELECT 1')
+      return c.json({ ok: true })
+    } catch {
+      return c.json({ ok: false }, 503)
+    }
+  })
 
   // 로그인한 사용자만 쓰는 경로에 붙인다.
   const authenticate = createMiddleware<Env>(async (c, next) => {
@@ -111,11 +126,17 @@ export function createApp(deps: { sql: Sql; verify: Verify; corsOrigins: string[
       const day = koreaDay(ask.now?.())
       const taken = await takeAsk(deps.sql.query, user.sub, day, limit)
       if (!taken.allowed) return c.json({ error: '오늘 질문을 모두 썼어요. 내일 다시 물어 주세요.', remaining: 0 }, 429)
+      // 서버 전체 한도. 넘으면 이 사람의 한 번도 되돌린다(그 사람의 남은 횟수는 그대로라 remaining을 보내지 않는다).
+      if (!(await takeGlobalAsk(deps.sql.query, day, ask.globalDailyLimit ?? DEFAULT_GLOBAL_DAILY_LIMIT))) {
+        await giveBack(deps.sql.query, user.sub, day)
+        return c.json({ error: '오늘은 질문을 더 받을 수 없어요. 내일 다시 물어 주세요.' }, 429)
+      }
       try {
         const result = await answerQuestion(ask.index, ask.model, { question, chapter, book })
         return c.json({ ...result, remaining: Math.max(0, limit - taken.count) })
       } catch (error) {
         await giveBack(deps.sql.query, user.sub, day)
+        await giveBackGlobal(deps.sql.query, day)
         console.error('질문하기 실패:', error instanceof Error ? error.message : error)
         return c.json({ error: '답을 만들지 못했어요. 잠시 뒤에 다시 물어 주세요.' }, 502)
       }

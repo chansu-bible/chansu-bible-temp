@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { newUser, testApp, token } from './helpers.ts'
+import { createApp } from '../src/app.ts'
+import { createVerifier } from '../src/auth.ts'
+import type { Sql } from '../src/db.ts'
+import { ISSUER, newUser, testApp, testKeys, token } from './helpers.ts'
 
 type App = Awaited<ReturnType<typeof testApp>>['app']
 type SyncResponse = {
@@ -55,6 +58,22 @@ describe('인증', () => {
   it('/health는 인증 없이 열린다', async () => {
     const { app } = await testApp()
     expect(await (await app.request('/health')).json()).toEqual({ ok: true })
+  })
+
+  it('/health는 DB에 닿지 못하면 503이다', async () => {
+    const down: Sql = {
+      query: async () => {
+        throw new Error('연결 끊김')
+      },
+      transaction: async () => {
+        throw new Error('연결 끊김')
+      },
+    }
+    const { jwks } = await testKeys()
+    const app = createApp({ sql: down, verify: createVerifier({ issuers: [ISSUER], clients: ['chansu-bible-app'], jwks }), corsOrigins: [] })
+    const response = await app.request('/health')
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ ok: false })
   })
 })
 

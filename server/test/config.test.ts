@@ -18,6 +18,13 @@ describe('readConfig', () => {
     expect(readConfig({ ASK_DAILY_LIMIT: 'many' }).askDailyLimit).toBe(20)
   })
 
+  it('서버 전체 하루 한도는 ASK_GLOBAL_DAILY_LIMIT이고, 비었거나 틀리면 200이다', () => {
+    expect(readConfig({ ASK_GLOBAL_DAILY_LIMIT: '50' }).askGlobalDailyLimit).toBe(50)
+    expect(readConfig({ ASK_GLOBAL_DAILY_LIMIT: '' }).askGlobalDailyLimit).toBe(200)
+    expect(readConfig({ ASK_GLOBAL_DAILY_LIMIT: '0' }).askGlobalDailyLimit).toBe(200)
+    expect(readConfig({}).askGlobalDailyLimit).toBe(200)
+  })
+
   it('책 묶음 폴더는 BUNDLE_DIR이고, 없으면 app/public/content다', () => {
     expect(readConfig({ BUNDLE_DIR: '/data/content' }).bundleDir).toBe('/data/content')
     expect(readConfig({}).bundleDir.endsWith(path.join('app', 'public', 'content'))).toBe(true)

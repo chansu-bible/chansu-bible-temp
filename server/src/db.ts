@@ -56,4 +56,9 @@ export async function migrate(sql: Pick<Sql, 'query'>): Promise<void> {
     count INTEGER NOT NULL,
     PRIMARY KEY (user_id, day)
   )`)
+  // 질문하기 횟수: 서버 전체, 한국 날짜마다
+  await sql.query(`CREATE TABLE IF NOT EXISTS ask_daily (
+    day TEXT PRIMARY KEY,
+    count INTEGER NOT NULL
+  )`)
 }

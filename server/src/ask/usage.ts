@@ -30,3 +30,24 @@ export async function usedToday(query: Query, userId: string, day: string): Prom
   const rows = await query<{ count: number | string }>('SELECT count FROM ask_usage WHERE user_id = $1 AND day = $2', [userId, day])
   return Number(rows[0]?.count ?? 0)
 }
+
+// 서버 전체의 하루 질문 수. 누구나 가입할 수 있으므로 계정을 많이 만들어도 하루 비용이 이 안에 머물게 한다.
+export const DEFAULT_GLOBAL_DAILY_LIMIT = 200
+
+// 서버 전체에서 한 번 쓴다. 한도를 넘으면 되돌리고 false다.
+export async function takeGlobalAsk(query: Query, day: string, limit: number): Promise<boolean> {
+  const rows = await query<{ count: number | string }>(
+    `INSERT INTO ask_daily (day, count) VALUES ($1, 1)
+     ON CONFLICT (day) DO UPDATE SET count = ask_daily.count + 1
+     RETURNING count`,
+    [day],
+  )
+  if (Number(rows[0]?.count ?? 0) <= limit) return true
+  await giveBackGlobal(query, day)
+  return false
+}
+
+// 답을 만들지 못했을 때 서버 전체의 한 번을 되돌린다.
+export async function giveBackGlobal(query: Query, day: string): Promise<void> {
+  await query('UPDATE ask_daily SET count = GREATEST(count - 1, 0) WHERE day = $1', [day])
+}

@@ -350,12 +350,12 @@ describe('answerQuestion', () => {
   })
 })
 
-async function askApp(model: AskModel, dailyLimit = 20, askIndex: PassageIndex = index) {
+async function askApp(model: AskModel, dailyLimit = 20, askIndex: PassageIndex = index, globalDailyLimit?: number) {
   const sql = await memorySql()
   const { privateKey, jwks } = await testKeys()
   const verify = createVerifier({ issuers: [ISSUER], clients: ['chansu-bible-app'], jwks })
-  const app = createApp({ sql, verify, corsOrigins: [], ask: { index: askIndex, model, dailyLimit } })
-  return { app, bearer: await token(privateKey, { sub: newUser() }) }
+  const app = createApp({ sql, verify, corsOrigins: [], ask: { index: askIndex, model, dailyLimit, globalDailyLimit } })
+  return { app, bearer: await token(privateKey, { sub: newUser() }), newBearer: () => token(privateKey, { sub: newUser() }) }
 }
 
 const post = (app: Awaited<ReturnType<typeof askApp>>['app'], bearer: string | null, body: unknown) =>
@@ -389,6 +389,32 @@ describe('POST /ask', () => {
     expect((await post(failing.app, failing.bearer, { question: '가인의 표가 뭐예요?' })).status).toBe(502)
     const usage = await failing.app.request('/ask/usage', { headers: { Authorization: `Bearer ${failing.bearer}` } })
     expect(await usage.json()).toMatchObject({ remaining: 1 })
+  })
+
+  it('서버 전체 하루 한도를 넘으면 429이고, 그 사람의 횟수는 되돌린다', async () => {
+    const { app, bearer, newBearer } = await askApp(good, 5, index, 1)
+    expect((await post(app, bearer, { question: '가인의 표가 뭐예요?' })).status).toBe(200)
+    const other = await newBearer()
+    const blocked = await post(app, other, { question: '가인의 표가 뭐예요?' })
+    expect(blocked.status).toBe(429)
+    // 그 사람의 남은 횟수는 그대로라 remaining을 보내지 않는다.
+    expect(await blocked.json()).toEqual({ error: '오늘은 질문을 더 받을 수 없어요. 내일 다시 물어 주세요.' })
+    const usage = await app.request('/ask/usage', { headers: { Authorization: `Bearer ${other}` } })
+    expect(await usage.json()).toMatchObject({ remaining: 5 })
+  })
+
+  it('답을 만들지 못하면 서버 전체 횟수도 되돌린다', async () => {
+    let fail = true
+    const flaky: AskModel = async (...args: Parameters<AskModel>) => {
+      if (fail) {
+        fail = false
+        throw new Error('모델 오류')
+      }
+      return good(...args)
+    }
+    const { app, bearer, newBearer } = await askApp(flaky, 5, index, 1)
+    expect((await post(app, bearer, { question: '가인의 표가 뭐예요?' })).status).toBe(502)
+    expect((await post(app, await newBearer(), { question: '가인의 표가 뭐예요?' })).status).toBe(200)
   })
 
   it('빈 질문이나 너무 긴 질문은 400이다', async () => {
