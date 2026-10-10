@@ -9,10 +9,13 @@ COPY pipeline/package.json pipeline/
 COPY app/package.json app/
 COPY admin/package.json admin/
 COPY mobile/package.json mobile/
-RUN npm ci --workspace server --no-audit --no-fund
+# 내려받은 npm 캐시는 이미지에 남기지 않는다.
+RUN npm ci --workspace server --no-audit --no-fund && npm cache clean --force
 COPY packages/reader-core packages/reader-core
 COPY server server
 WORKDIR /app/server
 EXPOSE 8790
+# root가 아닌 node 사용자로 돌린다(묶음 폴더는 읽기만 한다).
+USER node
 # 서버는 지금처럼 tsx로 TypeScript를 바로 돌린다.
 CMD ["../node_modules/.bin/tsx", "src/index.ts"]

@@ -18,7 +18,7 @@ const sql = pgSql(config.databaseUrl)
 try {
   await migrate(sql)
 } catch (error) {
-  console.error(`Postgres(${new URL(config.databaseUrl).host})에 연결하지 못했습니다. npm run infra:up으로 띄웠는지 확인하세요.`)
+  console.error(`Postgres(${new URL(config.databaseUrl).host})에 연결하지 못했습니다. 개발에서는 npm run infra:up으로 띄웠는지, 맥미니에서는 deploy/.env의 DB_PASSWORD와 db 컨테이너를 확인하세요.`)
   console.error(error instanceof Error ? error.message : error)
   process.exit(1)
 }
