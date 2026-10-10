@@ -44,3 +44,35 @@ describe('서버 이미지', () => {
     expect(ignore).toContain('**/node_modules')
   })
 })
+
+describe('Compose와 입구', () => {
+  const compose = read('deploy/compose.yaml')
+
+  it('포트는 맥미니 자신(127.0.0.1)에만 연다', () => {
+    const lines = compose.split('\n')
+    const published = lines.flatMap((line, at) => (lines[at - 1]?.trim() === 'ports:' ? [line.trim()] : []))
+    expect(published).toHaveLength(2)
+    for (const line of published) expect(line.startsWith("- '127.0.0.1:")).toBe(true)
+  })
+
+  it('비밀번호는 deploy/.env에서만 받는다', () => {
+    // 비밀번호 키(POSTGRES_PASSWORD 등)의 값은 모두 ${...}로 받아야 한다.
+    const passwords = compose.split('\n').filter((line) => /^\s*\w*PASSWORD:/.test(line))
+    expect(passwords).toHaveLength(3)
+    for (const line of passwords) expect(line).toMatch(/PASSWORD:\s*\$\{/)
+  })
+
+  it('입구는 키클락 관리 화면을 먼저 막고, 공개 스킴을 알린다', () => {
+    const caddy = read('deploy/Caddyfile')
+    const block = caddy.indexOf('handle @kcadmin')
+    const keycloak = caddy.indexOf('handle @keycloak')
+    expect(block).toBeGreaterThan(-1)
+    expect(block).toBeLessThan(keycloak)
+    expect(caddy).toContain('header_up X-Forwarded-Proto {$PUBLIC_SCHEME}')
+  })
+
+  it('설정 견본에는 비밀 값이 비어 있다', () => {
+    const example = read('deploy/.env.example')
+    for (const key of ['DB_PASSWORD', 'KC_ADMIN_PASSWORD', 'OPENAI_API_KEY']) expect(example).toMatch(new RegExp(`^${key}=$`, 'm'))
+  })
+})

@@ -1,0 +1,95 @@
+# 맥미니 운영용. 띄우기: docker compose -f deploy/compose.yaml --env-file deploy/.env up -d --build
+# 모든 포트는 맥미니 자신(127.0.0.1)에만 연다. 밖에서는 Tailscale Funnel이 입구(caddy)로 보낸다.
+name: chansu-bible-prod
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: chansu
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?deploy/.env에 DB_PASSWORD를 적으세요}
+      POSTGRES_DB: chansu
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # 처음 만들 때 한 번: 키클락이 쓸 데이터베이스
+      - ./postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U chansu -d chansu']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8
+    restart: unless-stopped
+    # 운영 모드. realm이 아직 없을 때만 deploy/keycloak의 realm 파일을 읽는다.
+    command: ['start', '--import-realm']
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://db:5432/keycloak
+      KC_DB_USERNAME: chansu
+      KC_DB_PASSWORD: ${DB_PASSWORD}
+      KC_HOSTNAME: ${PUBLIC_URL:?deploy/.env에 PUBLIC_URL을 적으세요}/auth
+      KC_HOSTNAME_ADMIN: http://127.0.0.1:${KC_ADMIN_PORT:-8180}/auth
+      KC_HTTP_ENABLED: 'true'
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: 'true'
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:?deploy/.env에 KC_ADMIN_PASSWORD를 적으세요}
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+    # 관리 화면: SSH 포트 전달로만 연다(ssh -L 8180:127.0.0.1:8180 mainserver)
+    ports:
+      - '127.0.0.1:${KC_ADMIN_PORT:-8180}:8080'
+    depends_on:
+      db:
+        condition: service_healthy
+
+  server:
+    build:
+      context: ..
+      dockerfile: deploy/server.Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      HOST: 0.0.0.0
+      PORT: '8790'
+      DATABASE_URL: postgres://chansu:${DB_PASSWORD}@db:5432/chansu
+      AUTH_ISSUERS: ${PUBLIC_URL}/auth/realms/chansu-bible
+      AUTH_JWKS_URL: http://keycloak:8080/auth/realms/chansu-bible/protocol/openid-connect/certs
+      AUTH_CLIENTS: chansu-bible-app
+      BUNDLE_DIR: /content
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ASK_MODEL: ${ASK_MODEL:-}
+      ASK_DAILY_LIMIT: ${ASK_DAILY_LIMIT:-20}
+      ASK_GLOBAL_DAILY_LIMIT: ${ASK_GLOBAL_DAILY_LIMIT:-200}
+    volumes:
+      # 1단계: 맥미니 리포에서 만든 책 묶음(npm run pipeline -- build). 2단계 Task 9에서 publish/로 바뀐다.
+      - ../app/public/content:/content:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8790/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      PUBLIC_SCHEME: ${PUBLIC_SCHEME:-https}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    # 입구: Tailscale Funnel이 이 포트로 보낸다(tailscale funnel --bg http://127.0.0.1:8443)
+    ports:
+      - '127.0.0.1:${PROXY_PORT:-8443}:80'
+    depends_on:
+      - server
+      - keycloak
+
+volumes:
+  db-data:
