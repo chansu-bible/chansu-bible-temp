@@ -1,8 +1,21 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { loadAskIndex, readBundles } from '../src/ask/bundles.ts'
+
+// 링크를 만들 수 없는 곳(관리자 권한이 없는 Windows)에서는 링크 시험을 건너뛴다.
+const canSymlink = (() => {
+  const probe = mkdtempSync(path.join(tmpdir(), 'server-link-'))
+  try {
+    symlinkSync(path.join(probe, 'target.json'), path.join(probe, 'link.json'), 'file')
+    return true
+  } catch {
+    return false
+  } finally {
+    rmSync(probe, { recursive: true, force: true })
+  }
+})()
 
 const bundleOf = (bookId: string | undefined, book: string) => ({ bookId, book, chapters: [], characters: [], places: [], things: [] })
 // 본문 절이 하나 있어서 대목이 나오는 묶음
@@ -73,6 +86,19 @@ describe('책 묶음 폴더', () => {
       write('notes.json', { memo: '책이 아니다' })
       expect(() => readBundles(path.join(dir, 'notes.json'))).toThrow(/notes\.json/)
     })
+
+    it.skipIf(!canSymlink)('링크인 <책 id>.json은 가리키는 파일을 따라가 읽는다', () => {
+      // 묶음 폴더 밖에 있는 진짜 파일을 가리킨다.
+      const store = mkdtempSync(path.join(tmpdir(), 'chansu-store-'))
+      try {
+        const real = path.join(store, 'bundle.json')
+        writeFileSync(real, JSON.stringify(withVerse('genesis', '창세기')))
+        symlinkSync(real, path.join(dir, 'genesis.json'), 'file')
+        expect(readBundles(dir)).toMatchObject([{ bookId: 'genesis', book: '창세기', chapters: [{ chapter: 1, verses: [{ verse: 1 }] }] }])
+      } finally {
+        rmSync(store, { recursive: true, force: true })
+      }
+    })
   })
 
   describe('loadAskIndex', () => {
@@ -81,7 +107,8 @@ describe('책 묶음 폴더', () => {
       warnings = []
     })
     const load = (target = dir) => loadAskIndex(target, (message) => warnings.push(message))
-    const turnedOff = '책 묶음을 읽지 못해 질문하기를 끕니다. '
+    // 경고의 앞머리: 어느 폴더인지 밝힌다.
+    const turnedOff = (target: string) => `책 묶음(${target})을 읽지 못해 질문하기를 끕니다. `
 
     it('묶음이 있으면 모든 책의 색인을 돌려주고 경고는 없다', () => {
       write('exodus.json', withVerse('exodus', '출애굽기'))
@@ -107,7 +134,7 @@ describe('책 묶음 폴더', () => {
       writeFileSync(path.join(dir, 'exodus.json'), '{"bookId":"exodus","book":"출애굽')
       expect(load()).toBeNull()
       expect(warnings).toHaveLength(1)
-      expect(warnings[0]!.startsWith(turnedOff)).toBe(true)
+      expect(warnings[0]!.startsWith(turnedOff(dir))).toBe(true)
       expect(warnings[0]).toMatch(/exodus\.json을 읽지 못했습니다/)
     })
 
@@ -121,10 +148,12 @@ describe('책 묶음 폴더', () => {
       expect(warnings.pop()).toMatch(/genesis\.json의 bookId\(exodus\)/)
 
       write('notes.json', { memo: '책이 아니다' })
-      expect(load(path.join(dir, 'notes.json'))).toBeNull()
-      const notFolder = warnings.pop()!
-      expect(notFolder.startsWith(turnedOff)).toBe(true)
-      expect(notFolder).toMatch(/notes\.json/)
+      const notFolder = path.join(dir, 'notes.json')
+      expect(load(notFolder)).toBeNull()
+      const warning = warnings.pop()!
+      expect(warning.startsWith(turnedOff(notFolder))).toBe(true)
+      // 앞머리를 뺀 이유에도 그 경로가 든다.
+      expect(warning.slice(turnedOff(notFolder).length)).toMatch(/notes\.json/)
       expect(warnings).toEqual([])
     })
 
@@ -133,7 +162,18 @@ describe('책 묶음 폴더', () => {
       write('genesis.json', { ...bundleOf('genesis', '창세기'), chapters: [{ chapter: 1 }] })
       expect(load()).toBeNull()
       expect(warnings).toHaveLength(1)
-      expect(warnings[0]!.startsWith(turnedOff)).toBe(true)
+      expect(warnings[0]!.startsWith(turnedOff(dir))).toBe(true)
+      // 어느 파일로 대목을 만들다 실패했는지 밝힌다.
+      expect(warnings[0]).toContain('genesis.json으로 대목을 만들지 못했습니다')
+    })
+
+    it.skipIf(!canSymlink)('가리키는 파일이 없는 링크면 질문하기를 끄고 어느 파일인지 알린다', () => {
+      // 가리키는 파일이 옮겨지거나 지워진 링크
+      symlinkSync(path.join(dir, 'moved', 'genesis.json'), path.join(dir, 'genesis.json'), 'file')
+      expect(load()).toBeNull()
+      expect(warnings).toHaveLength(1)
+      expect(warnings[0]!.startsWith(turnedOff(dir))).toBe(true)
+      expect(warnings[0]).toMatch(/genesis\.json을 읽지 못했습니다/)
     })
   })
 })

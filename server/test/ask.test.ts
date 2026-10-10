@@ -175,6 +175,38 @@ describe('책 묶음이 여럿일 때의 대목', () => {
     ])
   })
 
+  it('대목을 만들다 실패하면 어느 묶음 파일인지 밝힌다', () => {
+    // 둘째 묶음(출애굽기)의 장에 본문 절 목록이 없다. 첫째 묶음(창세기)은 멀쩡하다.
+    const noVerses = { ...exodus, chapters: [{ chapter: 3 }] } as unknown as AskBundle
+    expect(() => buildPassages([bundle, noVerses])).toThrow('exodus.json으로 대목을 만들지 못했습니다')
+  })
+
+  it('설정집을 만들다 나는 오류도, 오류가 아닌 값을 던져도 파일을 밝히고 원래 값을 cause에 남긴다', () => {
+    const failureOf = (patch: object) => {
+      try {
+        buildPassages([bundle, { ...exodus, ...patch } as unknown as AskBundle])
+      } catch (error) {
+        return error as Error
+      }
+      throw new Error('대목을 만들다 실패해야 한다')
+    }
+    const prefix = 'exodus.json으로 대목을 만들지 못했습니다: '
+    // 설정집을 만들 때 난다: 인물에 aliases가 없다.
+    const noAliases = failureOf({ characters: [{ id: 'moses', name: '모세', firstAppearance: '2:10', notes: '' }] })
+    expect(noAliases.message.startsWith(prefix)).toBe(true)
+    expect(noAliases.cause).toBeInstanceOf(TypeError)
+    // 오류가 아닌 값을 던지면(장 목록을 도는 중에) 글로 바꿔 담고, 그 값이 cause다.
+    const thrown = failureOf({
+      chapters: {
+        [Symbol.iterator]: () => {
+          throw '글을 던졌다'
+        },
+      },
+    })
+    expect(thrown.message).toBe(`${prefix}글을 던졌다`)
+    expect(thrown.cause).toBe('글을 던졌다')
+  })
+
   it('색인은 든 책을 안다', () => {
     expect(multi.books).toEqual(['genesis', 'exodus'])
   })
@@ -385,6 +417,21 @@ describe('POST /ask', () => {
     expect(await (await post(app, bearer, { question, book: forty })).json()).toEqual({ error: `알 수 없는 책입니다: ${forty}` })
     // 질문이 틀렸으면 질문 오류다.
     expect(await (await post(app, bearer, { question: '  ', book: 3 })).json()).toEqual({ error: '질문은 1자에서 300자 사이로 써 주세요' })
+    const usage = await app.request('/ask/usage', { headers: { Authorization: `Bearer ${bearer}` } })
+    expect(await usage.json()).toMatchObject({ remaining: 1 })
+  })
+
+  it('장 번호가 문자열이거나 1보다 작거나 정수가 아니면 장 오류이고, 하루 횟수를 쓰지 않는다', async () => {
+    const { app, bearer } = await askApp(good, 1, multi)
+    const question = '가인의 표가 뭐예요?'
+    for (const chapter of ['3', 0, 1.5]) {
+      const reply = await post(app, bearer, { question, chapter })
+      expect(reply.status).toBe(400)
+      // 질문이 맞는데도 질문 오류로 알리지 않고, 그 입력은 되돌려 주지 않는다.
+      expect(await reply.json()).toEqual({ error: '장 번호가 맞지 않습니다' })
+    }
+    // 질문이 틀렸으면 질문 오류다.
+    expect(await (await post(app, bearer, { question: '  ', chapter: 0 })).json()).toEqual({ error: '질문은 1자에서 300자 사이로 써 주세요' })
     const usage = await app.request('/ask/usage', { headers: { Authorization: `Bearer ${bearer}` } })
     expect(await usage.json()).toMatchObject({ remaining: 1 })
   })

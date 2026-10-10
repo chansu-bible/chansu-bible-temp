@@ -137,15 +137,26 @@ function canonEntries(bundle: AskBundle, named: boolean): CanonEntry[] {
   return entries
 }
 
+// 대목을 만들다 나는 오류에 어느 묶음 파일인지 밝힌다. 원래 오류는 cause에 남는다.
+function inBundle<T>(bundle: AskBundle, make: () => T): T {
+  try {
+    return make()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`${bundle.bookId}.json으로 대목을 만들지 못했습니다: ${message}`, { cause: error })
+  }
+}
+
 // bundles는 성경 순서의 책 묶음들이다. 책 묶음이 하나면 이름표에 책 이름이 없다.
+// 대목을 만들다 실패하면 그 묶음 파일(<책 id>.json)을 밝힌 오류를 던진다.
 export function buildPassages(bundles: AskBundle[]): Passage[] {
   const named = bundles.length > 1
-  const passages = bundles.flatMap((bundle) => textPassages(bundle, named))
+  const passages = bundles.flatMap((bundle) => inBundle(bundle, () => textPassages(bundle, named)))
   // 뒤 책 묶음에는 앞 책의 설정집 항목이 인용만 책 이름으로 바뀌어 다시 든다. 종류와 id가 같으면 하나만 둔다:
   // 처음 나오는 곳이 그 책 안인 묶음의 것, 그런 묶음이 없으면(장소, 물건, 읽지 못하는 인용) 먼저 나온 묶음의 것.
   const canon = new Map<string, CanonEntry>()
   for (const bundle of bundles) {
-    for (const entry of canonEntries(bundle, named)) {
+    for (const entry of inBundle(bundle, () => canonEntries(bundle, named))) {
       const kept = canon.get(entry.passage.id)
       if (!kept || (!kept.firstHere && entry.firstHere)) canon.set(entry.passage.id, entry)
     }

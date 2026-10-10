@@ -41,7 +41,7 @@ export function readBundles(dir: string): AskBundle[] {
 }
 
 // 묶음 폴더에서 질문하기의 색인을 만든다. 질문하기는 덤이라, 책 묶음이 없거나 잘못되어 있으면
-// 이유를 warn으로 알리고 null을 돌려준다(동기화 서버는 그대로 뜬다).
+// 이유를 warn으로 알리고 null을 돌려준다(동기화 서버는 그대로 뜬다). 경고에는 폴더와 문제의 파일 이름이 든다.
 // 읽는 것과 대목을 만드는 것을 한꺼번에 지킨다. 잘못된 묶음만 건너뛰면 설정집 중복 정리가 조용히 달라진다.
 export function loadAskIndex(dir: string, warn: (message: string) => void): PassageIndex | null {
   let bundles: AskBundle[]
@@ -50,7 +50,7 @@ export function loadAskIndex(dir: string, warn: (message: string) => void): Pass
     bundles = readBundles(dir)
     index = buildIndex(buildPassages(bundles))
   } catch (error) {
-    warn(`책 묶음을 읽지 못해 질문하기를 끕니다. ${error instanceof Error ? error.message : String(error)}`)
+    warn(`책 묶음(${dir})을 읽지 못해 질문하기를 끕니다. ${error instanceof Error ? error.message : String(error)}`)
     return null
   }
   if (bundles.length === 0) {

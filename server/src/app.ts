@@ -17,6 +17,7 @@ type Env = { Variables: { user: User } }
 export type AskDeps = { index: PassageIndex; model: AskModel; dailyLimit?: number; now?: () => number }
 
 // book은 독자가 읽고 있는 책의 id다. 성경 책 id가 아니면 400이다(오류 글이 입력을 되돌려 주므로 길이를 막아 둔다).
+// chapter는 그 책 안의 장 번호(1 이상의 정수)다. 아니면 400이다.
 const AskRequestSchema = z.object({
   question: z.string().trim().min(1).max(300),
   chapter: z.number().int().positive().optional(),
@@ -93,8 +94,11 @@ export function createApp(deps: { sql: Sql; verify: Verify; corsOrigins: string[
       if (!ask) return c.json({ error: '질문하기를 지금 쓸 수 없어요' }, 503)
       const parsed = AskRequestSchema.safeParse(await c.req.json().catch(() => null))
       if (!parsed.success) {
-        // 책이 문자열이 아니거나 너무 길어도 책 오류다. 이때는 입력을 되돌려 주지 않는다.
-        if (parsed.error.issues[0]?.path[0] === 'book') return c.json({ error: '알 수 없는 책입니다' }, 400)
+        // 책이 문자열이 아니거나 너무 길어도 책 오류이고, 장이 1 이상의 정수가 아니어도 장 오류다. 이때는 입력을 되돌려 주지 않는다.
+        // 질문이 먼저 틀렸으면 질문 오류다.
+        const field = parsed.error.issues[0]?.path[0]
+        if (field === 'book') return c.json({ error: '알 수 없는 책입니다' }, 400)
+        if (field === 'chapter') return c.json({ error: '장 번호가 맞지 않습니다' }, 400)
         return c.json({ error: '질문은 1자에서 300자 사이로 써 주세요' }, 400)
       }
       const { question, chapter, book } = parsed.data
