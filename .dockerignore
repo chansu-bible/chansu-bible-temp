@@ -2,6 +2,8 @@
 **/node_modules
 **/.env
 **/.env.*
+**/*.env
+**/.npmrc
 !**/.env.example
 .git
 .claude

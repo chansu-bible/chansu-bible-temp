@@ -10,7 +10,7 @@ COPY app/package.json app/
 COPY admin/package.json admin/
 COPY mobile/package.json mobile/
 # 내려받은 npm 캐시는 이미지에 남기지 않는다.
-RUN npm ci --workspace server --no-audit --no-fund && npm cache clean --force
+RUN npm ci --workspace server --no-audit --no-fund && npm cache clean --force && rm -rf /root/.npm/_logs /tmp/node-compile-cache
 COPY packages/reader-core packages/reader-core
 COPY server server
 WORKDIR /app/server

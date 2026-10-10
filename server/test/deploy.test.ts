@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -8,6 +8,11 @@ const read = (file: string) => readFileSync(path.join(repoDir, file), 'utf8')
 
 describe('운영용 키클락 realm', () => {
   const realm = JSON.parse(read('deploy/keycloak/chansu-bible-realm.json'))
+
+  it('키클락이 읽는 폴더에는 이 realm 파일 하나만 있다', () => {
+    // --import-realm은 폴더의 JSON을 모두 읽는다. 다른 파일이 들면 계정이나 realm이 몰래 더해진다.
+    expect(readdirSync(path.join(repoDir, 'deploy/keycloak'))).toEqual(['chansu-bible-realm.json'])
+  })
 
   it('시험 계정과 개발용 클라이언트가 없다', () => {
     expect(realm.users ?? []).toEqual([])
@@ -21,6 +26,7 @@ describe('운영용 키클락 realm', () => {
     expect(app.webOrigins ?? []).toEqual([])
     expect(app.attributes['pkce.code.challenge.method']).toBe('S256')
     expect(app.optionalClientScopes).toContain('offline_access')
+    expect(app.attributes['post.logout.redirect.uris']).toBe('chansubible://*')
   })
 
   it('누구나 가입하고, 메일이 필요한 기능은 끄고, 로그인 실패를 막는다', () => {
@@ -30,18 +36,23 @@ describe('운영용 키클락 realm', () => {
       resetPasswordAllowed: false,
       verifyEmail: false,
       bruteForceProtected: true,
+      // 누구나 가입하는 곳에서 영구 잠금이면 아무나 남의 계정을 영영 잠글 수 있다.
+      permanentLockout: false,
+      failureFactor: 5,
+      offlineSessionIdleTimeout: 2592000,
       sslRequired: 'external',
       defaultLocale: 'ko',
     })
-    expect(realm.passwordPolicy).toContain('length(8)')
+    expect(realm.passwordPolicy).toBe('length(8) and notUsername and notEmail')
   })
 })
 
 describe('서버 이미지', () => {
   it('빌드 맥락에서 .env와 node_modules를 뺀다', () => {
     const ignore = read('.dockerignore').split('\n').map((line) => line.trim())
-    expect(ignore).toContain('**/.env')
-    expect(ignore).toContain('**/node_modules')
+    for (const pattern of ['**/.env', '**/.env.*', '**/*.env', '**/.npmrc', '**/node_modules']) expect(ignore).toContain(pattern)
+    // 다시 넣는 것은 비밀 값이 없는 견본(.env.example)뿐이다.
+    expect(ignore.filter((line) => line.startsWith('!') && line.includes('.env'))).toEqual(['!**/.env.example'])
   })
 })
 
