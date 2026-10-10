@@ -16,11 +16,11 @@ type Env = { Variables: { user: User } }
 // 질문하기에 쓰는 것. 없으면(키나 묶음이 없음) /ask는 503이다. 읽어 둔 책은 index.books에 있다.
 export type AskDeps = { index: PassageIndex; model: AskModel; dailyLimit?: number; now?: () => number }
 
-// book은 독자가 읽고 있는 책의 id다. 성경 책 id가 아니면 400이다.
+// book은 독자가 읽고 있는 책의 id다. 성경 책 id가 아니면 400이다(오류 글이 입력을 되돌려 주므로 길이를 막아 둔다).
 const AskRequestSchema = z.object({
   question: z.string().trim().min(1).max(300),
   chapter: z.number().int().positive().optional(),
-  book: z.string().optional(),
+  book: z.string().max(40).optional(),
 })
 
 export function createApp(deps: { sql: Sql; verify: Verify; corsOrigins: string[]; ask?: AskDeps | null }) {
@@ -92,7 +92,11 @@ export function createApp(deps: { sql: Sql; verify: Verify; corsOrigins: string[
       const ask = deps.ask
       if (!ask) return c.json({ error: '질문하기를 지금 쓸 수 없어요' }, 503)
       const parsed = AskRequestSchema.safeParse(await c.req.json().catch(() => null))
-      if (!parsed.success) return c.json({ error: '질문은 1자에서 300자 사이로 써 주세요' }, 400)
+      if (!parsed.success) {
+        // 책이 문자열이 아니거나 너무 길어도 책 오류다. 이때는 입력을 되돌려 주지 않는다.
+        if (parsed.error.issues[0]?.path[0] === 'book') return c.json({ error: '알 수 없는 책입니다' }, 400)
+        return c.json({ error: '질문은 1자에서 300자 사이로 써 주세요' }, 400)
+      }
       const { question, chapter, book } = parsed.data
       if (book !== undefined && !isBookId(book)) return c.json({ error: `알 수 없는 책입니다: ${book}` }, 400)
       const user = c.get('user')

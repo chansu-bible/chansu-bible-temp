@@ -364,11 +364,46 @@ describe('POST /ask', () => {
     const unknown = await post(app, bearer, { question: '가인의 표가 뭐예요?', chapter: 3, book: 'atlantis' })
     expect(unknown.status).toBe(400)
     expect(await unknown.json()).toEqual({ error: '알 수 없는 책입니다: atlantis' })
-    // 책 이름(한국어)은 책 id가 아니다. 책이 문자열이 아니어도 400이다.
-    expect((await post(app, bearer, { question: '가인의 표가 뭐예요?', book: '창세기' })).status).toBe(400)
-    expect((await post(app, bearer, { question: '가인의 표가 뭐예요?', book: 3 })).status).toBe(400)
+    // 책 이름(한국어)은 책 id가 아니다.
+    const byName = await post(app, bearer, { question: '가인의 표가 뭐예요?', book: '창세기' })
+    expect(byName.status).toBe(400)
+    expect(await byName.json()).toEqual({ error: '알 수 없는 책입니다: 창세기' })
     const usage = await app.request('/ask/usage', { headers: { Authorization: `Bearer ${bearer}` } })
     expect(await usage.json()).toMatchObject({ remaining: 1 })
+  })
+
+  it('책이 문자열이 아니거나 너무 길어도 책 오류이고, 그 입력은 되돌려 주지 않는다', async () => {
+    const { app, bearer } = await askApp(good, 1, multi)
+    const question = '가인의 표가 뭐예요?'
+    for (const book of [null, 3, true, ['genesis'], { id: 'genesis' }, 'x'.repeat(41)]) {
+      const reply = await post(app, bearer, { question, book })
+      expect(reply.status).toBe(400)
+      expect(await reply.json()).toEqual({ error: '알 수 없는 책입니다' })
+    }
+    // 40자까지는 모르는 책으로 되돌려 준다.
+    const forty = 'y'.repeat(40)
+    expect(await (await post(app, bearer, { question, book: forty })).json()).toEqual({ error: `알 수 없는 책입니다: ${forty}` })
+    // 질문이 틀렸으면 질문 오류다.
+    expect(await (await post(app, bearer, { question: '  ', book: 3 })).json()).toEqual({ error: '질문은 1자에서 300자 사이로 써 주세요' })
+    const usage = await app.request('/ask/usage', { headers: { Authorization: `Bearer ${bearer}` } })
+    expect(await usage.json()).toMatchObject({ remaining: 1 })
+  })
+
+  it('읽어 두지 않은 책이어도 성경의 책이면 받고, 횟수를 한 번 쓰고, 장 가중은 주지 않는다', async () => {
+    const { model, prompts } = recording()
+    const { app, bearer } = await askApp(model, 5, multi)
+    const question = '여호와가 누구예요?'
+    const reply = await post(app, bearer, { question, chapter: 3, book: 'leviticus' })
+    expect(reply.status).toBe(200)
+    const body = (await reply.json()) as { remaining: number; citations: { id: string }[] }
+    expect(body.remaining).toBe(4)
+    expect(prompts[0]!.user).toContain('(독자가 읽고 있는 곳: 레위기 3장)')
+    // 레위기 대목이 없어 가중이 없다. 책과 장 없이 물은 것과 같은 가까운 대목 둘이고, 출애굽기 3장으로 물었을 때와는 다르다.
+    const plain = retrieve(multi, question, { limit: 2 }).map((item) => item.passage.id)
+    expect(body.citations.map((citation) => citation.id)).toEqual(plain)
+    expect(retrieve(multi, question, { book: 'exodus', chapter: 3, limit: 2 }).map((item) => item.passage.id)).not.toEqual(plain)
+    const usage = await app.request('/ask/usage', { headers: { Authorization: `Bearer ${bearer}` } })
+    expect(await usage.json()).toMatchObject({ remaining: 4 })
   })
 
   it('책을 받으면 그 책의 장으로 묻고, 근거 표식에 책을 담아 돌려준다', async () => {

@@ -3,10 +3,8 @@ import path from 'node:path'
 import { serve } from '@hono/node-server'
 import { createRemoteJWKSet } from 'jose'
 import { createApp, type AskDeps } from './app.ts'
-import { readBundles } from './ask/bundles.ts'
+import { loadAskIndex } from './ask/bundles.ts'
 import { createOpenAiAskModel } from './ask/openaiModel.ts'
-import { buildPassages } from './ask/passages.ts'
-import { buildIndex } from './ask/retrieve.ts'
 import { createVerifier } from './auth.ts'
 import { readConfig } from './config.ts'
 import { migrate, pgSql } from './db.ts'
@@ -26,19 +24,15 @@ try {
 }
 
 const verify = createVerifier({ issuers: config.issuers, clients: config.clients, jwks: createRemoteJWKSet(new URL(config.jwksUrl)) })
-// 질문하기: 키와 책 묶음이 있을 때만 켠다.
+// 질문하기: 키와 책 묶음이 있을 때만 켠다. 책 묶음이 잘못되어도 질문하기만 끄고 동기화 서버는 띄운다.
 function loadAsk(): AskDeps | null {
   if (!config.openaiApiKey) {
     console.warn('OPENAI_API_KEY가 없어 질문하기를 끕니다.')
     return null
   }
-  const bundles = readBundles(config.bundleDir)
-  if (bundles.length === 0) {
-    console.warn(`묶음 폴더(${config.bundleDir})에 책 묶음이 없어 질문하기를 끕니다. 먼저 npm run pipeline -- build를 하세요.`)
-    return null
-  }
-  const index = buildIndex(buildPassages(bundles))
-  console.log(`질문하기: 책 ${bundles.length}권, 대목 ${index.passages.length}개, 모델 ${config.askModel}, 하루 ${config.askDailyLimit}번`)
+  const index = loadAskIndex(config.bundleDir, console.warn)
+  if (!index) return null
+  console.log(`질문하기: 책 ${index.books.length}권, 대목 ${index.passages.length}개, 모델 ${config.askModel}, 하루 ${config.askDailyLimit}번`)
   return { index, model: createOpenAiAskModel(config.openaiApiKey, config.askModel), dailyLimit: config.askDailyLimit }
 }
 

@@ -32,13 +32,13 @@ export type Passage = {
   // v:genesis:4:15, s:genesis-04-03, c:character:cain
   id: string
   kind: 'verse' | 'scene' | 'canon'
-  // 그 대목의 책(설정집은 처음 나오는 책)
+  // 그 대목의 책. 설정집은 읽어 둔 묶음 가운데 그 항목이 처음 나오는 책이고, 처음 나오는 곳을 모르면 그 항목이 든 첫 묶음의 책이다.
   book: BookId
   // 앱의 근거 표식에 보이는 이름: "본문 4:15", "해설 · 가인의 표와 떠남", "설정집 · 가인"
   // 책 묶음이 둘 이상이면 본문과 해설에 책이 붙는다: "본문 창세기 4:15", "해설 · 창세기 4장 · 가인의 표와 떠남"
   label: string
   text: string
-  // 그 책 안의 장(설정집은 처음 나오는 장, 모르면 null)
+  // 그 책 안의 장(설정집은 그 책에서 처음 나오는 장, 모르면 null)
   chapter: number | null
   verse?: number
   sceneId?: string
