@@ -11,7 +11,7 @@ type Props = {
   onClose: () => void
 }
 
-// 본문 머리의 "창세기 N장"을 눌러 여는 장 고르기. 다 읽은 장은 초록으로 표시한다.
+// 본문 머리의 "<책 이름> N장"을 눌러 여는 장 고르기. 다 읽은 장은 초록으로 표시한다.
 export default function ChapterPicker({ chapters, current, readScenes, onPick, onClose }: Props) {
   const { palette } = useSettings()
   return (

@@ -17,7 +17,6 @@ import {
   type PlaceChange,
   type Position,
 } from 'reader-core'
-import { bookId } from '../content/bundle'
 import { markSceneRead, savedPosition, savePositionRecord, useMarks, useQuizDone, useReadScenes } from '../data/reading'
 import MapScreen from '../map/MapScreen'
 import { useNarration } from '../narration/NarrationContext'
@@ -73,13 +72,15 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
   )
   const { ids: readScenes } = useReadScenes()
   const marks = useMarks()
-  const quizDone = useQuizDone(bookId)
+  const quizDone = useQuizDone(bundle.bookId)
   const chapterMarks = useMemo(
     () =>
       new Map(
-        marks.filter((mark) => mark.book === bookId && mark.chapter === position.chapter).map((mark) => [mark.verse, mark]),
+        marks
+          .filter((mark) => mark.book === bundle.bookId && mark.chapter === position.chapter)
+          .map((mark) => [mark.verse, mark]),
       ),
-    [marks, position.chapter],
+    [marks, bundle.bookId, position.chapter],
   )
   // 목차·장면 넘기기로 옮길 때마다 늘려 본문을 새로 그린다. 그래야 같은 장 안에서도 그 절로 스크롤한다.
   const [jumpCount, setJumpCount] = useState(0)
@@ -232,6 +233,7 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
         <VersePane
           // 글자 크기가 바뀌면 줄 위치가 달라지므로 새로 그려 지금 절을 다시 기준선에 맞춘다.
           key={`${chapter.chapter}-${jumpCount}-${settings.fontScale}`}
+          bookName={bundle.book}
           chapter={chapter}
           nextChapter={nextChapter}
           verse={position.verse}
@@ -301,7 +303,8 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
       )}
       {typeof overlay === 'object' && overlay.kind === 'mark' && (
         <MarkSheet
-          book={bookId}
+          book={bundle.bookId}
+          bookName={bundle.book}
           chapter={chapter.chapter}
           verse={chapter.verses.find((v) => v.verse === overlay.verse)!}
           onShare={() => setOverlay({ kind: 'share', verse: overlay.verse })}
@@ -313,6 +316,7 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
         <ShareCardSheet
           scene={chapter.scenes[findSceneIndex(chapter.scenes, overlay.verse)]!}
           imageVersionId={bundle.defaultImageVersion}
+          bookName={bundle.book}
           chapter={chapter.chapter}
           verse={chapter.verses.find((v) => v.verse === overlay.verse)!}
           translation={bundle.translation}

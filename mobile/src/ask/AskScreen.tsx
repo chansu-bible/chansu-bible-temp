@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { askSuggestions, localDay, paragraphs, type Bundle } from 'reader-core'
+import { askSuggestions, localDay, paragraphs, type BookId, type Bundle } from 'reader-core'
 import { useAuth } from '../auth/AuthContext'
 import { goBack, goToReader } from '../navigation'
 import { useSettings } from '../settings/SettingsContext'
@@ -32,6 +32,12 @@ type Props = {
 }
 
 const FOOTNOTE = '답은 본문과 검수된 해설·설정집 안에서만 만들어요. AI가 쓴 글이라 틀릴 수 있으니 근거 표식을 눌러 원문을 확인해 주세요.'
+
+// 근거 표식을 눌러 열 수 있는지. 읽기 화면은 지금 묶음의 책만 열어서(다른 책은 3단계에서 연다), 다른 책의 본문·해설은 열지 못한다.
+// 설정집은 그 자리에서 펼쳐 보이는 것이라 어느 책의 항목이든 누를 수 있다.
+function opensHere(citation: AskCitation, bookId: BookId): boolean {
+  return citation.kind === 'canon' || citation.book === bookId
+}
 
 // 질문하기(목업 13). 로그인한 사람만 쓴다. 서버가 검수된 자료에서 대목을 찾아 그 안에서만 답하고, 문장마다 근거를 붙인다.
 export default function AskScreen({ bundle, chapterNumber, from }: Props) {
@@ -94,7 +100,7 @@ export default function AskScreen({ bundle, chapterNumber, from }: Props) {
     try {
       const token = await accessToken()
       if (!token) throw new AskError('서버에 연결하지 못했어요. 잠시 뒤에 다시 물어 주세요.', null)
-      const reply = await postQuestion(token, question.slice(0, 300), chapterNumber)
+      const reply = await postQuestion(token, question.slice(0, 300), chapterNumber, bundle.bookId)
       settleTurn(owner, day, id, { reply })
       setRemaining(reply.remaining)
       setUsageError(null)
@@ -113,6 +119,8 @@ export default function AskScreen({ bundle, chapterNumber, from }: Props) {
       setOpenCanon((current) => (current === key ? null : key))
       return
     }
+    // 다른 책의 대목으로는 가지 않는다. 그런 표식은 눌리지 않고 이름표 글로만 보인다.
+    if (citation.book !== bundle.bookId) return
     if (citation.chapter === null || citation.verse === null) return
     goToReader(router, from, {
       position: { chapter: citation.chapter, verse: citation.verse },
@@ -309,6 +317,8 @@ function Reply({
   const opened = reply.citations.find((citation) => `${turnId}:${citation.id}` === openCanon)
   // 딱지가 이미 "자료에 없어요"라서 글머리의 같은 말은 뺀다.
   const text = none ? reply.text.replace(/^자료에 없어요\.\s*/, '') : reply.text
+  // 눌러서 열 수 있는 근거가 하나도 없으면 "눌러서 직접 읽어 보세요"라고 하지 않는다.
+  const openable = reply.citations.some((citation) => opensHere(citation, bundle.bookId))
   return (
     <View
       style={[
@@ -322,9 +332,17 @@ function Reply({
       <Text style={[styles.replyText, { color: palette.ink }]}>{text}</Text>
       {reply.citations.length > 0 && (
         <>
-          {none && <Text style={[styles.related, { color: palette.inkSoft }]}>가까운 대목이에요. 눌러서 직접 읽어 보세요.</Text>}
+          {none && openable && <Text style={[styles.related, { color: palette.inkSoft }]}>가까운 대목이에요. 눌러서 직접 읽어 보세요.</Text>}
           <View style={styles.citations}>
             {reply.citations.map((citation) => {
+              // 다른 책의 본문·해설은 읽기 화면으로 갈 수 없어서 누르는 표식이 아니라 글로만 보인다. 책 이름은 서버가 이름표에 붙여 준다.
+              if (!opensHere(citation, bundle.bookId)) {
+                return (
+                  <View key={citation.id} style={[styles.citation, { backgroundColor: palette.line }]}>
+                    <Text style={[styles.citationText, { color: palette.inkSoft }]}>{citation.label}</Text>
+                  </View>
+                )
+              }
               const canon = citation.kind === 'canon'
               const expanded = `${turnId}:${citation.id}` === openCanon
               return (
@@ -349,12 +367,12 @@ function Reply({
           </View>
         </>
       )}
-      {opened?.entity && <CanonNote bundle={bundle} entity={opened.entity} />}
+      {opened?.entity && <CanonNote bundle={bundle} entity={opened.entity} label={opened.label} />}
     </View>
   )
 }
 
-function CanonNote({ bundle, entity }: { bundle: Bundle; entity: NonNullable<AskCitation['entity']> }) {
+function CanonNote({ bundle, entity, label }: { bundle: Bundle; entity: NonNullable<AskCitation['entity']>; label: string }) {
   const { palette } = useSettings()
   const body =
     entity.kind === 'character'
@@ -363,6 +381,8 @@ function CanonNote({ bundle, entity }: { bundle: Bundle; entity: NonNullable<Ask
         ? bundle.places.find((item) => item.id === entity.id)?.description
         : bundle.things.find((item) => item.id === entity.id)?.description
   const parts = paragraphs(body ?? '')
+  // 이 묶음에서 항목을 찾지 못하면(body가 undefined, 다른 책에서 처음 나온 것) 설명 없이 이름표만 보인다.
+  const empty = body === undefined ? label : '설정집에 설명이 아직 없어요.'
   return (
     <View style={[styles.canon, { backgroundColor: palette.paper }]}>
       {parts.length > 0 ? (
@@ -372,7 +392,7 @@ function CanonNote({ bundle, entity }: { bundle: Bundle; entity: NonNullable<Ask
           </Text>
         ))
       ) : (
-        <Text style={[styles.canonText, { color: palette.inkSoft }]}>설정집에 설명이 아직 없어요.</Text>
+        <Text style={[styles.canonText, { color: palette.inkSoft }]}>{empty}</Text>
       )}
     </View>
   )

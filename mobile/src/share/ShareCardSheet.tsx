@@ -14,6 +14,8 @@ import { shareCard } from './shareCard'
 type Props = {
   scene: Scene
   imageVersionId: string | null
+  // 카드의 위치 글에 보이는 책 이름
+  bookName: string
   chapter: number
   verse: Verse
   translation: string
@@ -21,13 +23,13 @@ type Props = {
 }
 
 // 장면 그림 위에 한 절을 얹은 정사각 카드. 기기에서 그려 공유하고 서버는 거치지 않는다.
-export default function ShareCardSheet({ scene, imageVersionId, chapter, verse, translation, onClose }: Props) {
+export default function ShareCardSheet({ scene, imageVersionId, bookName, chapter, verse, translation, onClose }: Props) {
   const { palette } = useSettings()
   const card = useRef<View>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const image = imageSource(imageVersionId ? scene.images[imageVersionId] : undefined)
-  const reference = `창세기 ${chapter}장 ${verse.verse}절 · ${translation}`
+  const reference = `${bookName} ${chapter}장 ${verse.verse}절 · ${translation}`
 
   async function share() {
     setBusy(true)

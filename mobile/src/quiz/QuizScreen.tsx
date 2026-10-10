@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { findSceneIndex, localDay, particle, quizReady, type Bundle, type Chapter, type QuizQuestion } from 'reader-core'
-import { bookId } from '../content/bundle'
 import { markQuizDone, useReadScenes } from '../data/reading'
 import { goBack, goToReader } from '../navigation'
 import { useSettings } from '../settings/SettingsContext'
@@ -66,7 +65,7 @@ function Quiz({ bundle, chapter, from }: { bundle: Bundle; chapter: Chapter; fro
     next[index] = option
     setPicks(next)
     // 마지막 문제까지 다 고르면 끝까지 푼 것이다(결과 화면을 보지 않고 나가도).
-    if (questions.every((_, number) => next[number] !== undefined)) markQuizDone(bookId, chapter.chapter, localDay(new Date()))
+    if (questions.every((_, number) => next[number] !== undefined)) markQuizDone(bundle.bookId, chapter.chapter, localDay(new Date()))
   }
 
   function restart() {

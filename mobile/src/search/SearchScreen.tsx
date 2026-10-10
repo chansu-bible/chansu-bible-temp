@@ -130,7 +130,7 @@ export default function SearchScreen({ bundle }: { bundle: Bundle }) {
                 {results.verses.map((hit) => (
                   <Pressable key={`${hit.chapter}:${hit.verse}`} accessibilityRole="button" onPress={() => openVerse(hit.chapter, hit.verse)} style={[styles.item, { backgroundColor: palette.surface }]}>
                     <Text style={[styles.meta, { color: palette.inkSoft }]}>
-                      창세기 {hit.chapter}:{hit.verse} · {hit.sceneTitle}
+                      {bundle.book} {hit.chapter}:{hit.verse} · {hit.sceneTitle}
                     </Text>
                     <Highlighted text={hit.text} range={hit.match} style={[styles.verse, { color: palette.ink }]} highlight={highlight} />
                   </Pressable>

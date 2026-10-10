@@ -138,14 +138,14 @@ export default function HomeScreen({ bundle }: { bundle: Bundle }) {
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`이어 읽기. 창세기 ${position.chapter}장 ${position.verse}절, ${scene.title}`}
+          accessibilityLabel={`이어 읽기. ${bundle.book} ${position.chapter}장 ${position.verse}절, ${scene.title}`}
           onPress={() => router.push('/read')}
           style={[styles.continue, { backgroundColor: placeholder.background }]}
         >
           {image !== null && <Image source={image} style={StyleSheet.absoluteFill} contentFit="cover" />}
           <LinearGradient colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.6)']} style={styles.continueShade}>
             <Text style={styles.continueLabel}>
-              이어 읽기 · 창세기 {position.chapter}장 {position.verse}절부터
+              이어 읽기 · {bundle.book} {position.chapter}장 {position.verse}절부터
             </Text>
             <Text style={styles.continueTitle} numberOfLines={1}>
               {scene.title}

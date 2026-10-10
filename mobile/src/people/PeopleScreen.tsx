@@ -20,6 +20,7 @@ export default function PeopleScreen({ bundle }: { bundle: Bundle }) {
   const upTo = readUpToChapter(bundle.chapters, ids, position.chapter)
   const people = metCharacters(bundle.characters, upTo)
   const [entity, setEntity] = useState<Entity | null>(null)
+  // 0장은 이 책을 읽기 전에 앞 책에서 이미 만난 인물이다(뒤 책 묶음이 앞 책 인용을 "창세기 2:7"로 쓴다).
   const groups = new Map<number, typeof people>()
   for (const person of people) {
     const chapter = chapterOfReference(person.firstAppearance)
@@ -36,7 +37,7 @@ export default function PeopleScreen({ bundle }: { bundle: Bundle }) {
         {[...groups.entries()].map(([chapter, list]) => (
           <View key={chapter} style={styles.group}>
             <Text style={[styles.groupTitle, { color: palette.accent }]} accessibilityRole="header">
-              {chapter}장에서 만남
+              {chapter === 0 ? '앞 책에서 만남' : `${chapter}장에서 만남`}
             </Text>
             {list.map((person) => (
               <Pressable

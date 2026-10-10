@@ -12,7 +12,10 @@ import { sheetStyles } from '../ui/sheetStyles'
 const colorLabel: Record<MarkColor, string> = { yellow: '노란', green: '초록', blue: '파란' }
 
 type Props = {
+  // 기록에 쓰는 책 id
   book: string
+  // 시트 제목에 보이는 책 이름
+  bookName: string
   chapter: number
   verse: Verse
   onShare: () => void
@@ -22,7 +25,7 @@ type Props = {
 }
 
 // 절을 길게 눌러 여는 밑줄·메모·즐겨찾기 시트. 저장을 눌러야 바뀐다.
-export default function MarkSheet({ book, chapter, verse, onShare, onOpenOriginal, onClose }: Props) {
+export default function MarkSheet({ book, bookName, chapter, verse, onShare, onOpenOriginal, onClose }: Props) {
   const { palette } = useSettings()
   const signedIn = useAuth().state.status === 'signedIn'
   const existing = getMark(book, chapter, verse.verse)
@@ -36,7 +39,7 @@ export default function MarkSheet({ book, chapter, verse, onShare, onOpenOrigina
   }
 
   return (
-    <Sheet title={`창세기 ${chapter}장 ${verse.verse}절`} closeLabel="밑줄과 메모 닫기" onClose={onClose}>
+    <Sheet title={`${bookName} ${chapter}장 ${verse.verse}절`} closeLabel="밑줄과 메모 닫기" onClose={onClose}>
       <Text style={[styles.verse, { color: palette.ink }]}>
         <Text style={color ? { backgroundColor: markColor(color, palette) } : undefined}>{verse.text}</Text>
       </Text>

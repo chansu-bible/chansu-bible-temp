@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { countMarks, type Bundle, type Mark } from 'reader-core'
+import { countMarks, findBook, markId, type Bundle, type Mark } from 'reader-core'
 import { useMarks } from '../data/reading'
 import { goToReader } from '../navigation'
 import { useSettings } from '../settings/SettingsContext'
@@ -63,18 +63,25 @@ export default function NotesScreen({ bundle }: { bundle: Bundle }) {
           </Text>
         ) : (
           shown.map((mark) => {
-            const text = bundle.chapters.find((c) => c.chapter === mark.chapter)?.verses.find((v) => v.verse === mark.verse)?.text ?? ''
+            // 기록은 자기 책 id를 달고 있다. 이름을 모르는 id는 id 그대로 보인다.
+            const bookName = findBook(mark.book)?.name ?? mark.book
+            // 다른 책의 기록은 이 묶음에서 본문을 찾지 못하고, 읽기 화면도 지금 책만 연다(다른 책은 3단계에서 연다).
+            const here = mark.book === bundle.bookId
+            const text = here
+              ? (bundle.chapters.find((c) => c.chapter === mark.chapter)?.verses.find((v) => v.verse === mark.verse)?.text ?? '')
+              : ''
             return (
               <Pressable
-                key={`${mark.chapter}:${mark.verse}`}
+                key={markId(mark.book, mark.chapter, mark.verse)}
                 accessibilityRole="button"
-                accessibilityLabel={`창세기 ${mark.chapter}장 ${mark.verse}절로 가기`}
+                accessibilityLabel={`${bookName} ${mark.chapter}장 ${mark.verse}절로 가기`}
+                disabled={!here}
                 onPress={() => goToReader(router, from, { position: { chapter: mark.chapter, verse: mark.verse } })}
                 style={({ pressed }) => [styles.row, { backgroundColor: palette.surface, opacity: pressed ? 0.7 : 1 }]}
               >
                 <View style={styles.rowHead}>
                   <Text style={[styles.reference, { color: palette.inkSoft }]}>
-                    창세기 {mark.chapter}장 {mark.verse}절
+                    {bookName} {mark.chapter}장 {mark.verse}절
                   </Text>
                   {mark.bookmark && <Icon name="bookmark" size={14} color={palette.accent} filled />}
                 </View>

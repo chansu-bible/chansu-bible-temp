@@ -3,16 +3,13 @@ import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { bookProgress, chapterRangeLabel, hueOf, type Bundle } from 'reader-core'
+import { bookProgress, chapterRangeLabel, getBook, hueOf, type Bundle } from 'reader-core'
 import { imageSource } from '../content/bundle'
 import { useReadScenes } from '../data/reading'
 import { useSettings } from '../settings/SettingsContext'
 import { fonts, placeholderColors, withAlpha } from '../theme/palette'
 import { ScreenHeader } from '../ui/ScreenHeader'
 import HowWeMakeSheet from './HowWeMakeSheet'
-
-// 창세기 전체 장 수. 묶음에는 만든 장(1~10장)만 있다.
-const GENESIS_CHAPTERS = 50
 
 // 아직 앱에 없는 책은 소개만 둔다.
 const OTHER_BOOKS: { title: string; status: '만드는 중' | '예정'; about: string }[] = [
@@ -30,15 +27,17 @@ export default function LibraryScreen({ bundle }: { bundle: Bundle }) {
   const [howOpen, setHowOpen] = useState(false)
   const { ids: readIds } = useReadScenes()
   const progress = bookProgress(bundle.chapters, readIds)
+  // 책의 전체 장 수. 묶음에는 만든 장만 있다.
+  const totalChapters = getBook(bundle.bookId).chapters
   const cover = bundle.chapters[0]?.scenes[0]
   const image = imageSource(cover && bundle.defaultImageVersion ? cover.images[bundle.defaultImageVersion] : undefined)
   const placeholder = placeholderColors(hueOf(cover?.id ?? bundle.book), palette)
-  const readShare = progress.readChapters.length / GENESIS_CHAPTERS
-  const readyShare = Math.max(0, progress.chapterCount - progress.readChapters.length) / GENESIS_CHAPTERS
+  const readShare = progress.readChapters.length / totalChapters
+  const readyShare = Math.max(0, progress.chapterCount - progress.readChapters.length) / totalChapters
   const readLabel = progress.readChapters.length > 0 ? `읽음 ${chapterRangeLabel(progress.readChapters)}` : '아직 다 읽은 장이 없어요'
   const madeLabel =
-    progress.lastChapter < GENESIS_CHAPTERS
-      ? `준비됨 ${progress.firstChapter}~${progress.lastChapter}장 · 만드는 중 ${progress.lastChapter + 1}~${GENESIS_CHAPTERS}장`
+    progress.lastChapter < totalChapters
+      ? `준비됨 ${progress.firstChapter}~${progress.lastChapter}장 · 만드는 중 ${progress.lastChapter + 1}~${totalChapters}장`
       : `준비됨 ${progress.firstChapter}~${progress.lastChapter}장`
 
   return (

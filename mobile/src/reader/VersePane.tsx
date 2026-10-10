@@ -29,6 +29,8 @@ import { IconButton } from '../ui/IconButton'
 const lineOffset = 24
 
 type Props = {
+  // 책 이름. 머리의 장 이름과 다음 장 단추에 쓴다.
+  bookName: string
   chapter: Chapter
   // 다음 장 번호. 마지막 장이면 undefined
   nextChapter: number | undefined
@@ -58,6 +60,7 @@ type Props = {
 
 // 화면 아래쪽 절반: 장의 본문. 장이나 이동(목차, 장면 넘기기)이 바뀌면 ReaderScreen이 key로 새로 그린다.
 export default function VersePane({
+  bookName,
   chapter,
   nextChapter,
   verse,
@@ -156,11 +159,11 @@ export default function VersePane({
           <IconButton name="home" label="홈으로" color={palette.ink} onPress={onGoHome} />
           <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`장 고르기. 지금 창세기 ${chapter.chapter}장`}
+          accessibilityLabel={`장 고르기. 지금 ${bookName} ${chapter.chapter}장`}
           onPress={onOpenChapters}
           style={styles.chapterButton}
         >
-          <Text style={[styles.chapterText, { color: palette.ink }]}>창세기 {chapter.chapter}장</Text>
+          <Text style={[styles.chapterText, { color: palette.ink }]}>{bookName} {chapter.chapter}장</Text>
           <Icon name="chevronDown" size={16} color={palette.inkSoft} />
           </Pressable>
         </View>
@@ -289,7 +292,7 @@ export default function VersePane({
             onPress={() => onChapterChange(nextChapter)}
             style={[styles.nextChapter, { borderColor: palette.line, backgroundColor: palette.surface }]}
           >
-            <Text style={[styles.nextChapterText, { color: palette.ink }]}>창세기 {nextChapter}장으로</Text>
+            <Text style={[styles.nextChapterText, { color: palette.ink }]}>{bookName} {nextChapter}장으로</Text>
           </Pressable>
         )}
 
