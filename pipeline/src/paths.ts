@@ -55,6 +55,10 @@ export const audioDir = path.join(contentDir, 'audio')
 // LLM 실행 기록. 날짜별 YYYY-MM-DD.jsonl, 한 줄이 한 호출이다. 커밋하지 않는다.
 export const runsDir = path.join(contentDir, 'runs')
 export const appContentDir = path.join(repoRoot, 'app', 'public', 'content')
+// 공개 상태 파일. 장마다 공개한 판과 그때의 꾸러미 해시를 적는다. 어느 장이 공개됐는지의 기준이라 커밋한다.
+export const releasesFile = path.join(contentDir, 'releases.json')
+// 공개한 콘텐츠(공개 목록, 장 꾸러미, 미디어, 공용 설정집·사전)를 만드는 폴더. publish 명령이 매번 처음부터 만들고 git에서 뺀다.
+export const publishDir = path.join(repoRoot, 'publish')
 // 원어 낱말(OSHB)은 책마다 <책 id>.json이고, 스트롱 사전 항목·한국어 뜻(lexicon.json)은 모든 책이 함께 쓴다.
 export const originalDir = path.join(contentDir, 'original')
 export function originalFilePath(book: BookId, dir: string = originalDir): string {

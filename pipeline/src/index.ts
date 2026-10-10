@@ -89,3 +89,16 @@ export { runQuiz, quizCodeIssues, type QuizRunOptions, type QuizRunResult } from
 export { readQuizFile, writeQuizFile, listQuizChapters } from './quiz/files.ts'
 export { buildQuizPrompt, buildQuizReviewPrompt, type QuizDraft } from './quiz/prompt.ts'
 export { QuizWriteSchema, QuizReviewSchema } from './quiz/output.ts'
+export { contentHash, jsonBytes } from './release/hash.ts'
+export {
+  ReleasePartsSchema,
+  ReleaseEntrySchema,
+  ReleasesSchema,
+  readReleases,
+  writeReleases,
+  publishChapter,
+  withdrawChapter,
+  type ReleaseParts,
+  type ReleaseEntry,
+  type Releases,
+} from './release/releases.ts'
