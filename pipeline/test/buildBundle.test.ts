@@ -1,12 +1,14 @@
 import type { BookId } from 'reader-core'
 import { describe, expect, expectTypeOf, it } from 'vitest'
-import { buildBundle, missingPlaceMessage, sceneAudioParts } from '../src/build/buildBundle.ts'
+import { buildBundle, buildChapter, missingPlaceMessage, sceneAudioParts, type ChapterContext } from '../src/build/buildBundle.ts'
 import {
   BundleSchema,
   type Bundle,
   type Character,
   type Era,
+  type OriginalFile,
   type Place,
+  type QuizFile,
   type Scene,
   type Source,
   type Thing,
@@ -620,5 +622,183 @@ describe('책마다 묶음', () => {
     }
     const bundle = buildBundle('genesis', source, [], canonOf(places), new Map(), undefined, { original, lexicon })
     expect(bundle.lexicon.H430?.count).toBe(3)
+  })
+})
+
+// 책 묶음과 장 꾸러미가 함께 쓰는, 장 하나를 만드는 부분이다.
+describe('buildChapter', () => {
+  // 에덴만 있고 인물은 없는 책의 ctx다. 시험마다 필요한 것만 바꿔 쓴다.
+  function chapterContext(overrides: Partial<ChapterContext> = {}): ChapterContext {
+    return {
+      catalog: { versions: [], files: {} },
+      durations: new Map(),
+      placeIds: new Set(['eden']),
+      characterIds: new Set(),
+      approvedPlaces: places,
+      original: null,
+      quizzes: [],
+      ...overrides,
+    }
+  }
+
+  const original: OriginalFile = {
+    chapters: [
+      { chapter: 1, verses: [{ verse: 1, words: [{ text: 'בְּרֵאשִׁית', strong: 'H7225', morph: 'HR/Ncfsa' }] }] },
+      { chapter: 2, verses: [{ verse: 1, words: [{ text: 'בָּרָא', strong: 'H1254', morph: 'HVqp3ms' }] }] },
+    ],
+  }
+  const question = { question: '질문', options: ['가', '나', '다', '라'], answer: 1, explanation: '해설', verse: 2, issues: [] }
+  const quizzes: QuizFile[] = [
+    { chapter: 1, questions: [{ ...question, id: 'genesis-01-q1', status: 'approved' }] },
+    {
+      chapter: 2,
+      questions: [
+        { ...question, id: 'genesis-02-q1', status: 'approved' },
+        { ...question, id: 'genesis-02-q2', status: 'reviewed' },
+      ],
+    },
+  ]
+  const chapter1 = source.chapters[0]!
+  const chapter2 = source.chapters[1]!
+
+  it('장면 파일이 없으면 대체 장면을 넣고, 절 낭독과 그 장의 원어, 승인된 퀴즈를 넣는다', () => {
+    const durations = new Map<string, number | null>([['genesis-02-001.mp3', 2000]])
+    const catalog = { versions: [{ id: 'v1', label: '1차', note: '' }], files: { v1: ['genesis-02-00.png'] } }
+    const chapter = buildChapter('genesis', chapter2, null, chapterContext({ catalog, durations, original, quizzes }))
+    expect(Object.keys(chapter)).toEqual(['chapter', 'verses', 'scenes', 'original', 'quiz'])
+    expect(chapter.chapter).toBe(2)
+    expect(chapter.verses).toEqual([
+      { verse: 1, text: '라', audio: 'content/audio/genesis-02-001.mp3', audioMs: 2000 },
+      { verse: 2, text: '마', audio: null, audioMs: null },
+    ])
+    expect(chapter.scenes).toHaveLength(1)
+    expect(chapter.scenes[0]).toMatchObject({
+      id: 'genesis-02-00',
+      verseStart: 1,
+      verseEnd: 2,
+      reviewStatus: 'none',
+      images: { v1: 'content/images/v1/genesis-02-00.png' },
+      audio: 'content/audio/scenes/genesis-02-00.mp3',
+      audioMs: 2000,
+    })
+    // 원어와 퀴즈는 이 장 것만 든다(1장의 원어 H7225와 퀴즈는 없다).
+    expect(chapter.original).toEqual([{ verse: 1, words: [{ text: 'בָּרָא', strong: 'H1254', morph: 'HVqp3ms', pos: '동사(칼 완료)' }] }])
+    expect(chapter.quiz.map((item) => item.id)).toEqual(['genesis-02-q1'])
+  })
+
+  it('원어 파일과 퀴즈 파일에 그 장이 없으면 원어는 null이고 퀴즈는 비어 있다', () => {
+    const chapter = buildChapter('genesis', chapter2, null, chapterContext({ original: { chapters: [original.chapters[0]!] }, quizzes: [quizzes[0]!] }))
+    expect(chapter.original).toBeNull()
+    expect(chapter.quiz).toEqual([])
+    const bare = buildChapter('genesis', chapter2, null, chapterContext())
+    expect(bare.original).toBeNull()
+    expect(bare.quiz).toEqual([])
+  })
+
+  it('장면 파일이 있으면 장면 검사를 하고, 그림은 ctx의 그림 목록에서 찾고, 장면 낭독을 붙인다', () => {
+    const file = {
+      chapter: 1,
+      scenes: [scene({ verseEnd: 2, image: 'genesis-01-01.png', placeId: 'eden' }), scene({ id: 'genesis-01-02', verseStart: 3, verseEnd: 3 })],
+    }
+    const catalog = { versions: [{ id: 'v1', label: '1차', note: '' }], files: { v1: ['genesis-01-01.png'] } }
+    const durations = new Map<string, number | null>([
+      ['genesis-01-001.mp3', 1000],
+      ['genesis-01-002.mp3', 1500],
+    ])
+    const chapter = buildChapter('genesis', chapter1, file, chapterContext({ catalog, durations }))
+    const [first, second] = chapter.scenes
+    expect(first).toMatchObject({
+      id: 'genesis-01-01',
+      placeId: 'eden',
+      reviewStatus: 'draft',
+      images: { v1: 'content/images/v1/genesis-01-01.png' },
+      audio: 'content/audio/scenes/genesis-01-01.mp3',
+      audioMs: 2500,
+    })
+    expect(first).not.toHaveProperty('visual')
+    expect(second).toMatchObject({ id: 'genesis-01-02', images: {}, audio: null, audioMs: null })
+  })
+
+  it('장면의 인물은 ctx의 인물 id만 남긴다', () => {
+    const file = { chapter: 1, scenes: [scene({ visual: { description: '그림', characters: ['adam', 'cain', 'serpent'] } })] }
+    const chapter = buildChapter('genesis', chapter1, file, chapterContext({ characterIds: new Set(['adam', 'serpent']) }))
+    expect(chapter.scenes[0]!.characters).toEqual(['adam', 'serpent'])
+  })
+
+  it('장면이 가리키는 장소는 ctx의 장소 id에 있어야 하고, 없으면 승인된 장소를 보고 까닭을 밝혀 던진다', () => {
+    const toEden = { chapter: 1, scenes: [scene({ placeId: 'eden' })] }
+    // 에덴이 승인된 장소에 있어도 이 책 묶음의 장소 id에 없으면 던진다.
+    expect(() => buildChapter('genesis', chapter1, toEden, chapterContext({ placeIds: new Set() }))).toThrow(
+      'genesis-01-01: 장소 eden가 places.json의 승인된 항목에 없습니다',
+    )
+    expect(buildChapter('genesis', chapter1, toEden, chapterContext()).scenes[0]!.placeId).toBe('eden')
+
+    // 처음 나오는 곳이 뒤 책인 승인된 장소는 그렇게 알린다.
+    const midian: Place = { ...places[0]!, id: 'midian', name: '미디안', facts: { firstAppearance: 'exodus 2:15', description: '광야', sources: ['exodus 2:15'] } }
+    const toMidian = { chapter: 1, scenes: [scene({ placeId: 'midian' })] }
+    expect(() => buildChapter('genesis', chapter1, toMidian, chapterContext({ approvedPlaces: [...places, midian] }))).toThrow(
+      'genesis-01-01: 장소 midian는 출애굽기 2:15에서 처음 나와 창세기 묶음에 넣을 수 없습니다',
+    )
+  })
+
+  it.each([
+    ['장면의 절 범위가 장을 덮지 않을 때', { chapter: 1, scenes: [scene({ verseEnd: 2 })] }, '창세기 1장 장면의 절 범위가 맞지 않습니다'],
+    ['장면 id가 순서대로가 아닐 때', { chapter: 1, scenes: [scene({ id: 'genesis-01-02' })] }, 'genesis-01-02: id가 genesis-01-01여야 합니다'],
+    [
+      '장면의 chapter가 파일의 chapter와 다를 때',
+      { chapter: 1, scenes: [scene({ chapter: 2 })] },
+      'genesis-01-01: chapter가 2인데 1장 파일에 들어 있습니다',
+    ],
+    [
+      '풀이한 낱말이 그 절 본문에 없을 때',
+      { chapter: 1, scenes: [scene({ glossary: [{ verse: 2, word: '없는말', meaning: '뜻' }] })] },
+      "genesis-01-01: 낱말 '없는말'이 1:2 본문에 없습니다",
+    ],
+    [
+      '풀이한 낱말의 절이 장면 범위 밖일 때',
+      {
+        chapter: 1,
+        scenes: [scene({ verseEnd: 2, glossary: [{ verse: 3, word: '다', meaning: '뜻' }] }), scene({ id: 'genesis-01-02', verseStart: 3, verseEnd: 3 })],
+      },
+      "genesis-01-01: 낱말 '다'의 절(3)이 장면 범위 밖입니다",
+    ],
+  ])('%s 책 묶음과 같은 글로 던진다', (_name, file, message) => {
+    expect(() => buildChapter('genesis', chapter1, file, chapterContext())).toThrow(message)
+  })
+
+  // buildBundle이 장마다 buildChapter를 부른다. 묶음 파일이 그대로이려면 키 순서까지 같아야 한다.
+  it('책 묶음의 장은 장마다 buildChapter로 만든 것과 같다(키 순서까지)', () => {
+    const adam = character({ id: 'adam', name: '아담' })
+    const cain = character({ id: 'cain', name: '가인', status: 'draft' })
+    const files = [
+      {
+        chapter: 1,
+        scenes: [
+          scene({ verseEnd: 2, image: 'genesis-01-01.png', placeId: 'eden', visual: { description: '그림', characters: ['adam', 'cain'] } }),
+          scene({ id: 'genesis-01-02', verseStart: 3, verseEnd: 3 }),
+        ],
+      },
+    ]
+    const catalog = {
+      versions: [{ id: 'v1', label: '1차', note: '' }],
+      files: { v1: ['genesis-01-01.png', 'genesis-02-00.png'] },
+    }
+    const durations = new Map<string, number | null>([
+      ['genesis-01-001.mp3', 1000],
+      ['genesis-01-002.mp3', 1500],
+      ['genesis-02-002.mp3', null],
+    ])
+    const bundle = buildBundle('genesis', source, files, canonOf(places, [adam, cain]), durations, catalog, { original, quizzes })
+
+    // 책 묶음에 들어가는 인물 id만 ctx에 둔다(승인되지 않은 가인은 없다).
+    const ctx = chapterContext({ catalog, durations, characterIds: new Set(['adam']), original, quizzes })
+    const chapters = source.chapters.map((sourceChapter) =>
+      buildChapter('genesis', sourceChapter, files.find((file) => file.chapter === sourceChapter.chapter) ?? null, ctx),
+    )
+    expect(chapters).toEqual(bundle.chapters)
+    expect(JSON.stringify(chapters)).toBe(JSON.stringify(bundle.chapters))
+    // 같은 ctx로 다시 만들어도 같다. ctx를 바꾸지 않는다.
+    expect(JSON.stringify(buildChapter('genesis', chapter1, files[0]!, ctx))).toBe(JSON.stringify(chapters[0]))
+    expect(bundle.chapters[0]!.scenes[0]!.characters).toEqual(['adam'])
   })
 })
