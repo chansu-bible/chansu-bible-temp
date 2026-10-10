@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { getBook, josa, type BookId } from 'reader-core'
+import { fetchErrorReason } from '../fetchError.ts'
 import {
   lexiconFile as defaultLexiconFile,
   listBookFiles,
@@ -37,11 +38,15 @@ export type OriginalResult = { chapters: number; words: number; entries: number;
 // 절 나눔이 본문과 달라 원어를 넣지 않은 장. verses는 본문 절 수, original은 KJV 절 번호로 옮긴 원어 절 수다.
 export type SkippedChapter = { chapter: number; verses: number; original: number }
 
-// 응답이 오지 않아도 멈춰 있지 않게 120초에 끊는다.
+// 응답이 오지 않아도 멈춰 있지 않게 120초에 끊는다. 받지 못하면(HTTP 오류, 시간 초과, 연결 실패) 주소와 이유를 적고 cause에 원래 오류를 남긴다.
 async function defaultFetch(url: string): Promise<string> {
-  const response = await fetch(url, { signal: AbortSignal.timeout(120_000) })
-  if (!response.ok) throw new Error(`${url}을 받지 못했습니다(${response.status})`)
-  return response.text()
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(120_000) })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    return await response.text()
+  } catch (error) {
+    throw new Error(`${url}을 받지 못했습니다(${fetchErrorReason(error)})`, { cause: error })
+  }
 }
 
 // 같은 주소는 한 번만 받는다. 모든 책의 원어를 만들 때 스트롱 사전과 절 대응표를 책마다 다시 받지 않게 쓴다. 받다가 실패한 주소는 잊는다.
@@ -153,6 +158,7 @@ export async function runOriginal(
   log(`OSHB ${josa(name, '을를')} 받는 중…`)
   const wlcChapters = parseOshb(await fetchText(url))
   if (wlcChapters.length === 0) throw new Error(`OSHB ${name} 자료에서 절을 하나도 찾지 못했습니다. 받은 글이 OSHB 파일인지 보세요: ${url}`)
+  log('절 대응표를 받는 중…')
   const verseMapXml = await fetchText(OSHB_VERSE_MAP_URL)
   if (!/<verseMap[\s>]/.test(verseMapXml)) {
     throw new Error(`받은 절 대응표에 <verseMap>이 없습니다. 받은 글이 VerseMap.xml인지 보세요: ${OSHB_VERSE_MAP_URL}`)

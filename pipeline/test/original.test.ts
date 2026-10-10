@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { getBook } from 'reader-core'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanHebrew, strongOf } from '../src/original/hebrew.ts'
 import { posLabel } from '../src/original/morph.ts'
 import { parseOshb } from '../src/original/oshb.ts'
@@ -214,6 +214,27 @@ const ruth35 = `<verse osisID="Ruth.3.5">
 <note type="variant"><rdg type="x-qere"><w lemma="413" n="0.0" morph="HR/Sp1cs" id="08k23">אֵלַ֖/י</w></rdg></note>
 <w lemma="6213 a" n="0" morph="HVqi1cs" id="08nxs">אֶֽעֱשֶֽׂה</w><seg type="x-sof-pasuq">׃</seg>
 </verse>`
+// 사사기 16:25: 크티브 둘(כי טוב) → 크레 하나(כְּטוֹב). 뒤에 크티브 하나(ה/אסירים) → 크레 하나도 있다.
+const judg1625 = `<verse osisID="Judg.16.25">
+<w lemma="c/1961" n="1.2.0" morph="HC/Vqw3ms" id="07JGX">וַֽ/יְהִי֙</w>
+<w type="x-ketiv" lemma="3588 a" morph="HC" id="07rb5">כי</w>
+<w type="x-ketiv" lemma="2896 a" morph="HVqp3ms" id="07saF">טוב</w><note type="variant"><catchWord>כי טוב</catchWord><rdg type="x-qere"><w lemma="k/2896 a" morph="HR/Vqc" id="07URH">כְּ/ט֣וֹב</w></rdg></note>
+<w lemma="3820 a" n="1.2" morph="HNcmsc/Sp3mp" id="074Bm">לִבָּ֔/ם</w>
+<w lemma="c/559" n="1.1" morph="HC/Vqw3mp" id="07AEb">וַ/יֹּ֣אמְר֔וּ</w>
+<w lemma="7121" morph="HVqv2mp" id="07aam">קִרְא֥וּ</w>
+<w lemma="l/8123" n="1.0" morph="HR/Np" id="07LQ5">לְ/שִׁמְשׁ֖וֹן</w>
+<w lemma="c/7832" morph="HC/Vpi3ms" id="07sB6">וִ/ישַֽׂחֶק</w><seg type="x-maqqef">־</seg><w lemma="l" n="1" morph="HR/Sp1cp" id="07AD1">לָ֑/נוּ</w>
+<w lemma="c/7121" morph="HC/Vqw3mp" id="07VV7">וַ/יִּקְרְא֨וּ</w>
+<w lemma="l/8123" n="0.1.1.0" morph="HR/Np" id="07trR">לְ/שִׁמְשׁ֜וֹן</w>
+<w lemma="m/1004 b" morph="HR/Ncmsc" id="07xPR">מִ/בֵּ֣ית</w>
+<w type="x-ketiv" lemma="d/615" morph="HTd/Ncmpa" id="07oKK">ה/אסירים</w><note type="variant"><catchWord>ה/אסירים</catchWord><rdg type="x-qere"><w lemma="d/631" n="0.1.1" morph="HTd/Vqsmpa" id="07yyH">הָ/אֲסוּרִ֗ים</w></rdg></note>
+<w lemma="c/6711" n="0.1.0" morph="HC/Vpw3ms" id="07LPs">וַ/יְצַחֵק֙</w>
+<w lemma="l/6440" n="0.1" morph="HR/Ncbpc/Sp3mp" id="07XWM">לִ/פְנֵי/הֶ֔ם</w>
+<w lemma="c/5975" morph="HC/Vhw3mp" id="07jwr">וַ/יַּעֲמִ֥ידוּ</w>
+<w lemma="853" n="0.0" morph="HTo/Sp3ms" id="07qua">אוֹת֖/וֹ</w>
+<w lemma="996" morph="HR" id="07ky1">בֵּ֥ין</w>
+<w lemma="d/5982" n="0" morph="HTd/Ncmpa" id="07Ag3">הָ/עַמּוּדִֽים</w><seg type="x-sof-pasuq">׃</seg>
+</verse>`
 
 // 첫 절의 낱말
 const wordsOf = (xml: string) => parseOshb(xml)[0]!.verses[0]!.words
@@ -259,6 +280,35 @@ describe('parseOshb 크티브와 크레', () => {
     const words = wordsOf(ruth35)
     expect(words.map((word) => word.strong)).toEqual(['H559', 'H413', 'H3605', 'H834', 'H559', 'H413', 'H6213'])
     expect(words[5]!.text).toBe(qereTexts(ruth35)[0])
+  })
+
+  it('크티브 둘이 크레 하나로 바뀐다(사사기 16:25)', () => {
+    const words = wordsOf(judg1625)
+    // 크티브 כי(H3588), טוב(H2896), ה/אסירים(H615) 자리에 크레 כְּ/טוֹב(H2896), הָ/אֲסוּרִים(H631)
+    expect(words.map((word) => word.strong)).toEqual([
+      'H1961', 'H2896', 'H3820', 'H559', 'H7121', 'H8123', 'H7832', null, 'H7121',
+      'H8123', 'H1004', 'H631', 'H6711', 'H6440', 'H5975', 'H853', 'H996', 'H5982',
+    ])
+    expect([words[1]!.text, words[11]!.text]).toEqual(qereTexts(judg1625))
+    for (const ketiv of ketivTexts(judg1625)) expect(words.map((word) => word.text)).not.toContain(ketiv)
+  })
+
+  it('크레가 뒤따르지 않는 크티브는 쓰인 대로 둔다', () => {
+    // 지어낸 고정값: 1절은 크티브 뒤에 크레 없이 본문 낱말이 오고, 2절은 크티브로 끝난다.
+    const xml = `<verse osisID="Gen.1.1"><w lemma="1" morph="HNcmsa">אב</w> <w type="x-ketiv" lemma="7225" morph="HNcfsa">ראשית</w> <w lemma="1254 a" morph="HVqp3ms">ברא</w></verse>
+<verse osisID="Gen.1.2"><w lemma="1" morph="HNcmsa">אב</w> <w type="x-ketiv" lemma="7225" morph="HNcfsa">ראשית</w></verse>`
+    const verses = parseOshb(xml)[0]!.verses
+    expect(verses.map((verse) => verse.words.map((word) => [word.strong, word.text]))).toEqual([
+      [
+        ['H1', 'אב'],
+        ['H7225', 'ראשית'],
+        ['H1254', 'ברא'],
+      ],
+      [
+        ['H1', 'אב'],
+        ['H7225', 'ראשית'],
+      ],
+    ])
   })
 })
 
@@ -338,7 +388,8 @@ describe('runOriginal', () => {
       'https://raw.githubusercontent.com/openscriptures/morphhb/3d15126fb1ef74867fc1434be1942e837932691f/wlc/VerseMap.xml',
       STRONGS_URL,
     ])
-    expect(lines[0]).toBe('OSHB 창세기를 받는 중…')
+    // 받는 것마다 먼저 알린다(대응표를 받다 실패해도 OSHB 탓으로 보이지 않게).
+    expect(lines.slice(0, 3)).toEqual(['OSHB 창세기를 받는 중…', '절 대응표를 받는 중…', '스트롱 사전을 받는 중…'])
     expect(result).toEqual({ chapters: 1, words: 4, entries: 4, withKorean: 0, skipped: [] })
     // 본문에 있는 장만 쓴다.
     const original = await readJson<OriginalFile>(path.join(options.originalDir, 'genesis.json'))
@@ -478,6 +529,33 @@ describe('runOriginal', () => {
   it('신약 책은 본문을 읽거나 받기 전에 멈춘다', async () => {
     await expect(runOriginal('matthew', optionsOf())).rejects.toThrow('신약 원어 자료는 아직 정하지 않았어요(마태복음)')
     expect(urls).toEqual([])
+  })
+
+  describe('fetchText를 주지 않으면 fetch로 받는다', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    it('연결에 실패하면 주소와 이유(원인 글까지)를 적고 cause에 원래 오류를 남기며, 아무 파일도 쓰지 않는다', async () => {
+      const failure = new TypeError('fetch failed', { cause: new Error('getaddrinfo ENOTFOUND raw.githubusercontent.com') })
+      vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(failure)))
+      const { sourceDir, originalDir, lexiconFile } = optionsOf()
+
+      const error = await runOriginal('genesis', { sourceDir, originalDir, lexiconFile }).catch((thrown: unknown) => thrown)
+
+      expect((error as Error).message).toBe(`${oshbUrl('genesis')}을 받지 못했습니다(fetch failed: getaddrinfo ENOTFOUND raw.githubusercontent.com)`)
+      expect((error as Error).cause).toBe(failure)
+      expect(existsSync(path.join(originalDir, 'genesis.json'))).toBe(false)
+      expect(existsSync(lexiconFile)).toBe(false)
+    })
+
+    it('HTTP 오류면 주소와 상태를 적는다', async () => {
+      vi.stubGlobal('fetch', vi.fn(async () => new Response('찾을 수 없습니다', { status: 404 })))
+      const { sourceDir, originalDir, lexiconFile } = optionsOf()
+      await expect(runOriginal('genesis', { sourceDir, originalDir, lexiconFile })).rejects.toThrow(
+        `${oshbUrl('genesis')}을 받지 못했습니다(HTTP 404)`,
+      )
+    })
   })
 
   it('OSHB 주소는 책의 OSIS 코드로 만든다', () => {
