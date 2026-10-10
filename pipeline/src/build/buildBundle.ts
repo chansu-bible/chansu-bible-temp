@@ -1,4 +1,4 @@
-import { fallbackSceneIdOf, getBook, josa, sceneIdOf, verseAudioName, type BookId } from 'reader-core'
+import { fallbackSceneIdOf, formatRef, getBook, josa, sceneIdOf, verseAudioName, type BookId } from 'reader-core'
 import {
   BUNDLE_SCHEMA_VERSION,
   type Bundle,
@@ -24,6 +24,7 @@ import {
   type Thing,
   type Verse,
 } from '../schema.ts'
+import { firstAppearanceOf } from '../canon/citations.ts'
 import { posLabel } from '../original/morph.ts'
 import { findCoverageProblems } from '../scenes/coverage.ts'
 import { canonForBook } from './canonForBook.ts'
@@ -65,9 +66,10 @@ export function buildBundle(
   // 사람이 승인한 항목만 앱에 나간다. 검수 전 초안은 지도와 인물 카드에 올리지 않는다.
   // 그 가운데 이 책을 다 읽은 독자가 아는 항목만, 인용을 묶음 모양으로 바꿔 넣는다(canonForBook).
   const approved = <T extends { status: string }>(items: T[]) => items.filter((item) => item.status === 'approved')
+  const approvedPlaces = approved(canon.places)
   const { places, characters, eras, things } = canonForBook(
     {
-      places: approved(canon.places),
+      places: approvedPlaces,
       characters: approved(canon.characters),
       eras: approved(canon.eras),
       things: approved(canon.things ?? []),
@@ -106,7 +108,7 @@ export function buildBundle(
     }
     for (const scene of sceneFile.scenes) {
       if (scene.placeId && !placeIds.has(scene.placeId)) {
-        throw new Error(`${scene.id}: 장소 ${scene.placeId}가 places.json의 승인된 항목에 없습니다`)
+        throw new Error(missingPlaceMessage(book, scene.id, scene.placeId, approvedPlaces))
       }
       checkGlossary(scene, chapter, sourceChapter.verses)
     }
@@ -310,6 +312,16 @@ function checkGlossary(scene: Scene, chapter: number, verses: Verse[]): void {
       throw new Error(`${scene.id}: 낱말 '${gloss.word}'이 ${chapter}:${gloss.verse} 본문에 없습니다`)
     }
   }
+}
+
+// 장면이 가리키는 장소가 이 책 묶음에 없을 때의 오류 글.
+// 승인된 장소가 묶음에 없는 까닭은 뒤 책에서 처음 나와 canonForBook이 뺐기 때문이다. 그렇게 알리고,
+// 설정집에 없거나 승인되지 않은 장소는 승인된 항목에 없다고 알린다.
+function missingPlaceMessage(book: BookId, sceneId: string, placeId: string, approvedPlaces: Place[]): string {
+  const place = approvedPlaces.find((item) => item.id === placeId)
+  const first = place ? firstAppearanceOf('places', place, book) : null
+  if (first === null) return `${sceneId}: 장소 ${placeId}가 places.json의 승인된 항목에 없습니다`
+  return `${sceneId}: 장소 ${josa(placeId, '은는')} ${formatRef(first, 'name')}에서 처음 나와 ${getBook(book).name} 묶음에 넣을 수 없습니다`
 }
 
 function checkSceneIds(book: BookId, file: SceneFile): void {

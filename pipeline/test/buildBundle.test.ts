@@ -546,10 +546,10 @@ describe('책마다 묶음', () => {
   })
 
   it('장면이 뒤 책에서 처음 나오는 장소를 가리키면 오류이고, 뒤 책 인물은 장면과 관계에서 뺀다', () => {
-    // 뒤 책에서 처음 나오는 장소는 묶음에 없으므로 승인되지 않은 장소와 같은 오류다.
+    // 뒤 책에서 처음 나오는 장소는 그 책 묶음에 없다. 없는 장소나 승인되지 않은 장소와 달리, 처음 나오는 곳을 밝혀 알린다.
     const placeFile = { chapter: 1, scenes: [scene({ placeId: 'midian' })] }
     expect(() => buildBundle('genesis', source, [placeFile], canonWithMoses)).toThrow(
-      'genesis-01-01: 장소 midian가 places.json의 승인된 항목에 없습니다',
+      'genesis-01-01: 장소 midian는 출애굽기 2:15에서 처음 나와 창세기 묶음에 넣을 수 없습니다',
     )
     const descendant = character({ id: 'adam', name: '아담', facts: { ...adam.facts, relations: [{ type: '후손', to: 'moses' }] } })
     const file = { chapter: 1, scenes: [scene({ visual: { description: '그림', characters: ['adam', 'moses'] } })] }
@@ -559,6 +559,18 @@ describe('책마다 묶음', () => {
     expect(buildBundle('exodus', exodusSource, [], canonOf([eden], [descendant, moses])).characters[0]!.relations).toEqual([
       { type: '후손', to: 'moses' },
     ])
+  })
+
+  it('뒤 책 장소라도 승인되지 않았거나 설정집에 없으면 승인된 항목에 없다고 알리고, 처음 나오는 책 묶음에서는 가리킬 수 있다', () => {
+    // 승인되지 않았거나 설정집에 없는 장소는 어느 책에서 처음 나오든 승인된 항목에 없는 것이다.
+    const placeFile = { chapter: 1, scenes: [scene({ placeId: 'midian' })] }
+    const notApproved = 'genesis-01-01: 장소 midian가 places.json의 승인된 항목에 없습니다'
+    const draft: Place = { ...midian, status: 'draft' }
+    expect(() => buildBundle('genesis', source, [placeFile], canonOf([eden, draft]))).toThrow(notApproved)
+    expect(() => buildBundle('genesis', source, [placeFile], canonOf([eden]))).toThrow(notApproved)
+    const exodusFile = { chapter: 1, scenes: [scene({ id: 'exodus-01-01', verseEnd: 7, placeId: 'midian' })] }
+    const exodus = buildBundle('exodus', exodusSource, [exodusFile], canonOf([eden, midian]))
+    expect(exodus.chapters[0]!.scenes[0]!.placeId).toBe('midian')
   })
 
   it('묶음 스키마는 알 수 없는 bookId를 받지 않는다', () => {
