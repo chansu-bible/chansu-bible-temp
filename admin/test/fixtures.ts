@@ -2,6 +2,8 @@ import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { Canon, Era, LexiconFile, Place, QuizFile, QuizQuestion, Scene, SceneFile, Source, Style } from 'pipeline'
+import { expect, vi } from 'vitest'
+import type { JobOptions, JobQueue, Stage } from '../server/jobs.ts'
 
 // 시험용 장면. 필요한 필드만 바꿔 쓴다.
 export function scene(id: string, chapter: number, overrides: Partial<Scene> = {}): Scene {
@@ -28,14 +30,20 @@ export function withStatus(item: Scene, status: Scene['review']['status']): Scen
   return { ...item, review: { ...item.review, status } }
 }
 
-export const source: Source = {
-  book: '창세기',
-  translation: '개역한글',
-  chapters: [
-    { chapter: 1, verses: [1, 2, 3].map((verse) => ({ verse, text: `1장 ${verse}절` })) },
-    { chapter: 2, verses: [1, 2].map((verse) => ({ verse, text: `2장 ${verse}절` })) },
-  ],
+// 장마다 절 수만 맞춘 본문. name은 책의 한국어 이름, verseCounts는 장 번호 → 절 수다.
+export function sourceWith(name: string, verseCounts: Record<number, number>): Source {
+  return {
+    book: name,
+    translation: '개역한글',
+    chapters: Object.entries(verseCounts).map(([chapter, count]) => ({
+      chapter: Number(chapter),
+      verses: Array.from({ length: count }, (_, index) => ({ verse: index + 1, text: `${chapter}장 ${index + 1}절` })),
+    })),
+  }
 }
+
+// 창세기 1장(3절)과 2장(2절)
+export const source: Source = sourceWith('창세기', { 1: 3, 2: 2 })
 
 export const sceneFiles: SceneFile[] = [
   {
@@ -147,12 +155,14 @@ export const quizFile: QuizFile = {
 
 export type TempContent = {
   root: string
+  storyBibleDir: string
   styleFile: string
   refsDir: string
   imagesDir: string
   imageVersionsFile: string
   scenesDir: string
-  sourceFile: string
+  sourceDir: string
+  audioDir: string
   lexiconFile: string
   quizDir: string
 }
@@ -160,17 +170,20 @@ export type TempContent = {
 // 파이프라인과 같은 모양으로 쓴다(들여쓰기 2칸, 끝에 줄바꿈).
 export const pretty = (value: unknown) => JSON.stringify(value, null, 2) + '\n'
 
-// 임시 폴더에 화풍·참고 이미지·그림 버전·장면·본문·원어 사전·퀴즈를 만든다. 끝나면 root를 지운다.
+// 임시 폴더에 화풍·참고 이미지·그림 버전·장면·본문(창세기)·원어 사전·퀴즈를 만든다. 설정집과 음성 폴더는 비어 있다.
+// 끝나면 root를 지운다.
 export async function makeTempContent(): Promise<TempContent> {
   const root = await mkdtemp(path.join(tmpdir(), 'admin-content-'))
   const dirs: TempContent = {
     root,
+    storyBibleDir: path.join(root, 'story-bible'),
     styleFile: path.join(root, 'story-bible', 'style.json'),
     refsDir: path.join(root, 'story-bible', 'refs'),
     imagesDir: path.join(root, 'images'),
     imageVersionsFile: path.join(root, 'images', 'versions.json'),
     scenesDir: path.join(root, 'scenes'),
-    sourceFile: path.join(root, 'source', 'genesis.json'),
+    sourceDir: path.join(root, 'source'),
+    audioDir: path.join(root, 'audio'),
     lexiconFile: path.join(root, 'original', 'lexicon.json'),
     quizDir: path.join(root, 'quiz'),
   }
@@ -178,7 +191,8 @@ export async function makeTempContent(): Promise<TempContent> {
   await mkdir(path.join(dirs.imagesDir, 'v1'), { recursive: true })
   await mkdir(path.join(dirs.imagesDir, 'v2'), { recursive: true })
   await mkdir(dirs.scenesDir, { recursive: true })
-  await mkdir(path.dirname(dirs.sourceFile), { recursive: true })
+  await mkdir(dirs.sourceDir, { recursive: true })
+  await mkdir(dirs.audioDir, { recursive: true })
   await mkdir(path.dirname(dirs.lexiconFile), { recursive: true })
   await mkdir(dirs.quizDir, { recursive: true })
 
@@ -195,8 +209,28 @@ export async function makeTempContent(): Promise<TempContent> {
   await writeFile(path.join(dirs.imagesDir, 'v1', 'genesis-01-02.png'), PNG)
   await writeFile(path.join(dirs.imagesDir, 'v2', 'genesis-01-01.png'), PNG)
   await writeFile(path.join(dirs.scenesDir, 'genesis-01.json'), JSON.stringify(sceneFiles[0]))
-  await writeFile(dirs.sourceFile, JSON.stringify(source))
+  await writeFile(path.join(dirs.sourceDir, 'genesis.json'), JSON.stringify(source))
   await writeFile(dirs.lexiconFile, pretty(lexicon))
   await writeFile(path.join(dirs.quizDir, 'genesis-01.json'), pretty(quizFile))
   return dirs
+}
+
+// 큐가 작업을 시작할 때까지(runner를 부를 때까지) 기다린다.
+// 큐는 setImmediate 뒤에 작업을 시작하므로 정해진 틱 수만큼 기다리면 시작 전일 수 있다.
+export async function waitUntilRunning(queue: JobQueue, id: string): Promise<void> {
+  await vi.waitFor(() => expect(queue.get(id)?.status).toBe('running'))
+}
+
+// release를 부를 때까지 도는 가짜 작업을 넣는다. release는 작업이 시작하기를 기다렸다가 끝내고, 끝날 때까지 기다린다.
+export function holdJob(queue: JobQueue, stage: Stage, options: JobOptions) {
+  let finish: (() => void) | undefined
+  const job = queue.enqueue(stage, options, () => new Promise<void>((resolve) => (finish = resolve)))
+  return {
+    job,
+    release: async () => {
+      await waitUntilRunning(queue, job.id)
+      finish!()
+      await queue.wait(job.id)
+    },
+  }
 }

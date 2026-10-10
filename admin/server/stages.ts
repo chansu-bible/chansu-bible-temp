@@ -5,6 +5,9 @@ import {
   generateImages,
   generateSpeech,
   listSourceBooks,
+  memoizeFetch,
+  originalBooks,
+  parseChapterRange,
   runCanon,
   runGloss,
   runOriginal,
@@ -13,7 +16,7 @@ import {
   runScenario,
   writeBundles,
 } from 'pipeline'
-import { ADMIN_BOOK } from './book.ts'
+import { getBook, isBookId, type BookId } from 'reader-core'
 import { STAGES, type JobOptions, type Runner, type Stage } from './jobs.ts'
 
 export class JobRequestError extends Error {
@@ -25,19 +28,28 @@ export class JobRequestError extends Error {
 
 // 단계마다 쓰는 옵션. 나머지는 버린다.
 const stageOptions: Record<Stage, readonly (keyof JobOptions)[]> = {
-  source: [],
-  canon: ['chapter', 'dryRun'],
-  scenario: ['chapter', 'force', 'dryRun'],
-  'review-text': ['chapter', 'scenes', 'dryRun'],
-  images: ['chapter', 'scenes', 'force', 'allowDraft', 'dryRun', 'limit'],
-  tts: ['chapter', 'force', 'limit', 'dryRun'],
-  original: [],
+  source: ['book', 'chapters'],
+  canon: ['book', 'chapter', 'dryRun'],
+  scenario: ['book', 'chapter', 'force', 'dryRun'],
+  'review-text': ['book', 'chapter', 'scenes', 'dryRun'],
+  images: ['book', 'chapter', 'scenes', 'force', 'allowDraft', 'dryRun', 'limit'],
+  tts: ['book', 'chapter', 'force', 'limit', 'dryRun'],
+  original: ['book'],
   'original-gloss': ['limit', 'force', 'dryRun'],
-  quiz: ['chapter', 'force', 'dryRun'],
+  quiz: ['book', 'chapter', 'force', 'dryRun'],
   build: [],
 }
 
+// 책이 꼭 있어야 하는 단계. original은 책이 없으면 본문이 있는 모든 책을 돌린다.
+const needsBook: readonly Stage[] = ['source', 'canon', 'scenario', 'review-text', 'images', 'tts', 'quiz']
+
 const needsChapter: readonly Stage[] = ['canon', 'scenario', 'review-text', 'images', 'tts', 'quiz']
+
+// 모든 책을 함께 다뤄 책을 받지 않는 단계. 책이 오면 CLI와 같은 글로 거절한다.
+const refusesBook: Partial<Record<Stage, string>> = {
+  build: 'build는 본문이 있는 모든 책을 함께 만듭니다. --book은 받지 않습니다.',
+  'original-gloss': 'original-gloss는 모든 책이 함께 쓰는 사전을 채웁니다. --book은 받지 않습니다.',
+}
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -47,8 +59,22 @@ const isPositiveInteger = (value: unknown): value is number =>
 
 function readOption(key: keyof JobOptions, value: unknown): JobOptions[keyof JobOptions] {
   switch (key) {
+    case 'book':
+      if (typeof value !== 'string' || !isBookId(value)) {
+        throw new JobRequestError(`알 수 없는 책입니다: ${typeof value === 'string' ? value : JSON.stringify(value)}`)
+      }
+      return value
     case 'chapter':
       if (!isPositiveInteger(value)) throw new JobRequestError('chapter(장 번호)는 1 이상의 정수여야 합니다')
+      return value
+    case 'chapters':
+      if (typeof value !== 'string') throw new JobRequestError('chapters(장 범위)는 "1-10"이나 "3" 같은 글이어야 합니다')
+      // 읽을 수 있는지만 본다. 책에 그 장이 있는지는 fetchSource가 받기 전에 본다.
+      try {
+        parseChapterRange(value)
+      } catch (error) {
+        throw new JobRequestError(error instanceof Error ? error.message : String(error))
+      }
       return value
     case 'limit':
       if (!isPositiveInteger(value)) throw new JobRequestError('limit은 1 이상의 정수여야 합니다')
@@ -75,16 +101,35 @@ export function parseJobRequest(body: unknown): { stage: Stage; options: JobOpti
   if (!isRecord(options)) throw new JobRequestError('options는 객체여야 합니다')
 
   const typedStage = stage as Stage
+  const refusal = refusesBook[typedStage]
+  if (refusal !== undefined && options.book !== undefined && options.book !== null) throw new JobRequestError(refusal)
+
   const parsed: JobOptions = {}
   for (const key of stageOptions[typedStage]) {
     const value = options[key]
     if (value === undefined || value === null) continue
     ;(parsed as Record<string, unknown>)[key] = readOption(key, value)
   }
+  if (needsBook.includes(typedStage) && parsed.book === undefined) {
+    throw new JobRequestError(`${stage} 단계에는 책(book)이 필요합니다`)
+  }
   if (needsChapter.includes(typedStage) && parsed.chapter === undefined) {
     throw new JobRequestError(`${stage} 단계에는 장 번호(chapter)가 필요합니다`)
   }
   return { stage: typedStage, options: parsed }
+}
+
+// 책이 꼭 있어야 하는 단계의 책. parseJobRequest가 먼저 보지만, 책 없이 만든 작업이 돌지 않게 여기서도 본다.
+function requireBook(stage: Stage, options: JobOptions): BookId {
+  if (options.book === undefined) throw new JobRequestError(`${stage} 단계에는 책(book)이 필요합니다`)
+  return options.book
+}
+
+// 본문이 있는 모든 책(성경 순서). 하나도 없으면 오류다.
+async function allSourceBooks(): Promise<BookId[]> {
+  const books = await listSourceBooks()
+  if (books.length === 0) throw new Error('본문이 있는 책이 없습니다. 먼저 source 작업을 실행하세요.')
+  return books
 }
 
 // dry-run에서는 모델을 부르지 않는다. 불리면 오류.
@@ -101,36 +146,46 @@ export function createRunner(stage: Stage, options: JobOptions): Runner {
   const dryRun = options.dryRun ?? false
 
   switch (stage) {
-    case 'source':
+    case 'source': {
+      const book = requireBook(stage, options)
       return async (log) => {
-        log('본문을 가져오는 중')
-        // Task 8에서 작업 폼에 장 범위를 둔다. 그때까지는 지금처럼 1~10장이다.
-        const source = await fetchSource(ADMIN_BOOK, { from: 1, to: 10 })
+        log(`${getBook(book).name} 본문을 가져오는 중`)
+        // 장 범위(3-7, 3)를 고르지 않으면 책 전체를 받는다. 있던 본문 파일은 받은 장으로 바뀐다.
+        const range = options.chapters === undefined ? {} : parseChapterRange(options.chapters)
+        const source = await fetchSource(book, range)
         const verseCount = source.chapters.reduce((sum, item) => sum + item.verses.length, 0)
         log(`본문 저장 완료: ${source.chapters.length}장 ${verseCount}절`)
       }
+    }
 
-    case 'canon':
+    case 'canon': {
+      const book = requireBook(stage, options)
       return async (log) => {
-        await runCanon(ADMIN_BOOK, chapter, { dryRun }, log)
+        await runCanon(book, chapter, { dryRun }, log)
       }
+    }
 
-    case 'scenario':
+    case 'scenario': {
+      const book = requireBook(stage, options)
       return async (log) => {
-        await runScenario(ADMIN_BOOK, chapter, { dryRun, force: options.force ?? false }, log)
+        await runScenario(book, chapter, { dryRun, force: options.force ?? false }, log)
       }
+    }
 
-    case 'review-text':
+    case 'review-text': {
+      const book = requireBook(stage, options)
       return async (log) => {
-        const result = await runReviewText(ADMIN_BOOK, chapter, { dryRun, sceneIds: options.scenes }, log)
+        const result = await runReviewText(book, chapter, { dryRun, sceneIds: options.scenes }, log)
         if (result.flagged.length > 0) log(`확인 필요: ${result.flagged.join(', ')}`)
       }
+    }
 
-    case 'images':
+    case 'images': {
+      const book = requireBook(stage, options)
       return async (log) => {
         const result = await generateImages(
           {
-            book: ADMIN_BOOK,
+            book,
             chapter,
             allowDraft: options.allowDraft ?? false,
             force: options.force ?? false,
@@ -153,11 +208,13 @@ export function createRunner(stage: Stage, options: JobOptions): Runner {
         for (const failure of result.failed) log(`- ${failure.id}: ${failure.reason}`)
         if (result.failed.length > 0) throw new Error(`그림 ${result.failed.length}개를 만들지 못했습니다`)
       }
+    }
 
-    case 'tts':
+    case 'tts': {
+      const book = requireBook(stage, options)
       return async (log) => {
         const result = await generateSpeech(
-          { book: ADMIN_BOOK, chapter, force: options.force ?? false, dryRun, limit: options.limit },
+          { book, chapter, force: options.force ?? false, dryRun, limit: options.limit },
           dryRun ? noSpeak : createOpenAiSpeak(),
           log,
         )
@@ -169,13 +226,23 @@ export function createRunner(stage: Stage, options: JobOptions): Runner {
         for (const failure of result.failed) log(`- ${chapter}:${failure.verse} ${failure.reason}`)
         if (result.failed.length > 0) throw new Error(`음성 ${result.failed.length}개를 만들지 못했습니다`)
       }
+    }
 
     case 'original':
       return async (log) => {
-        const result = await runOriginal(ADMIN_BOOK, {}, log)
-        log(
-          `원어 저장 완료: ${result.chapters}장, 낱말 ${result.words}개, 사전 항목 ${result.entries}개(한국어 뜻 있음 ${result.withKorean}개)`,
-        )
+        // 책을 고르지 않으면 본문이 있는 모든 책을 돌리되 신약 책은 알리고 건너뛴다(CLI와 같다). 고른 신약 책은 runOriginal이 오류를 낸다.
+        const books = options.book === undefined ? originalBooks(await allSourceBooks(), log) : [options.book]
+        // 스트롱 사전(6MB)과 절 대응표는 모든 책이 같으므로 한 번만 받는다.
+        const fetchText = memoizeFetch()
+        for (const book of books) {
+          const result = await runOriginal(book, { fetchText }, log)
+          log(
+            `원어 저장 완료: ${result.chapters}장, 낱말 ${result.words}개, 사전 항목 ${result.entries}개(한국어 뜻 있음 ${result.withKorean}개)`,
+          )
+          if (result.skipped.length > 0) {
+            log(`원어 없이 둔 장: ${getBook(book).name} ${result.skipped.map((item) => `${item}장`).join(', ')}`)
+          }
+        }
       }
 
     case 'original-gloss':
@@ -196,14 +263,16 @@ export function createRunner(stage: Stage, options: JobOptions): Runner {
         }
       }
 
-    case 'quiz':
+    case 'quiz': {
+      const book = requireBook(stage, options)
       return async (log) => {
-        const result = await runQuiz(ADMIN_BOOK, chapter, { force: options.force ?? false, dryRun }, log)
+        const result = await runQuiz(book, chapter, { force: options.force ?? false, dryRun }, log)
         if (result.skipped || result.dryRun) return
         log(
           `${chapter}장 퀴즈: ${result.written}문제(검수 통과 ${result.reviewed}, 지적 ${result.flagged}). "퀴즈" 화면에서 승인하세요.`,
         )
       }
+    }
 
     case 'build':
       return async (log) => {

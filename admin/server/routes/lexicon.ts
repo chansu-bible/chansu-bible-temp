@@ -1,7 +1,8 @@
 import { existsSync } from 'node:fs'
-import { readFile, writeFile } from 'node:fs/promises'
+import { writeFile } from 'node:fs/promises'
 import { Hono } from 'hono'
-import { KoreanGlossSchema, LexiconFileSchema, paths, type KoreanGloss, type LexiconFile } from 'pipeline'
+import { KoreanGlossSchema, LexiconFileSchema, paths, readLexicon, type KoreanGloss, type LexiconFile } from 'pipeline'
+import { getBook } from 'reader-core'
 import type { AppContext } from '../context.ts'
 import { errorMessage, HttpError, readJsonBody } from '../errors.ts'
 import { createSerial } from '../files.ts'
@@ -19,10 +20,12 @@ export function parseGloss(body: unknown): KoreanGloss | null {
 
 // original·original-gloss 작업은 사전 파일 전체를 읽어 두었다가 다시 쓴다.
 // 작업이 도는 동안 저장하면 작업이 덮어써서 사람이 고친 뜻이 사라지므로 받지 않는다(409).
+// 사전은 모든 책이 함께 쓰므로 어느 책의 작업이든 막는다.
 function refuseDuringOriginalJob(ctx: AppContext): void {
   const job = ctx.queue.active()
   if (job && (job.stage === 'original' || job.stage === 'original-gloss')) {
-    throw new HttpError(409, `${job.stage} 작업이 실행 중이라 저장할 수 없습니다. 작업이 끝난 뒤 다시 저장하세요`)
+    const label = job.options.book ? `${getBook(job.options.book).name} ${job.stage}` : job.stage
+    throw new HttpError(409, `${label} 작업이 실행 중이라 저장할 수 없습니다. 작업이 끝난 뒤 다시 저장하세요`)
   }
 }
 
@@ -31,11 +34,12 @@ export function lexiconRoutes(ctx: AppContext): Hono {
   const file = ctx.lexiconFile ?? paths.lexiconFile
   const serial = createSerial()
 
+  // 깨진 파일이면 readLexicon이 파일 이름을 앞에 붙인 오류를 낸다.
   const read = async (): Promise<LexiconFile> => {
     if (!existsSync(file)) {
       throw new HttpError(404, '원어 사전이 아직 없습니다. 작업 화면에서 original 단계를 먼저 실행하세요')
     }
-    return LexiconFileSchema.parse(JSON.parse(await readFile(file, 'utf8')))
+    return readLexicon(file)
   }
 
   app.get('/', async (c) => c.json(await read()))

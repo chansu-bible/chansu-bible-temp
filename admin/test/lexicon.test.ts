@@ -1,8 +1,8 @@
-import { readFile, rm } from 'node:fs/promises'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { readFile, rm, writeFile } from 'node:fs/promises'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from '../server/app.ts'
 import { JobQueue } from '../server/jobs.ts'
-import { lexicon, makeTempContent, pretty, type TempContent } from './fixtures.ts'
+import { holdJob, lexicon, makeTempContent, pretty, type TempContent } from './fixtures.ts'
 
 let dirs: TempContent
 let queue: JobQueue
@@ -39,6 +39,18 @@ describe('원어 사전 읽기', () => {
     const res = await app.request('/api/lexicon')
     expect(res.status).toBe(404)
     expect((await read(res)).error).toContain('original')
+  })
+
+  it('파일이 깨졌으면 어느 파일인지 대며 500', async () => {
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await writeFile(dirs.lexiconFile, '{')
+      const res = await app.request('/api/lexicon')
+      expect(res.status).toBe(500)
+      expect((await read(res)).error).toContain('lexicon.json: ')
+    } finally {
+      quiet.mockRestore()
+    }
   })
 })
 
@@ -101,18 +113,23 @@ describe('한국어 뜻 저장', () => {
   })
 
   it('원어 작업이 도는 동안에는 409, 끝나면 저장된다', async () => {
-    let finish!: () => void
-    const job = queue.enqueue('original-gloss', {}, () => new Promise<void>((resolve) => (finish = resolve)))
+    const gloss = holdJob(queue, 'original-gloss', {})
     const before = await fileText()
     const busy = await put('H1', { meaning: '아버지', note: '', status: 'approved' })
     expect(busy.status).toBe(409)
     expect((await read(busy)).error).toContain('original-gloss')
     expect(await fileText()).toBe(before)
 
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    finish()
-    await queue.wait(job.id)
+    await gloss.release()
     expect((await put('H1', { meaning: '아버지', note: '', status: 'approved' })).status).toBe(200)
+  })
+
+  it('사전은 모든 책이 함께 쓰므로 어느 책의 original 작업이든 막고, 그 책을 알린다', async () => {
+    const original = holdJob(queue, 'original', { book: 'exodus' })
+    const busy = await put('H1', { meaning: '아버지', note: '', status: 'approved' })
+    expect(busy.status).toBe(409)
+    expect((await read(busy)).error).toBe('출애굽기 original 작업이 실행 중이라 저장할 수 없습니다. 작업이 끝난 뒤 다시 저장하세요')
+    await original.release()
   })
 
   it('동시에 들어온 저장 둘이 모두 남는다', async () => {

@@ -10,7 +10,9 @@ import {
   type SceneFile,
   type Source,
 } from 'pipeline'
+import { verseAudioName, type BookId } from 'reader-core'
 import { readAudioNames, readSceneFiles, readSource } from './content.ts'
+import type { AppContext } from './context.ts'
 
 export type SceneCounts = { total: number; draft: number; reviewed: number; flagged: number; approved: number }
 
@@ -33,10 +35,11 @@ export type StatusResponse = {
   imageVersions: ImageVersion[]
 }
 
-// 음성 파일 이름. reader-core의 verseAudioName('genesis', …)과 같은 규칙이다.
-export function audioName(chapter: number, verse: number): string {
-  return `genesis-${String(chapter).padStart(2, '0')}-${String(verse).padStart(3, '0')}.mp3`
-}
+// 상태를 읽을 폴더. 비우면 pipeline의 paths 기본값을 쓴다.
+export type StatusDirs = Pick<
+  AppContext,
+  'storyBibleDir' | 'sourceDir' | 'scenesDir' | 'imagesDir' | 'imageVersionsFile' | 'audioDir'
+>
 
 // 확장자를 뗀 파일 이름. "g1-s1.jpeg" → "g1-s1"
 function stem(name: string): string {
@@ -44,8 +47,9 @@ function stem(name: string): string {
   return dot <= 0 ? name : name.slice(0, dot)
 }
 
-// 장마다 장면·그림·음성이 얼마나 갖춰졌는지 센다. 본문에 있는 장만 돌려준다.
+// 책의 장마다 장면·그림·음성이 얼마나 갖춰졌는지 센다. 본문에 있는 장만 돌려준다.
 export function computeChapterStatus(
+  book: BookId,
   source: Source,
   sceneFiles: SceneFile[],
   imageCatalog: ImageCatalog,
@@ -69,7 +73,9 @@ export function computeChapterStatus(
       images[version.id] = scenes.filter((scene) => names.has(scene.id)).length
     }
 
-    const have = sourceChapter.verses.filter((verse) => audioNames.has(audioName(sourceChapter.chapter, verse.verse)))
+    const have = sourceChapter.verses.filter((verse) =>
+      audioNames.has(verseAudioName(book, sourceChapter.chapter, verse.verse)),
+    )
 
     return {
       chapter: sourceChapter.chapter,
@@ -93,17 +99,17 @@ export function summarizeCanon(canon: Canon): Record<CanonKind, StateCounts> {
   return summary
 }
 
-// content/를 읽어 대시보드 상태를 만든다.
-export async function readStatus(storyBibleDir?: string): Promise<StatusResponse> {
-  const source = await readSource()
+// content/를 읽어 책 하나의 대시보드 상태를 만든다. 설정집 요약과 그림 버전은 모든 책이 함께 쓰는 것이다.
+export async function readStatus(book: BookId, dirs: StatusDirs = {}): Promise<StatusResponse> {
+  const source = await readSource(book, dirs.sourceDir)
   const [sceneFiles, catalog, audioNames, canon] = await Promise.all([
-    readSceneFiles(source),
-    readImageCatalog(),
-    readAudioNames(),
-    readCanon(storyBibleDir),
+    readSceneFiles(book, source, dirs.scenesDir),
+    readImageCatalog({ file: dirs.imageVersionsFile, imagesDir: dirs.imagesDir }),
+    readAudioNames(dirs.audioDir),
+    readCanon(dirs.storyBibleDir, { sourceDir: dirs.sourceDir }),
   ])
   return {
-    chapters: computeChapterStatus(source, sceneFiles, catalog, audioNames),
+    chapters: computeChapterStatus(book, source, sceneFiles, catalog, audioNames),
     canon: summarizeCanon(canon),
     proposalsOpen: canon.proposals.filter((proposal) => proposal.status === 'open').length,
     imageVersions: catalog.versions,

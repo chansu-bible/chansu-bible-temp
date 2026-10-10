@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { BookId } from 'reader-core'
 
 // 실행할 수 있는 단계
 export const STAGES = [
@@ -16,7 +17,11 @@ export const STAGES = [
 export type Stage = (typeof STAGES)[number]
 
 export type JobOptions = {
+  // 작업할 책. 작업 목록에 어느 책의 작업인지 보이려고 옵션에 남긴다.
+  book?: BookId
   chapter?: number
+  // source가 받을 장 범위("1-10", "3"). 없으면 책 전체
+  chapters?: string
   scenes?: string[]
   force?: boolean
   allowDraft?: boolean
