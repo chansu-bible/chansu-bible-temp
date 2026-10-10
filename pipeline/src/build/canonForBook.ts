@@ -1,4 +1,4 @@
-import { bookOrder, formatRef, localRef, parseRef, type BookId, type VerseRef } from 'reader-core'
+import { bookOrder, formatRef, getBook, localRef, parseRef, type BookId, type VerseRef } from 'reader-core'
 import { firstAppearanceOf, mapItemCitations, type CitationMapper } from '../canon/citations.ts'
 import type { Character, Era, Place, Thing } from '../schema.ts'
 
@@ -48,7 +48,7 @@ function bundleCitation(book: BookId, lastVerse: string | null): CitationMapper 
     if (ref?.book == null) return citation
     if (bookOrder(ref.book) < bookOrder(book)) return formatRef(ref, 'name')
     if (field !== 'range.to') return null
-    if (lastVerse === null) throw new Error(`본문에 절이 없어 시대의 끝(${citation})을 이 책의 마지막 절로 둘 수 없습니다`)
+    if (lastVerse === null) throw new Error(`본문에 절이 없어 시대의 끝(${citation})을 ${getBook(book).name}의 마지막 절로 둘 수 없습니다`)
     return lastVerse
   }
 }

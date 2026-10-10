@@ -1,4 +1,4 @@
-import { fallbackSceneIdOf, formatRef, getBook, josa, sceneIdOf, verseAudioName, type BookId } from 'reader-core'
+import { bookOrder, fallbackSceneIdOf, formatRef, getBook, josa, sceneIdOf, verseAudioName, type BookId } from 'reader-core'
 import {
   BUNDLE_SCHEMA_VERSION,
   type Bundle,
@@ -80,12 +80,13 @@ export function buildBundle(
   const placeIds = new Set(places.map((place) => place.id))
   const characterIds = new Set(characters.map((character) => character.id))
 
+  // 장 단위 오류에는 책 이름을 붙인다. 책이 여럿이라 장 번호만으로는 어느 책인지 모른다.
   const seenChapters = new Set<number>()
   for (const file of sceneFiles) {
-    if (seenChapters.has(file.chapter)) throw new Error(`${file.chapter}장의 장면 파일이 둘 이상입니다`)
+    if (seenChapters.has(file.chapter)) throw new Error(`${bookName} ${file.chapter}장의 장면 파일이 둘 이상입니다`)
     seenChapters.add(file.chapter)
     if (!source.chapters.some((sourceChapter) => sourceChapter.chapter === file.chapter)) {
-      throw new Error(`${file.chapter}장은 본문에 없습니다`)
+      throw new Error(`${bookName} ${file.chapter}장은 본문에 없습니다`)
     }
   }
 
@@ -104,7 +105,7 @@ export function buildBundle(
 
     const problems = findCoverageProblems(sceneFile.scenes, verses.length)
     if (problems.length > 0) {
-      throw new Error(`${chapter}장 장면의 절 범위가 맞지 않습니다:\n${problems.join('\n')}`)
+      throw new Error(`${bookName} ${chapter}장 장면의 절 범위가 맞지 않습니다:\n${problems.join('\n')}`)
     }
     for (const scene of sceneFile.scenes) {
       if (scene.placeId && !placeIds.has(scene.placeId)) {
@@ -314,14 +315,17 @@ function checkGlossary(scene: Scene, chapter: number, verses: Verse[]): void {
   }
 }
 
-// 장면이 가리키는 장소가 이 책 묶음에 없을 때의 오류 글.
-// 승인된 장소가 묶음에 없는 까닭은 뒤 책에서 처음 나와 canonForBook이 뺐기 때문이다. 그렇게 알리고,
-// 설정집에 없거나 승인되지 않은 장소는 승인된 항목에 없다고 알린다.
-function missingPlaceMessage(book: BookId, sceneId: string, placeId: string, approvedPlaces: Place[]): string {
+// 장면이 가리키는 장소가 이 책 묶음에 없을 때의 오류 글. 까닭을 어림하지 않고 확인해서 쓴다.
+// 승인된 장소의 처음 나오는 곳이 뒤 책이면 canonForBook이 뺀 것이니(canonForBook의 knownBy가 거르는 조건과 같다) 그렇게 알린다.
+// 그 밖에는 설정집에 없거나 승인되지 않은 장소와 같이 승인된 항목에 없다고 알린다.
+// 시험에서 직접 부른다. 승인된 장소가 다른 까닭으로 묶음에 없는 일은 canonForBook이 막아 buildBundle로는 만들 수 없다.
+export function missingPlaceMessage(book: BookId, sceneId: string, placeId: string, approvedPlaces: Place[]): string {
   const place = approvedPlaces.find((item) => item.id === placeId)
   const first = place ? firstAppearanceOf('places', place, book) : null
-  if (first === null) return `${sceneId}: 장소 ${placeId}가 places.json의 승인된 항목에 없습니다`
-  return `${sceneId}: 장소 ${josa(placeId, '은는')} ${formatRef(first, 'name')}에서 처음 나와 ${getBook(book).name} 묶음에 넣을 수 없습니다`
+  if (first?.book != null && bookOrder(first.book) > bookOrder(book)) {
+    return `${sceneId}: 장소 ${josa(placeId, '은는')} ${formatRef(first, 'name')}에서 처음 나와 ${getBook(book).name} 묶음에 넣을 수 없습니다`
+  }
+  return `${sceneId}: 장소 ${placeId}가 places.json의 승인된 항목에 없습니다`
 }
 
 function checkSceneIds(book: BookId, file: SceneFile): void {

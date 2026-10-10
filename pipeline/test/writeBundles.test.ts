@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { writeBundles, type BundleDirs } from '../src/build/writeBundle.ts'
+import { displayPath } from '../src/paths.ts'
 import { BundleSchema, type Bundle, type Place, type Scene } from '../src/schema.ts'
 import { joinMp3, mp3DurationMs } from '../src/tts/mp3.ts'
 
@@ -65,6 +66,12 @@ function mp3(count: number, fill: number): Buffer {
 }
 const verse1Audio = mp3(10, 0x11)
 const verse2Audio = mp3(5, 0x22)
+// 표본률만 48kHz인 같은 비트레이트의 프레임(384바이트)을 이은 낭독. 위 낭독들과는 이을 수 없는 형식이다.
+const otherFormatAudio = (() => {
+  const frame = Buffer.alloc(384, 0x33)
+  frame.set([0xff, 0xfb, 0x94, 0x00])
+  return Buffer.concat([frame, frame, frame])
+})()
 
 const exodusScenes = { chapter: 1, scenes: [scene('exodus-01-01', 1, 1, 2, { placeId: 'midian' })] }
 const referenceUrl = 'https://example.org/ref'
@@ -229,10 +236,18 @@ describe('writeBundles', () => {
     expect(alone).toHaveProperty(['genesis.json'])
     expect(alone).not.toHaveProperty(['exodus.json'])
 
+    // 출애굽기 원어도 창세기와 같은 H7225를 두 번 쓴다. 책을 더할 때 비로소 생기는 파일이라, 사전의 횟수가 책을 넘어 세어지면
+    // 창세기 묶음의 횟수가 1에서 3으로 바뀌어 아래에서 걸린다.
+    const word = { text: 'בְּרֵאשִׁית', strong: 'H7225', morph: 'HR/Ncfsa' }
+    await put('content/original/exodus.json', { chapters: [{ chapter: 1, verses: [{ verse: 1, words: [word, word] }] }] })
+
     await writeBundles(['genesis', 'exodus'], dirs)
     const both = await snapshot(dirs.appContentDir)
     expect(both['genesis.json']).toBe(alone['genesis.json'])
     expect(both).toHaveProperty(['exodus.json'])
+    // 사전의 횟수는 그 책의 원어에서만 센다. 창세기 몫(1)을 더한 3도, lexicon.json의 count(1)도 아니다.
+    expect((await readBundle('genesis')).lexicon.H7225?.count).toBe(1)
+    expect((await readBundle('exodus')).lexicon.H7225?.count).toBe(2)
     // 창세기만 만들 때 나간 낭독과 그림도 같은 내용이다.
     for (const [file, hash] of Object.entries(alone)) expect(both[file], file).toBe(hash)
   })
@@ -252,13 +267,21 @@ describe('writeBundles', () => {
     expect(existsSync(path.join(dirs.appContentDir, 'audio', 'scenes', 'genesis-01-02.mp3'))).toBe(false)
   })
 
+  // 앱 콘텐츠 폴더는 비우기 전에 모든 책의 검증과 장면 낭독 잇기를 끝낸다. 어느 쪽이 걸려도 앞서 쓴 폴더는 그대로여야 한다.
   describe('책 하나가 실패하면', () => {
+    // 오류 글은 바꿔 준 폴더가 정해진 뒤에 알 수 있어 함수로 둔다.
     it.each([
-      ['장면의 절 범위가 장을 덮지 않을 때', scene('exodus-01-01', 1, 1, 1), '마지막 장면이 2절에서 끝나야 하는데 1절에서 끝납니다'],
+      [
+        '장면의 절 범위가 장을 덮지 않을 때',
+        scene('exodus-01-01', 1, 1, 1),
+        // 어느 책의 장인지 밝힌다.
+        () => '출애굽기 1장 장면의 절 범위가 맞지 않습니다:\n마지막 장면이 2절에서 끝나야 하는데 1절에서 끝납니다',
+      ],
       [
         '장면이 그림 폴더에 없는 그림을 가리킬 때',
         scene('exodus-01-01', 1, 1, 2, { image: 'none.png' }),
-        'exodus-01-01: 그림 파일 none.png이 content/images/v1에 없습니다',
+        // 바꿔 준 그림 폴더를 밝힌다(저장소의 content/images가 아니다).
+        () => `exodus-01-01: 그림 파일 none.png이 ${displayPath(path.join(dirs.imagesDir, 'v1'))}에 없습니다`,
       ],
     ])('%s 던지고, 앞서 쓴 앱 콘텐츠 폴더는 그대로 둔다', async (_name, broken, message) => {
       await writeBundles(['genesis', 'exodus'], dirs)
@@ -268,13 +291,50 @@ describe('writeBundles', () => {
       const changedChapters = [{ chapter: 1, verses: verses('가가', '나', '다') }, genesisSource.chapters[1]]
       await put('content/source/genesis.json', { ...genesisSource, chapters: changedChapters })
       await put('content/scenes/exodus-01.json', { chapter: 1, scenes: [broken] })
-      await expect(writeBundles(['genesis', 'exodus'], dirs)).rejects.toThrow(message)
+      await expect(writeBundles(['genesis', 'exodus'], dirs)).rejects.toThrow(message())
       expect(await snapshot(dirs.appContentDir)).toEqual(before)
 
       // 출애굽기를 고치면 바뀐 창세기 묶음이 나간다. 앞의 실패는 창세기를 바꾼 탓이 아니다.
       await put('content/scenes/exodus-01.json', exodusScenes)
       await writeBundles(['genesis', 'exodus'], dirs)
       expect((await snapshot(dirs.appContentDir))['genesis.json']).not.toBe(before['genesis.json'])
+    })
+
+    it('그림 버전이 하나도 없는데 장면이 그림을 가리키면 그림 폴더를 밝혀 던지고, 앞서 쓴 앱 콘텐츠 폴더는 그대로 둔다', async () => {
+      await writeBundles(['genesis', 'exodus'], dirs)
+      const before = await snapshot(dirs.appContentDir)
+
+      await put('content/images/versions.json', [])
+      await expect(writeBundles(['genesis', 'exodus'], dirs)).rejects.toThrow(
+        `genesis-01-01: 그림 파일 genesis-01-01.png이 ${displayPath(dirs.imagesDir)}에 없습니다`,
+      )
+      expect(await snapshot(dirs.appContentDir)).toEqual(before)
+    })
+
+    // 비거나 MP3가 아니거나 형식이 다른 절 낭독도 묶음 검증은 지나간다(길이를 못 재면 audioMs가 null일 뿐이다).
+    // 장면 낭독으로 이을 때 비로소 걸리는데, 그때가 폴더를 비운 뒤이면 폴더가 반쯤 쓰인 채 남는다.
+    it.each([
+      ['비어 있을 때', Buffer.alloc(0), '2번째 파일에서 MP3 프레임을 찾지 못했습니다'],
+      ['MP3가 아닐 때', Buffer.from('MP3가 아닌 바이트'), '2번째 파일에서 MP3 프레임을 찾지 못했습니다'],
+      [
+        '앞 절과 형식이 다를 때',
+        otherFormatAudio,
+        '2번째 파일의 형식(MPEG-1 48000Hz 두 채널)이 앞 파일(MPEG-1 44100Hz 두 채널)과 달라 이을 수 없습니다',
+      ],
+    ])('절 낭독 파일이 %s 장면 id를 밝혀 던지고, 앞서 쓴 앱 콘텐츠 폴더는 그대로 둔다', async (_name, bytes, reason) => {
+      await writeBundles(['genesis', 'exodus'], dirs)
+      const before = await snapshot(dirs.appContentDir)
+
+      await put('content/audio/genesis-01-002.mp3', bytes)
+      await expect(writeBundles(['genesis', 'exodus'], dirs)).rejects.toThrow(
+        `genesis-01-01: 장면 낭독을 잇지 못했습니다(genesis-01-001.mp3, genesis-01-002.mp3): ${reason}`,
+      )
+      expect(await snapshot(dirs.appContentDir)).toEqual(before)
+
+      // 절 낭독을 되돌리면 앞서 쓴 것과 같은 폴더가 다시 만들어진다.
+      await put('content/audio/genesis-01-002.mp3', verse2Audio)
+      await writeBundles(['genesis', 'exodus'], dirs)
+      expect(await snapshot(dirs.appContentDir)).toEqual(before)
     })
   })
 

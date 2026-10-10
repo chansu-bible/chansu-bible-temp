@@ -157,10 +157,10 @@ describe('canonForBook', () => {
     ])
   })
 
-  it('끝을 맞춰야 하는 시대가 있는데 이 책 본문에 절이 없으면 어느 시대인지 적은 오류를 낸다', () => {
+  it('끝을 맞춰야 하는 시대가 있는데 이 책 본문에 절이 없으면 어느 시대인지와 어느 책인지 적은 오류를 낸다', () => {
     const eras = [era('patriarchs', 'genesis 12:1', 'exodus 1:7')]
     expect(() => canonForBook(canon({ eras }), 'genesis', null)).toThrow(
-      'eras/patriarchs range.to: 본문에 절이 없어 시대의 끝(exodus 1:7)을 이 책의 마지막 절로 둘 수 없습니다',
+      'eras/patriarchs range.to: 본문에 절이 없어 시대의 끝(exodus 1:7)을 창세기의 마지막 절로 둘 수 없습니다',
     )
     // 맞출 끝이 없으면 마지막 절을 몰라도 된다.
     expect(canonForBook(canon({ eras: [era('flood', 'genesis 6:9', 'genesis 8:22')] }), 'genesis', null).eras[0]!.range).toEqual({

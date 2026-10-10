@@ -1,6 +1,6 @@
 import type { BookId } from 'reader-core'
 import { describe, expect, expectTypeOf, it } from 'vitest'
-import { buildBundle, sceneAudioParts } from '../src/build/buildBundle.ts'
+import { buildBundle, missingPlaceMessage, sceneAudioParts } from '../src/build/buildBundle.ts'
 import {
   BundleSchema,
   type Bundle,
@@ -322,7 +322,7 @@ describe('buildBundle', () => {
 
   it('절 범위가 맞지 않으면 오류를 낸다', () => {
     const file = { chapter: 1, scenes: [scene({ verseEnd: 2 })] }
-    expect(() => buildBundle('genesis', source, [file], canonOf(places))).toThrow('1장 장면의 절 범위가 맞지 않습니다')
+    expect(() => buildBundle('genesis', source, [file], canonOf(places))).toThrow('창세기 1장 장면의 절 범위가 맞지 않습니다')
   })
 
   it('없는 장소를 가리키면 오류를 낸다', () => {
@@ -346,12 +346,12 @@ describe('buildBundle', () => {
 
   it('같은 장의 장면 파일이 둘 이상이면 오류를 낸다', () => {
     const file = { chapter: 1, scenes: [scene({})] }
-    expect(() => buildBundle('genesis', source, [file, file], canonOf(places))).toThrow('1장의 장면 파일이 둘 이상입니다')
+    expect(() => buildBundle('genesis', source, [file, file], canonOf(places))).toThrow('창세기 1장의 장면 파일이 둘 이상입니다')
   })
 
   it('본문에 없는 장의 장면 파일이면 오류를 낸다', () => {
     const file = { chapter: 5, scenes: [scene({ chapter: 5, id: 'genesis-05-01' })] }
-    expect(() => buildBundle('genesis', source, [file], canonOf(places))).toThrow('5장은 본문에 없습니다')
+    expect(() => buildBundle('genesis', source, [file], canonOf(places))).toThrow('창세기 5장은 본문에 없습니다')
   })
 
   it('장면의 chapter가 파일의 chapter와 다르면 오류를 낸다', () => {
@@ -573,6 +573,22 @@ describe('책마다 묶음', () => {
     expect(exodus.chapters[0]!.scenes[0]!.placeId).toBe('midian')
   })
 
+  // canonForBook은 승인된 장소를 뒤 책에서 처음 나올 때만 빼서, 다른 까닭으로 묶음에 없는 승인된 장소는 buildBundle로 만들 수 없다.
+  // 그래도 오류 글은 까닭을 알아보고 쓰니(어림하지 않으니), 글을 만드는 함수를 바로 부른다.
+  it('승인된 장소는 처음 나오는 곳이 뒤 책일 때만 그렇게 알리고, 읽을 수 없거나 이 책까지이면 승인된 항목에 없다고 알린다', () => {
+    const firstAt = (firstAppearance: string): Place => ({ ...midian, facts: { ...midian.facts, firstAppearance, sources: [firstAppearance] } })
+    const message = (book: BookId, place: Place) => missingPlaceMessage(book, `${book}-01-01`, 'midian', [place])
+
+    expect(message('genesis', firstAt('exodus 2:15'))).toBe(
+      'genesis-01-01: 장소 midian는 출애굽기 2:15에서 처음 나와 창세기 묶음에 넣을 수 없습니다',
+    )
+    const notFound = 'genesis-01-01: 장소 midian가 places.json의 승인된 항목에 없습니다'
+    // 읽을 수 없는 인용, 이 책의 절, 책 없는 절(이 책의 절로 본다)
+    for (const first of ['엉터리', 'genesis 2:8', '2:8']) expect(message('genesis', firstAt(first))).toBe(notFound)
+    // 앞 책의 절이어도 뒤 책이 아니다.
+    expect(message('exodus', firstAt('genesis 2:8'))).toBe('exodus-01-01: 장소 midian가 places.json의 승인된 항목에 없습니다')
+  })
+
   it('묶음 스키마는 알 수 없는 bookId를 받지 않는다', () => {
     // 스키마의 bookId는 책 id 형(BookId)으로 읽힌다.
     expectTypeOf<Bundle['bookId']>().toEqualTypeOf<BookId>()
@@ -586,7 +602,7 @@ describe('책마다 묶음', () => {
   it('본문에 장이 없으면 시대의 끝을 맞출 수 없어 어느 시대인지 적은 오류를 낸다', () => {
     // 본문 파일 형식(SourceSchema)은 빈 장 목록도 받으므로, 손으로 고친 본문 파일이면 일어날 수 있다.
     expect(() => buildBundle('genesis', { ...source, chapters: [] }, [], canonWithMoses)).toThrow(
-      'eras/patriarchs range.to: 본문에 절이 없어 시대의 끝(exodus 1:7)을 이 책의 마지막 절로 둘 수 없습니다',
+      'eras/patriarchs range.to: 본문에 절이 없어 시대의 끝(exodus 1:7)을 창세기의 마지막 절로 둘 수 없습니다',
     )
   })
 

@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs'
-import { mkdir, readdir, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { verseAudioName, type BookId } from 'reader-core'
-import { audioDir } from '../paths.ts'
+import { audioDir as defaultAudioDir, sourceDir as defaultSourceDir } from '../paths.ts'
 import type { Verse } from '../schema.ts'
 import { readSource } from '../source/files.ts'
 import { selectVersesToSpeak } from './select.ts'
@@ -13,6 +13,9 @@ export type SpeechOptions = { book: BookId; chapter: number; force: boolean; dry
 
 export type SpeechResult = { selected: number; spoken: number; failed: { verse: number; reason: string }[] }
 
+// 읽고 쓰는 폴더. 이름은 paths.ts의 경로와 같고, 비우면 저장소의 content 아래 폴더다. 시험은 임시 폴더로 바꿔 준다.
+export type SpeechDirs = { sourceDir?: string; audioDir?: string }
+
 // 한 번에 보내는 요청 수
 const concurrency = 4
 
@@ -20,8 +23,10 @@ export async function generateSpeech(
   options: SpeechOptions,
   speak: Speak,
   log: (line: string) => void,
+  dirs: SpeechDirs = {},
 ): Promise<SpeechResult> {
-  const source = await readSource(options.book)
+  const { sourceDir = defaultSourceDir, audioDir = defaultAudioDir } = dirs
+  const source = await readSource(options.book, sourceDir)
   const chapter = source.chapters.find((c) => c.chapter === options.chapter)
   if (!chapter) throw new Error(`${options.chapter}장은 본문에 없습니다`)
 
@@ -32,11 +37,17 @@ export async function generateSpeech(
   if (options.dryRun) return result
 
   async function speakVerse(verse: Verse): Promise<void> {
+    const file = path.join(audioDir, verseAudioName(options.book, options.chapter, verse.verse))
     try {
       const bytes = await speak(verse.text)
-      await writeFile(path.join(audioDir, verseAudioName(options.book, options.chapter, verse.verse)), bytes)
+      // 임시 파일에 다 쓴 뒤 이름을 바꿔 둔다. 끊겨도 반쯤 쓰인 낭독이 남지 않는다.
+      // select.ts는 있는 파일을 건너뛰므로, 반쪽 파일이 남으면 다시 실행해도 그 절을 다시 만들지 않는다.
+      await writeFile(`${file}.tmp`, bytes)
+      await rename(`${file}.tmp`, file)
       result.spoken++
     } catch (error) {
+      // 쓰다 만 임시 파일을 치운다. 치우다 난 오류는 원래 오류를 가리지 않게 버린다.
+      await rm(`${file}.tmp`, { force: true }).catch(() => undefined)
       result.failed.push({ verse: verse.verse, reason: error instanceof Error ? error.message : String(error) })
     }
   }

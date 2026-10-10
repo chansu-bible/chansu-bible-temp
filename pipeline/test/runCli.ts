@@ -10,6 +10,8 @@ const blockFetch = `data:text/javascript,${encodeURIComponent(
 )}`
 
 const cliTimeoutMs = 30_000
+// CLI 시험 하나의 제한 시간. 멈춘 CLI를 runCli가 먼저 끊어 까닭을 알리도록 CLI의 제한(cliTimeoutMs)보다 길다.
+export const cliTestTimeoutMs = 2 * cliTimeoutMs
 
 export function runCli(args: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
