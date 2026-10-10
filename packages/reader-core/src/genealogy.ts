@@ -6,8 +6,10 @@ export type FamilyNode = { id: string; spouses: string[]; children: FamilyNode[]
 const CHILD_TYPES = new Set(['아들', '딸'])
 const SPOUSE_TYPES = new Set(['아내', '남편'])
 
-// 처음 나온 자리(장 × 1000 + 절). 뿌리·아내·자식을 이 순서로 둔다.
-// 0장으로 읽히는 인물(뒤 책 묶음의 앞 책 인용 "창세기 2:7")은 이 책을 읽기 전에 이미 만난 인물이라 0으로 맨 앞이다(그들끼리는 받은 순서).
+// 처음 나온 자리(장 × 1000 + 절). 뿌리, 아내·남편, 자식을 이 순서로 둔다.
+// 0장으로 읽히는 인물은 이 책을 읽기 전에 이미 만난 인물이라 0으로 맨 앞이다.
+// - 뒤 책 묶음의 앞 책 인용("창세기 2:7")이 그렇다. 빈 글이나 읽을 수 없는 firstAppearance도 0이다(검증을 거친 묶음에는 없다).
+// 값이 같으면 Array.prototype.sort가 안정 정렬이라 처음 차례가 남는다. 뿌리와 자식은 받은 인물 순서, 아내·남편은 관계를 읽은 순서다.
 function appearance(character: Character): number {
   return chapterOfReference(character.firstAppearance) * 1000 + verseOfReference(character.firstAppearance)
 }

@@ -155,6 +155,24 @@ describe('linkNames', () => {
     expect(links(linkNames('아담이', 3, [earlier, later], places))).toEqual([['아담', 'adam-2']])
   })
 
+  it('앞 책의 같은 이름 인물은 아직 구분하지 못한다(3단계에서 책을 아는 비교로 고친다)', () => {
+    // 역대상 묶음: 창세기 인물은 모두 책 이름이 붙은 인용이라 0장 0절로 읽혀 처음 나온 차례를 견줄 수 없다.
+    // 그래서 같은 이름이면 설정집 파일 순서의 처음 인물(가인 계열)이 남는다. 역대상 1장의 에녹·라멕은 셋 계열
+    // (enoch-son-of-jared, lamech-son-of-methuselah)인데 지금은 가인 계열로 잇는다. 창세기 묶음은 책 없는 인용이라 맞게 잇는다.
+    const chronicles = [
+      person('enoch', '에녹', '창세기 4:17'),
+      person('lamech', '라멕', '창세기 4:18'),
+      person('enoch-son-of-jared', '에녹', '창세기 5:18'),
+      person('methuselah', '므두셀라', '창세기 5:21'),
+      person('lamech-son-of-methuselah', '라멕', '창세기 5:25'),
+    ]
+    expect(links(linkNames('에녹과 므두셀라와 라멕과', 1, chronicles, []))).toEqual([
+      ['에녹', 'enoch'],
+      ['므두셀라', 'methuselah'],
+      ['라멕', 'lamech'],
+    ])
+  })
+
   it('같은 이름이 둘이면 그 장에 처음 나온 인물, 없으면 그 장 이전에 가장 늦게 나온 인물이다', () => {
     expect(links(linkNames('에녹이 이랏을 낳았고 므드사엘은 라멕을 낳았더라', 4, characters, places))).toEqual([
       ['에녹', 'enoch'],
