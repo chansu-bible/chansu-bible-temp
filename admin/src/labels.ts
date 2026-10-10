@@ -1,5 +1,11 @@
 // 화면에 보이는 한국어 이름
+import { findBook } from 'reader-core'
 import type { CanonKind, JobStatus, ProposalStatus, QuizStatus, ReviewState, SceneReviewStatus, Stage } from './types.ts'
+
+// 책 id의 한국어 이름(genesis → 창세기). 모르는 id는 그대로 보인다.
+export function bookName(id: string): string {
+  return findBook(id)?.name ?? id
+}
 
 export const KIND_LABEL: Record<CanonKind, string> = {
   characters: '인물',

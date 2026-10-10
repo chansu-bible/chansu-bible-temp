@@ -110,7 +110,7 @@ export default function Lexicon({ filter }: { filter: LexiconFilter }) {
                     <th scope="col">음역</th>
                     <th scope="col">품사</th>
                     <th scope="col">영어 정의</th>
-                    <th scope="col" className="num" title="창세기 1~10장에 나오는 횟수">
+                    <th scope="col" className="num" title="원어를 받은 모든 책에 나오는 횟수">
                       횟수
                     </th>
                     <th scope="col">한국어 뜻</th>

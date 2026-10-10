@@ -1,23 +1,38 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { getBook, isBookId } from 'reader-core'
 import { api, openJobEvents } from '../api.ts'
 import DataTable, { type Column } from '../components/DataTable.tsx'
 import { CheckboxField, NumberField, SelectField, TextField } from '../components/Fields.tsx'
 import { Empty, ErrorBox, Loading } from '../components/Notice.tsx'
 import StatusBadge from '../components/StatusBadge.tsx'
-import { buildJobOptions, describeOptions, EMPTY_JOB_FORM, STAGE_OPTIONS, type JobForm } from '../jobForm.ts'
+import {
+  bookChoices,
+  bookRequired,
+  buildJobOptions,
+  describeOptions,
+  EMPTY_JOB_FORM,
+  jobBookLabel,
+  pickBookChoice,
+  STAGE_OPTIONS,
+  type JobForm,
+} from '../jobForm.ts'
 import { FORCE_HINT, formatTime, STAGE_LABEL } from '../labels.ts'
-import { STAGES, type Job, type JobStatus, type RunsResponse, type Stage } from '../types.ts'
+import { STAGES, type BookId, type BookSummary, type Job, type JobStatus, type RunsResponse, type Stage } from '../types.ts'
 import { errorMessage, useLoad } from '../useLoad.ts'
 
 type Live = { id: string; lines: string[]; status: JobStatus; error: string | null }
 
 const isActive = (s: JobStatus) => s === 'queued' || s === 'running'
 
-export default function Jobs() {
+// 작업 화면. book은 머리에서 고른 책(책 칸의 기본값), books는 본문이 있는 책이다.
+// 작업이 끝나면 onJobEnd를 부른다(source가 새 책의 본문을 받았을 수 있다).
+export default function Jobs({ book, books, onJobEnd }: { book: BookId | null; books: BookSummary[]; onJobEnd: () => void }) {
   const jobs = useLoad(api.jobs, 'jobs')
   const runs = useLoad(() => api.runs(7), 'runs')
   const [stage, setStage] = useState<Stage>('build')
   const [form, setForm] = useState<JobForm>(EMPTY_JOB_FORM)
+  // 책 칸에서 직접 고른 책. 고르기 전에는 머리에서 고른 책을 따른다.
+  const [pickedBook, setPickedBook] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
   const [live, setLive] = useState<Live | null>(null)
@@ -53,10 +68,11 @@ export default function Jobs() {
           )
           reloadJobs()
           reloadRuns()
+          onJobEnd()
         },
       )
     },
-    [reloadJobs, reloadRuns],
+    [reloadJobs, reloadRuns, onJobEnd],
   )
 
   useEffect(() => () => closeRef.current?.(), [])
@@ -73,8 +89,13 @@ export default function Jobs() {
   const otherRunning = jobs.data?.some((j) => isActive(j.status) && j.id !== live?.id) ?? false
   const busy = starting || (live !== null && isActive(live.status)) || otherRunning
 
+  // 단계마다 고를 수 있는 책과 지금 책 칸의 값
+  const choices = bookChoices(stage, books.map((b) => b.id))
+  const bookValue = pickBookChoice(choices, pickedBook, book)
+  const chapterMax = isBookId(bookValue) ? getBook(bookValue).chapters : undefined
+
   async function start() {
-    const built = buildJobOptions(stage, form)
+    const built = buildJobOptions(stage, { ...form, book: bookValue })
     if (!built.ok) {
       setStartError(built.error)
       return
@@ -97,6 +118,7 @@ export default function Jobs() {
 
   const columns: Column<Job>[] = [
     { key: 'stage', header: '단계', cell: (j) => <code>{j.stage}</code> },
+    { key: 'book', header: '책', cell: (j) => jobBookLabel(j.stage, j.options) },
     { key: 'options', header: '옵션', cell: (j) => describeOptions(j.options) },
     { key: 'status', header: '상태', cell: (j) => <StatusBadge status={j.status} /> },
     { key: 'created', header: '시작', cell: (j) => formatTime(j.startedAt ?? j.createdAt) },
@@ -127,8 +149,33 @@ export default function Jobs() {
                   onChange={(v) => setStage(v as Stage)}
                   options={STAGES.map((s) => ({ value: s, label: STAGE_LABEL[s] }))}
                 />
+                {choices.length > 0 && (
+                  <SelectField
+                    label={bookRequired(stage) ? '책 *' : '책'}
+                    value={bookValue}
+                    onChange={setPickedBook}
+                    options={choices}
+                  />
+                )}
+                {keys.includes('chapters') && (
+                  <TextField
+                    label="장 범위"
+                    value={form.chapters}
+                    onChange={(v) => set('chapters', v)}
+                    placeholder="1-10"
+                    hint="예: 1-10, 3. 비우면 책 전체를 받아요(있던 본문은 받은 장으로 바뀌어요)"
+                  />
+                )}
                 {keys.includes('chapter') && (
-                  <NumberField label="장 *" value={form.chapter} onChange={(v) => set('chapter', v)} step="1" min={1} />
+                  <NumberField
+                    label="장 *"
+                    value={form.chapter}
+                    onChange={(v) => set('chapter', v)}
+                    step="1"
+                    min={1}
+                    max={chapterMax}
+                    hint={chapterMax ? `1~${chapterMax}장` : undefined}
+                  />
                 )}
                 {keys.includes('scenes') && (
                   <TextField

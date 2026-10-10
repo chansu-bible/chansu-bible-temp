@@ -1,5 +1,7 @@
 // 설정집 항목 ↔ 편집 폼 변환. 화면은 필드 설명(SECTIONS)만 보고 폼을 그린다.
-import type { CanonEntryMap, CanonKind } from './types.ts'
+// 절 인용은 폼에서 책 이름으로 보이고("창세기 2:7"), 저장할 때 책 id 모양("genesis 2:7")으로 바꾼다.
+import { bookByName, formatRef, parseRef, qualifyRef } from 'reader-core'
+import type { BookId, CanonEntryMap, CanonKind } from './types.ts'
 
 export type Row = Record<string, string>
 export type FormValue = string | Row[]
@@ -26,7 +28,7 @@ export type FieldDesc =
 export type SectionTone = 'basic' | 'facts' | 'design'
 export type Section = { title: string; tone: SectionTone; fields: FieldDesc[] }
 
-const CITATION_HINT = '예: 1:26 또는 2:7-8'
+const CITATION_HINT = '예: 2:7(고른 책), 창세기 2:7, genesis 2:7'
 const LINES_HINT = '한 줄에 하나'
 const YEAR_HINT = '창조 원년 기준. 비우면 모름'
 
@@ -241,6 +243,25 @@ export function emptyEntry<K extends CanonKind>(kind: K): CanonEntryMap[K] {
   return entries[kind]
 }
 
+// 저장된 절 인용을 화면에 보이는 모양으로 바꾼다: "genesis 2:7" → "창세기 2:7". 읽을 수 없는 글은 그대로 둔다.
+export function citationLabel(text: string): string {
+  const ref = parseRef(text)
+  return ref ? formatRef(ref, 'name') : text
+}
+
+// 입력한 절 인용을 저장 모양(책 id가 붙은 "genesis 2:7")으로 바꾼다.
+// "genesis 2:7", 책 이름이 붙은 "창세기 2:7", 책 없는 "2:7"을 받고, 책 없는 인용에는 book(고른 책)을 붙인다.
+// "02:07"과 "2:7-7"은 "2:7"로 쓴다. 읽을 수 없거나, 붙일 책이 없거나, 그 책에 없는 장이면 null이다.
+export function toStoredCitation(text: string, book: BookId | null): string | null {
+  const words = text.trim().split(/\s+/)
+  // 책 이름(공백이 없다)이나 책 id 뒤에 장:절. 책 이름은 id로 바꾸고 사이를 한 칸으로 맞춘다.
+  const input = words.length === 2 ? `${bookByName(words[0]!)?.id ?? words[0]} ${words[1]}` : words.join(' ')
+  const ref = parseRef(input)
+  if (!ref) return null
+  if (ref.book !== null) return formatRef(ref)
+  return book === null ? null : qualifyRef(input, book)
+}
+
 export function entryToForm(kind: CanonKind, entry: object): FormState {
   const form: FormState = {}
   for (const f of fieldsOf(kind)) {
@@ -248,6 +269,8 @@ export function entryToForm(kind: CanonKind, entry: object): FormState {
     switch (f.type) {
       case 'text':
       case 'textarea':
+        form[f.path] = typeof v === 'string' ? (f.citation ? citationLabel(v) : v) : ''
+        break
       case 'select':
         form[f.path] = typeof v === 'string' ? v : ''
         break
@@ -255,11 +278,18 @@ export function entryToForm(kind: CanonKind, entry: object): FormState {
         form[f.path] = typeof v === 'number' ? String(v) : ''
         break
       case 'lines':
-        form[f.path] = Array.isArray(v) ? v.map(String).join('\n') : ''
+        form[f.path] = Array.isArray(v) ? v.map((item) => (f.citation ? citationLabel(String(item)) : String(item))).join('\n') : ''
         break
       case 'table':
         form[f.path] = Array.isArray(v)
-          ? v.map((item) => Object.fromEntries(f.columns.map((c) => [c.key, String(getPath(item, c.key) ?? '')])))
+          ? v.map((item) =>
+              Object.fromEntries(
+                f.columns.map((c) => {
+                  const s = String(getPath(item, c.key) ?? '')
+                  return [c.key, c.citation ? citationLabel(s) : s]
+                }),
+              ),
+            )
           : []
         break
     }
@@ -282,15 +312,23 @@ function nonEmptyRows(v: FormValue | undefined): Row[] {
   return (Array.isArray(v) ? v : []).filter((r) => Object.values(r).some((s) => s.trim()))
 }
 
-// 폼에 없는 필드(status 등)는 base에서 그대로 가져온다. 책 없는 절 인용에는 책을 붙인다.
-export function formToEntry<K extends CanonKind>(kind: K, form: FormState, base: CanonEntryMap[K]): CanonEntryMap[K] {
+// 폼에 없는 필드(status 등)는 base에서 그대로 가져온다.
+// 절 인용은 저장 모양("genesis 2:7")으로 바꾸고, 책 없는 인용에는 book(고른 책)을 붙인다.
+// 바꿀 수 없는 인용은 그대로 둔다(저장 전에 checkForm이 잡는다).
+export function formToEntry<K extends CanonKind>(
+  kind: K,
+  form: FormState,
+  base: CanonEntryMap[K],
+  book: BookId | null,
+): CanonEntryMap[K] {
+  const stored = (citation: string) => toStoredCitation(citation, book) ?? citation
   const out = structuredClone(base) as unknown as Record<string, unknown>
   for (const f of fieldsOf(kind)) {
     const v = form[f.path]
     switch (f.type) {
       case 'text':
       case 'textarea':
-        setPath(out, f.path, f.citation ? withBook(str(v)) : str(v))
+        setPath(out, f.path, f.citation ? stored(str(v)) : str(v))
         break
       case 'select':
         setPath(out, f.path, str(v))
@@ -302,7 +340,7 @@ export function formToEntry<K extends CanonKind>(kind: K, form: FormState, base:
       }
       case 'lines': {
         const items = typeof v === 'string' ? splitLines(v) : []
-        setPath(out, f.path, f.citation ? items.map(withBook) : items)
+        setPath(out, f.path, f.citation ? items.map(stored) : items)
         break
       }
       case 'table':
@@ -313,7 +351,7 @@ export function formToEntry<K extends CanonKind>(kind: K, form: FormState, base:
             Object.fromEntries(
               f.columns.map((c) => {
                 const s = (r[c.key] ?? '').trim()
-                return [c.key, c.citation ? withBook(s) : s]
+                return [c.key, c.citation ? stored(s) : s]
               }),
             ),
           ),
@@ -324,25 +362,12 @@ export function formToEntry<K extends CanonKind>(kind: K, form: FormState, base:
   return out as unknown as CanonEntryMap[K]
 }
 
-const BARE_CITATION = /^(\d{1,2}):(\d{1,3})(?:-(\d{1,3}))?$/
-// 책 id가 붙은 인용("genesis 2:7", "1-samuel 3:4")이나 책 없는 인용("2:7")
-const CITATION = /^(?:[a-z0-9-]+ )?\d{1,2}:\d{1,3}(-\d{1,3})?$/
 const CANON_ID = /^[a-z][a-z0-9-]*$/
 
-// 책 없는 절 인용("2:7")에 창세기를 붙이고, 서버가 받는 표준 모양으로 쓴다("02:07"과 "2:7-7"은 "genesis 2:7").
-// 책이 붙은 인용과 인용이 아닌 글은 그대로 둔다.
-// Task 8에서 고른 책으로 바꾼다.
-export function withBook(citation: string): string {
-  const match = BARE_CITATION.exec(citation)
-  if (!match) return citation
-  const chapter = Number(match[1])
-  const verse = Number(match[2])
-  const end = match[3] === undefined ? verse : Number(match[3])
-  return `genesis ${chapter}:${verse}${end === verse ? '' : `-${end}`}`
-}
-
 // 저장 전에 화면에서 먼저 잡는 문제. 최종 검증은 서버가 한다.
-export function checkForm(kind: CanonKind, form: FormState): string[] {
+// 절 인용은 toStoredCitation으로 바꿀 수 있어야 한다(책 없는 인용은 book이 있어야 한다).
+export function checkForm(kind: CanonKind, form: FormState, book: BookId | null): string[] {
+  const isCitation = (s: string) => toStoredCitation(s, book) !== null
   const problems: string[] = []
   for (const f of fieldsOf(kind)) {
     const v = form[f.path]
@@ -351,7 +376,7 @@ export function checkForm(kind: CanonKind, form: FormState): string[] {
       case 'textarea': {
         const s = str(v)
         if (f.required && !s) problems.push(`${f.label}: 비어 있어요`)
-        else if (s && f.citation && !CITATION.test(s)) problems.push(`${f.label}: 절 인용 형식이 아니에요 (${s})`)
+        else if (s && f.citation && !isCitation(s)) problems.push(`${f.label}: 절 인용 형식이 아니에요 (${s})`)
         else if (s && f.canonId && !CANON_ID.test(s))
           problems.push(`${f.label}: 영문 소문자로 시작하고 소문자·숫자·-만 써요`)
         break
@@ -370,7 +395,7 @@ export function checkForm(kind: CanonKind, form: FormState): string[] {
         const items = typeof v === 'string' ? splitLines(v) : []
         if (f.min && items.length < f.min) problems.push(`${f.label}: ${f.min}개 이상 있어야 해요`)
         if (f.citation) {
-          const bad = items.filter((s) => !CITATION.test(s))
+          const bad = items.filter((s) => !isCitation(s))
           if (bad.length) problems.push(`${f.label}: 절 인용 형식이 아니에요 (${bad.join(', ')})`)
         }
         break
@@ -380,7 +405,7 @@ export function checkForm(kind: CanonKind, form: FormState): string[] {
           for (const c of f.columns) {
             const s = (r[c.key] ?? '').trim()
             if (!s) problems.push(`${f.label} ${i + 1}행: ${c.label} 칸이 비어 있어요`)
-            else if (c.citation && !CITATION.test(s)) problems.push(`${f.label} ${i + 1}행: 절 인용 형식이 아니에요 (${s})`)
+            else if (c.citation && !isCitation(s)) problems.push(`${f.label} ${i + 1}행: 절 인용 형식이 아니에요 (${s})`)
             else if (c.canonId && !CANON_ID.test(s)) problems.push(`${f.label} ${i + 1}행: id 형식이 아니에요 (${s})`)
           }
         })
@@ -393,7 +418,30 @@ export function checkForm(kind: CanonKind, form: FormState): string[] {
   return problems
 }
 
-// 목록의 "첫 등장" 칸
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+// 제안의 값(또는 항목의 그 필드 값)에 든 절 인용을 화면 모양("창세기 2:7")으로 바꾼다.
+// 인용이 드는 필드(첫 등장, 근거 절, 옷차림, 시대 범위)만 보고, 모양이 다르거나 다른 필드면 그대로 둔다.
+export function citationValueLabel(field: string, value: unknown): unknown {
+  const label = (item: unknown) => (typeof item === 'string' ? citationLabel(item) : item)
+  switch (field) {
+    case 'facts.firstAppearance':
+    case 'range.from':
+    case 'range.to':
+      return label(value)
+    case 'facts.sources':
+      return Array.isArray(value) ? value.map(label) : value
+    case 'facts.attire':
+      return Array.isArray(value) ? value.map((item) => (isRecord(item) ? { ...item, from: label(item.from) } : item)) : value
+    case 'range':
+      return isRecord(value) ? { ...value, from: label(value.from), to: label(value.to) } : value
+    default:
+      return value
+  }
+}
+
+// 목록의 "첫 등장" 칸(저장 모양). 화면에는 citationLabel로 보인다.
 export function firstCitation(kind: CanonKind, entry: object): string {
   switch (kind) {
     case 'characters':

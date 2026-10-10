@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.ts'
-import { emptyEntry, firstCitation } from '../canonForm.ts'
+import { citationLabel, emptyEntry, firstCitation } from '../canonForm.ts'
 import CanonEditor from '../components/CanonEditor.tsx'
 import DataTable, { type Column } from '../components/DataTable.tsx'
 import { Empty, ErrorBox, Loading } from '../components/Notice.tsx'
 import StatusBadge from '../components/StatusBadge.tsx'
 import { KIND_LABEL } from '../labels.ts'
 import { navigate } from '../route.ts'
-import { CANON_KINDS, type CanonEntry, type CanonKind, type Proposal } from '../types.ts'
+import { CANON_KINDS, type BookId, type CanonEntry, type CanonKind, type Proposal } from '../types.ts'
 import { useLoad } from '../useLoad.ts'
 
 type UsageCount = number | 'error'
 
-export default function Canon({ kind, selectedId }: { kind: CanonKind; selectedId: string | null }) {
+// 설정집은 모든 책이 함께 쓴다. book(머리에서 고른 책)은 책 없이 넣은 절 인용에 붙인다.
+export default function Canon({ kind, selectedId, book }: { kind: CanonKind; selectedId: string | null; book: BookId | null }) {
   const entries = useLoad<CanonEntry[]>(() => api.canonList(kind), kind)
   const proposals = useLoad(api.proposals, 'proposals')
   const [creating, setCreating] = useState<CanonEntry | null>(null)
@@ -90,7 +91,7 @@ export default function Canon({ kind, selectedId }: { kind: CanonKind; selectedI
     },
     { key: 'id', header: 'id', cell: (e) => <code>{e.id}</code> },
     { key: 'status', header: '상태', cell: (e) => <StatusBadge status={e.status} /> },
-    { key: 'first', header: '첫 등장', cell: (e) => firstCitation(kind, e) || <span className="muted">—</span> },
+    { key: 'first', header: '첫 등장', cell: (e) => citationLabel(firstCitation(kind, e)) || <span className="muted">—</span> },
     {
       key: 'usage',
       header: '장면',
@@ -176,6 +177,7 @@ export default function Canon({ kind, selectedId }: { kind: CanonKind; selectedI
               key={creating ? 'new' : `${kind}/${selected.id}`}
               kind={kind}
               entry={selected}
+              book={book}
               isNew={creating !== null}
               proposals={creating ? [] : proposalsFor(selected.id)}
               onSaved={onSaved}

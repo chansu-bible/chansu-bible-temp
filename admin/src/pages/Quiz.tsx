@@ -3,7 +3,7 @@ import { api } from '../api.ts'
 import { NumberField, SelectField, TextAreaField } from '../components/Fields.tsx'
 import { Empty, ErrorBox, Loading } from '../components/Notice.tsx'
 import StatusBadge from '../components/StatusBadge.tsx'
-import { STATUS_LABEL } from '../labels.ts'
+import { bookName, STATUS_LABEL } from '../labels.ts'
 import {
   countStatuses,
   formToEdit,
@@ -14,15 +14,14 @@ import {
   type QuizForm,
 } from '../quizForm.ts'
 import { navigate } from '../route.ts'
-import type { QuizEdit, QuizQuestion, Verse } from '../types.ts'
+import type { BookId, QuizEdit, QuizQuestion, Verse } from '../types.ts'
 import { errorMessage, useLoad } from '../useLoad.ts'
 
-const FALLBACK_CHAPTERS = Array.from({ length: 10 }, (_, i) => i + 1)
-
-// 퀴즈 화면. quiz 단계가 쓰고 검수 모델이 본 문제를 하나씩 승인하거나 버리고, 고쳐 저장한다.
-export default function Quiz({ chapter }: { chapter: number }) {
-  const summary = useLoad(api.quizSummary, 'quiz-summary')
-  const data = useLoad(() => api.quiz(chapter), String(chapter))
+// 고른 책의 퀴즈 화면. quiz 단계가 쓰고 검수 모델이 본 문제를 하나씩 승인하거나 버리고, 고쳐 저장한다.
+// 장 목록은 그 책의 본문에 있는 장이다.
+export default function Quiz({ book, chapter }: { book: BookId; chapter: number }) {
+  const summary = useLoad(() => api.quizSummary(book), `quiz-summary/${book}`)
+  const data = useLoad(() => api.quiz(book, chapter), `${book}/${chapter}`)
   const [questions, setQuestions] = useState<QuizQuestion[] | null>(null)
   const { reload: reloadSummary } = summary
 
@@ -33,7 +32,7 @@ export default function Quiz({ chapter }: { chapter: number }) {
     setQuestions(data.data?.questions ?? null)
   }
 
-  const chapters = summary.data?.length ? summary.data.map((s) => s.chapter) : FALLBACK_CHAPTERS
+  const chapters = summary.data?.length ? summary.data.map((s) => s.chapter) : [chapter]
   const options = chapters.includes(chapter) ? chapters : [...chapters, chapter].sort((a, b) => a - b)
   const approvedIn = (n: number) => summary.data?.find((s) => s.chapter === n)?.counts.approved
 
@@ -48,12 +47,14 @@ export default function Quiz({ chapter }: { chapter: number }) {
   return (
     <div className="page">
       <header className="page-head">
-        <h1>퀴즈</h1>
+        <h1>
+          {bookName(book)} {chapter}장 퀴즈
+        </h1>
         <div className="page-actions">
           <SelectField
             label="장"
             value={String(chapter)}
-            onChange={(v) => navigate({ page: 'quiz', chapter: Number(v) })}
+            onChange={(v) => navigate({ page: 'quiz', book, chapter: Number(v) })}
             options={options.map((n) => {
               const approved = approvedIn(n)
               return {
@@ -104,6 +105,7 @@ export default function Quiz({ chapter }: { chapter: number }) {
               {questions.map((q) => (
                 <QuestionCard
                   key={q.id}
+                  book={book}
                   chapter={chapter}
                   question={q}
                   verses={data.data?.verses ?? []}
@@ -120,11 +122,13 @@ export default function Quiz({ chapter }: { chapter: number }) {
 
 // 문제 카드 하나. 읽을 때는 승인·버림·되돌리기·고치기 단추를, 고칠 때는 입력 칸과 저장·취소를 보여 준다.
 function QuestionCard({
+  book,
   chapter,
   question,
   verses,
   onSaved,
 }: {
+  book: BookId
   chapter: number
   question: QuizQuestion
   verses: Verse[]
@@ -144,7 +148,7 @@ function QuestionCard({
     setError(null)
     setNote(null)
     try {
-      const saved = await api.quizSave(chapter, question.id, edit)
+      const saved = await api.quizSave(book, chapter, question.id, edit)
       setForm(null)
       setNote(done)
       onSaved(saved)

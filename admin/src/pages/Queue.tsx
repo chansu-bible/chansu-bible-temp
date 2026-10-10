@@ -1,30 +1,36 @@
 import { api } from '../api.ts'
 import { Empty, ErrorBox, Loading } from '../components/Notice.tsx'
 import StatusBadge from '../components/StatusBadge.tsx'
-import { formatTime, KIND_LABEL } from '../labels.ts'
+import { bookName, formatTime, KIND_LABEL } from '../labels.ts'
 import { routeHref } from '../route.ts'
-import { CANON_KINDS, type CanonKind, type Proposal } from '../types.ts'
+import { CANON_KINDS, type BookId, type BookSummary, type CanonKind, type Proposal } from '../types.ts'
 import { useLoad } from '../useLoad.ts'
 
-type FlaggedScene = { chapter: number; id: string; title: string; issues: string[] }
+type FlaggedScene = { book: BookId; chapter: number; id: string; title: string; issues: string[] }
 type DraftEntry = { kind: CanonKind; id: string; name: string }
-type QuizPending = { chapter: number; reviewed: number; flagged: number }
+type QuizPending = { book: BookId; chapter: number; reviewed: number; flagged: number }
 
-// 확인 필요 장면: 대시보드 상태에서 flagged가 있는 장만 장면 파일을 읽는다.
-async function loadFlagged(): Promise<FlaggedScene[]> {
-  const status = await api.status()
-  const chapters = status.chapters.filter((c) => c.scenes.flagged > 0).map((c) => c.chapter)
-  const files = await Promise.all(chapters.map((n) => api.scenes(n)))
-  return files.flatMap((f) =>
-    (f.scenes ?? [])
-      .filter((s) => s.review.status === 'flagged')
-      .map((s) => ({
-        chapter: f.chapter,
-        id: s.id,
-        title: s.title,
-        issues: [s.review.text, s.review.facts, s.review.image].flatMap((v) => v?.issues ?? []),
-      })),
+// 확인 필요 장면: 책마다 대시보드 상태에서 flagged가 있는 장만 장면 파일을 읽는다(성경 순서).
+async function loadFlagged(books: BookId[]): Promise<FlaggedScene[]> {
+  const perBook = await Promise.all(
+    books.map(async (book) => {
+      const status = await api.status(book)
+      const chapters = status.chapters.filter((c) => c.scenes.flagged > 0).map((c) => c.chapter)
+      const files = await Promise.all(chapters.map((n) => api.scenes(book, n)))
+      return files.flatMap((f) =>
+        (f.scenes ?? [])
+          .filter((s) => s.review.status === 'flagged')
+          .map((s) => ({
+            book,
+            chapter: f.chapter,
+            id: s.id,
+            title: s.title,
+            issues: [s.review.text, s.review.facts, s.review.image].flatMap((v) => v?.issues ?? []),
+          })),
+      )
+    }),
   )
+  return perBook.flat()
 }
 
 async function loadDrafts(): Promise<DraftEntry[]> {
@@ -43,19 +49,24 @@ async function loadGlossDrafts(): Promise<number> {
   return (await api.lexicon()).entries.filter((e) => e.korean?.status === 'draft').length
 }
 
-// 사람이 검수할 퀴즈(검수 통과·확인 필요)가 있는 장
-async function loadQuizPending(): Promise<QuizPending[]> {
-  return (await api.quizSummary())
-    .map((s) => ({ chapter: s.chapter, reviewed: s.counts.reviewed, flagged: s.counts.flagged }))
-    .filter((c) => c.reviewed + c.flagged > 0)
+// 사람이 검수할 퀴즈(검수 통과·확인 필요)가 있는 장. 책마다 본다(성경 순서).
+async function loadQuizPending(books: BookId[]): Promise<QuizPending[]> {
+  const perBook = await Promise.all(
+    books.map(async (book) =>
+      (await api.quizSummary(book)).map((s) => ({ book, chapter: s.chapter, reviewed: s.counts.reviewed, flagged: s.counts.flagged })),
+    ),
+  )
+  return perBook.flat().filter((c) => c.reviewed + c.flagged > 0)
 }
 
-export default function Queue() {
-  const flagged = useLoad(loadFlagged, 'flagged')
+// 검수 대기열. 장면과 퀴즈는 본문이 있는 모든 책에서 모은다.
+export default function Queue({ books }: { books: BookSummary[] }) {
+  const ids = books.map((b) => b.id)
+  const flagged = useLoad(() => loadFlagged(ids), `flagged/${ids.join(',')}`)
   const drafts = useLoad(loadDrafts, 'drafts')
   const proposals = useLoad(loadOpenProposals, 'proposals')
   const glossDrafts = useLoad(loadGlossDrafts, 'gloss-drafts')
-  const quizPending = useLoad(loadQuizPending, 'quiz-pending')
+  const quizPending = useLoad(() => loadQuizPending(ids), `quiz-pending/${ids.join(',')}`)
   const quizTotal = quizPending.data?.reduce((sum, c) => sum + c.reviewed + c.flagged, 0) ?? 0
 
   function reloadAll() {
@@ -83,9 +94,9 @@ export default function Queue() {
           (flagged.data.length ? (
             <ul className="queue-list">
               {flagged.data.map((s) => (
-                <li key={`${s.chapter}/${s.id}`}>
-                  <a href={routeHref({ page: 'scenes', chapter: s.chapter, sceneId: s.id })}>
-                    {s.chapter}장 · {s.title || s.id}
+                <li key={`${s.book}/${s.chapter}/${s.id}`}>
+                  <a href={routeHref({ page: 'scenes', book: s.book, chapter: s.chapter, sceneId: s.id })}>
+                    {bookName(s.book)} {s.chapter}장 · {s.title || s.id}
                   </a>{' '}
                   <StatusBadge status="flagged" />
                   {s.issues.length > 0 && <p className="muted">{s.issues.join(' / ')}</p>}
@@ -164,13 +175,17 @@ export default function Queue() {
           (quizTotal > 0 ? (
             <>
               <p>
-                <a href={routeHref({ page: 'quiz', chapter: quizPending.data[0]!.chapter })}>검수할 퀴즈 {quizTotal}문제</a>{' '}
+                <a href={routeHref({ page: 'quiz', book: quizPending.data[0]!.book, chapter: quizPending.data[0]!.chapter })}>
+                  검수할 퀴즈 {quizTotal}문제
+                </a>{' '}
                 <span className="muted">· 검수 통과했거나 지적된 문제예요</span>
               </p>
               <ul className="queue-list">
                 {quizPending.data.map((c) => (
-                  <li key={c.chapter}>
-                    <a href={routeHref({ page: 'quiz', chapter: c.chapter })}>{c.chapter}장</a>
+                  <li key={`${c.book}/${c.chapter}`}>
+                    <a href={routeHref({ page: 'quiz', book: c.book, chapter: c.chapter })}>
+                      {bookName(c.book)} {c.chapter}장
+                    </a>
                     {c.reviewed > 0 && (
                       <>
                         {' '}

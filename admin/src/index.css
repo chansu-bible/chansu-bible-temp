@@ -156,6 +156,34 @@ code {
   font-weight: 600;
 }
 
+/* 머리의 책 고르기 */
+.book-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 8px 14px;
+}
+
+.book-picker label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #cfc5b9;
+}
+
+/* 사이드바의 밝은 글자색을 물려받지 않게 한다 */
+.book-picker select {
+  color: var(--ink);
+}
+
+.book-note {
+  margin: 0 8px 14px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.08);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .sidebar ul {
   list-style: none;
   margin: 0;

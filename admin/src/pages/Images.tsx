@@ -3,19 +3,23 @@ import { api } from '../api.ts'
 import { ErrorBox, Loading } from '../components/Notice.tsx'
 import StyleForm from '../components/StyleForm.tsx'
 import VersionList from '../components/VersionList.tsx'
+import type { BookSummary } from '../types.ts'
 import { useLoad } from '../useLoad.ts'
 
-// 그림 화면. 화풍 프롬프트, 화풍 참고 이미지, 그림 버전을 한 곳에서 다룬다.
-export default function Images() {
+// 그림 화면. 화풍 프롬프트, 화풍 참고 이미지, 그림 버전을 한 곳에서 다룬다. 그림 버전은 모든 책이 함께 쓴다.
+export default function Images({ books }: { books: BookSummary[] }) {
   const style = useLoad(api.style, 'style')
   const versions = useLoad(api.imageVersions, 'image-versions')
-  const status = useLoad(api.status, 'status')
+  const ids = books.map((b) => b.id)
+  const status = useLoad(() => Promise.all(ids.map((book) => api.status(book))), `status/${ids.join(',')}`)
 
-  // 버전별 그림 수 = 장마다 센 수의 합
+  // 버전별 그림 수 = 본문이 있는 모든 책의 장마다 센 수의 합
   const counts = useMemo(() => {
     const out: Record<string, number> = {}
-    for (const ch of status.data?.chapters ?? []) {
-      for (const [id, n] of Object.entries(ch.images)) out[id] = (out[id] ?? 0) + n
+    for (const one of status.data ?? []) {
+      for (const ch of one.chapters) {
+        for (const [id, n] of Object.entries(ch.images)) out[id] = (out[id] ?? 0) + n
+      }
     }
     return out
   }, [status.data])

@@ -1,7 +1,11 @@
 // 관리 서버 API 계약의 타입. pipeline/src/schema.ts와 계획 문서의 "공통 계약"을 손으로 옮겼다.
-// 화면 묶음에 Node 코드가 들어가지 않도록 pipeline을 불러오지 않는다.
+// 화면 묶음에 Node 코드가 들어가지 않도록 pipeline을 불러오지 않는다(reader-core는 브라우저에서도 돈다).
+import type { BookId } from 'reader-core'
 
-export type Citation = string // "1:26", "2:7-8"
+export type { BookId }
+
+// 저장 모양은 책 id가 붙은 "genesis 1:26", "genesis 2:7-8"이고, 화면에는 "창세기 1:26"으로 보인다.
+export type Citation = string
 export type ReviewState = 'draft' | 'approved' | 'rejected'
 export type CanonKind = 'characters' | 'places' | 'eras' | 'things'
 export const CANON_KINDS: CanonKind[] = ['characters', 'places', 'eras', 'things']
@@ -110,14 +114,14 @@ export type LexiconEntry = {
   pos: string // 스트롱 품사 부호 "n-f"
   definition: string // 영어 정의
   usage: string // KJV 번역어
-  count: number // 창세기 1~10장에 나오는 횟수
+  count: number // 원어를 받은 모든 책에 나오는 횟수
   korean: KoreanGloss | null
 }
 export type LexiconFile = { entries: LexiconEntry[] }
 // PUT /api/lexicon/:strong 본문. meaning을 비우면 뜻을 지운다.
 export type GlossInput = { meaning: string; note: string; status: KoreanGlossStatus }
 
-// 이해 확인 퀴즈(content/quiz/genesis-NN.json). reviewed는 검수 모델 통과, flagged는 지적 있음,
+// 이해 확인 퀴즈(content/quiz/<책 id>-NN.json). reviewed는 검수 모델 통과, flagged는 지적 있음,
 // approved는 사람이 승인(앱에 나간다), rejected는 버린 것
 export type QuizStatus = 'draft' | 'reviewed' | 'flagged' | 'approved' | 'rejected'
 export type QuizQuestion = {
@@ -130,7 +134,7 @@ export type QuizQuestion = {
   status: QuizStatus
   issues: string[] // 검수 지적(기록이라 저장해도 바뀌지 않는다)
 }
-// PUT /api/quiz/:chapter/:id 본문
+// PUT /api/books/:book/quiz/:chapter/:id 본문
 export type QuizEdit = Omit<QuizQuestion, 'id' | 'issues'>
 
 // 화풍. 참고 파일 이름은 폴더 구분자 없이 영문 소문자·숫자·점·밑줄·하이픈(.jpg·.png·.webp).
@@ -144,6 +148,10 @@ export type Style = {
 }
 
 // 관리 서버 응답
+
+// GET /api/books: 본문 파일이 있는 책(성경 순서). chapters는 책의 장 수, sourceChapters는 본문에 든 장 수
+export type BookSummary = { id: BookId; name: string; chapters: number; sourceChapters: number }
+
 export type StateCounts = { draft: number; approved: number; rejected: number }
 
 export type ChapterStatus = {
@@ -162,7 +170,8 @@ export type StatusResponse = {
   imageVersions: ImageVersion[]
 }
 
-export type UsageResponse = { scenes: { chapter: number; id: string; title: string }[] }
+// 설정집 항목을 쓰는 장면. 본문이 있는 모든 책에서 찾는다.
+export type UsageResponse = { scenes: { book: BookId; chapter: number; id: string; title: string }[] }
 
 export type ScenesResponse = {
   chapter: number
@@ -208,7 +217,9 @@ export const STAGES: Stage[] = [
 ]
 
 export type JobOptions = {
+  book?: BookId
   chapter?: number
+  chapters?: string // source가 받을 장 범위("1-10", "3"). 없으면 책 전체
   scenes?: string[]
   force?: boolean
   allowDraft?: boolean

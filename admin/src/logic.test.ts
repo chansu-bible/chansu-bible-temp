@@ -1,11 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { checkForm, emptyEntry, entryToForm, formToEntry, firstCitation, withBook } from './canonForm.ts'
+import { chooseBook, readStoredBook, storeBook } from './bookChoice.ts'
+import {
+  checkForm,
+  citationLabel,
+  citationValueLabel,
+  emptyEntry,
+  entryToForm,
+  firstCitation,
+  formToEntry,
+  toStoredCitation,
+} from './canonForm.ts'
 import { splitIds } from './ids.ts'
-import { buildJobOptions, describeOptions, EMPTY_JOB_FORM } from './jobForm.ts'
+import {
+  bookChoices,
+  buildJobOptions,
+  describeOptions,
+  EMPTY_JOB_FORM,
+  jobBookLabel,
+  pickBookChoice,
+  type JobForm,
+} from './jobForm.ts'
 import { countByFilter, matchesFilter, matchesQuery, searchKey } from './lexiconFilter.ts'
 import { countStatuses, formToEdit, questionToForm, revertStatus, toEdit } from './quizForm.ts'
-import { parseRoute, routeHref } from './route.ts'
-import type { Character, Era, LexiconEntry, Place, QuizQuestion, Thing } from './types.ts'
+import { parseRoute, redirectHref, routeHref, switchBook } from './route.ts'
+import type { BookId, Character, Era, LexiconEntry, Place, QuizQuestion, Thing } from './types.ts'
 
 // 저장된 항목. 절 인용에 책이 붙어 있다.
 const adam: Character = {
@@ -56,17 +74,27 @@ const ark: Thing = {
 }
 
 describe('canonForm', () => {
-  it('항목 → 폼 → 항목이 그대로 돌아온다(책이 붙은 인용도 그대로다)', () => {
-    expect(formToEntry('characters', entryToForm('characters', adam), adam)).toEqual(adam)
-    expect(formToEntry('places', entryToForm('places', eden), eden)).toEqual(eden)
-    expect(formToEntry('eras', entryToForm('eras', flood), flood)).toEqual(flood)
-    expect(formToEntry('things', entryToForm('things', ark), ark)).toEqual(ark)
+  it('항목 → 폼 → 항목이 그대로 돌아온다(폼의 책 이름 인용이 책 id로 돌아온다)', () => {
+    expect(formToEntry('characters', entryToForm('characters', adam), adam, 'genesis')).toEqual(adam)
+    expect(formToEntry('places', entryToForm('places', eden), eden, 'genesis')).toEqual(eden)
+    expect(formToEntry('eras', entryToForm('eras', flood), flood, 'genesis')).toEqual(flood)
+    expect(formToEntry('things', entryToForm('things', ark), ark, 'genesis')).toEqual(ark)
+    // 고른 책이 달라도 저장된 인용의 책은 그대로다
+    expect(formToEntry('characters', entryToForm('characters', adam), adam, 'exodus')).toEqual(adam)
+  })
+
+  it('폼에는 절 인용을 책 이름으로 보인다', () => {
+    const form = entryToForm('characters', adam)
+    expect(form['facts.firstAppearance']).toBe('창세기 1:26')
+    expect(form['facts.sources']).toBe('창세기 1:26-27\n창세기 2:7')
+    expect(form['facts.attire']).toEqual([{ from: '창세기 3:21', description: '가죽옷' }])
+    expect(form['facts.notes']).toBe('흙으로 지어진 사람')
+    expect(entryToForm('eras', flood)['range.to']).toBe('창세기 8:22')
   })
 
   it('폼 값을 항목 형식으로 바꾼다', () => {
     const form = entryToForm('characters', adam)
     expect(form['facts.years.born']).toBe('0')
-    expect(form['facts.sources']).toBe('genesis 1:26-27\ngenesis 2:7')
 
     form['facts.years.died'] = ''
     form['facts.sources'] = ' 1:26 \n\n2:7 '
@@ -74,66 +102,116 @@ describe('canonForm', () => {
       { type: '아내', to: 'eve' },
       { type: '', to: '' },
     ]
-    const out = formToEntry('characters', form, adam)
+    const out = formToEntry('characters', form, adam, 'genesis')
     expect(out.facts.years).toEqual({ born: 0, died: null })
     expect(out.facts.sources).toEqual(['genesis 1:26', 'genesis 2:7'])
     expect(out.facts.relations).toEqual([{ type: '아내', to: 'eve' }])
     expect(out.status).toBe('approved')
   })
 
-  it('책 없는 인용에는 genesis를 붙이고, 책이 붙은 인용은 그대로 둔다', () => {
+  it('세 모양의 인용을 받아 책 id 모양으로 저장하고, 책 없는 인용에는 고른 책을 붙인다', () => {
     const form = entryToForm('characters', adam)
-    form['facts.firstAppearance'] = '2:7'
+    form['facts.firstAppearance'] = '2:1'
     form['facts.attire'] = [
       { from: '3:21', description: '가죽옷' },
-      { from: 'genesis 3:7', description: '무화과나무 잎 치마' },
+      { from: '창세기 3:7', description: '무화과나무 잎 치마' },
     ]
-    form['facts.sources'] = '2:7-8\ngenesis 3:21\n1-samuel 3:4'
-    const out = formToEntry('characters', form, adam)
-    expect(out.facts.firstAppearance).toBe('genesis 2:7')
+    form['facts.sources'] = '2:1-3\ngenesis 3:21\n사무엘상 3:4\npsalms 119:105'
+    const out = formToEntry('characters', form, adam, 'exodus')
+    expect(out.facts.firstAppearance).toBe('exodus 2:1')
     expect(out.facts.attire).toEqual([
-      { from: 'genesis 3:21', description: '가죽옷' },
+      { from: 'exodus 3:21', description: '가죽옷' },
       { from: 'genesis 3:7', description: '무화과나무 잎 치마' },
     ])
-    expect(out.facts.sources).toEqual(['genesis 2:7-8', 'genesis 3:21', '1-samuel 3:4'])
+    expect(out.facts.sources).toEqual(['exodus 2:1-3', 'genesis 3:21', '1-samuel 3:4', 'psalms 119:105'])
 
     const era = entryToForm('eras', flood)
     era['range.from'] = '6:9'
-    expect(formToEntry('eras', era, flood).range).toEqual({ from: 'genesis 6:9', to: 'genesis 8:22' })
+    expect(formToEntry('eras', era, flood, 'genesis').range).toEqual({ from: 'genesis 6:9', to: 'genesis 8:22' })
+  })
 
-    // 책 없는 인용은 서버가 받는 표준 모양으로 쓴다
-    expect(withBook('2:7')).toBe('genesis 2:7')
-    expect(withBook('2:7-8')).toBe('genesis 2:7-8')
-    expect(withBook('02:07')).toBe('genesis 2:7')
-    expect(withBook('2:7-7')).toBe('genesis 2:7')
-    // 책이 붙은 인용과 인용이 아닌 글은 바꾸지 않는다(형식 검사는 checkForm과 서버가 한다)
-    expect(withBook('genesis 2:7')).toBe('genesis 2:7')
-    expect(withBook('3장')).toBe('3장')
-    expect(withBook('')).toBe('')
+  it('toStoredCitation은 저장 모양을 만들고, 바꿀 수 없으면 null', () => {
+    expect(toStoredCitation('genesis 2:7', null)).toBe('genesis 2:7')
+    expect(toStoredCitation('창세기 2:7-8', null)).toBe('genesis 2:7-8')
+    expect(toStoredCitation('  창세기   2:7 ', 'exodus')).toBe('genesis 2:7')
+    expect(toStoredCitation('2:7', 'genesis')).toBe('genesis 2:7')
+    expect(toStoredCitation('2:7', 'exodus')).toBe('exodus 2:7')
+    // 서버가 받는 표준 모양으로 쓴다
+    expect(toStoredCitation('02:07', 'genesis')).toBe('genesis 2:7')
+    expect(toStoredCitation('2:7-7', 'genesis')).toBe('genesis 2:7')
+    // 세 자리 장(시편 119편)과 숫자로 시작하는 책 id
+    expect(toStoredCitation('psalms 119:105', null)).toBe('psalms 119:105')
+    expect(toStoredCitation('시편 119:105', null)).toBe('psalms 119:105')
+    expect(toStoredCitation('119:105', 'psalms')).toBe('psalms 119:105')
+    expect(toStoredCitation('3-john 1:4', null)).toBe('3-john 1:4')
+    expect(toStoredCitation('요한삼서 1:4', null)).toBe('3-john 1:4')
+    // 붙일 책이 없거나, 그 책에 없는 장이거나, 인용이 아니면 null
+    expect(toStoredCitation('2:7', null)).toBeNull()
+    expect(toStoredCitation('51:1', 'genesis')).toBeNull()
+    expect(toStoredCitation('출애굽기 41:1', null)).toBeNull()
+    expect(toStoredCitation('genesys 2:7', 'genesis')).toBeNull()
+    expect(toStoredCitation('2:8-7', 'genesis')).toBeNull()
+    expect(toStoredCitation('3장', 'genesis')).toBeNull()
+    expect(toStoredCitation('', 'genesis')).toBeNull()
+  })
+
+  it('citationLabel은 저장된 인용을 책 이름으로 보이고, 읽을 수 없는 글은 그대로 둔다', () => {
+    expect(citationLabel('genesis 2:7')).toBe('창세기 2:7')
+    expect(citationLabel('1-samuel 3:4-5')).toBe('사무엘상 3:4-5')
+    expect(citationLabel('psalms 119:105')).toBe('시편 119:105')
+    expect(citationLabel('2:7')).toBe('2:7')
+    expect(citationLabel('3장')).toBe('3장')
+    expect(citationLabel('')).toBe('')
+  })
+
+  it('제안 값에 든 인용도 책 이름으로 보인다', () => {
+    expect(citationValueLabel('facts.sources', ['genesis 2:10', 'genesis 2:11'])).toEqual(['창세기 2:10', '창세기 2:11'])
+    expect(citationValueLabel('facts.firstAppearance', 'genesis 1:26')).toBe('창세기 1:26')
+    expect(citationValueLabel('range', { from: 'genesis 6:9', to: 'genesis 8:22' })).toEqual({
+      from: '창세기 6:9',
+      to: '창세기 8:22',
+    })
+    expect(citationValueLabel('range.to', 'genesis 8:22')).toBe('창세기 8:22')
+    expect(citationValueLabel('facts.attire', [{ from: 'genesis 3:21', description: '가죽옷' }])).toEqual([
+      { from: '창세기 3:21', description: '가죽옷' },
+    ])
+    // 인용이 없는 필드와 모양이 다른 값은 그대로
+    expect(citationValueLabel('design.landscape', 'genesis 2:7')).toBe('genesis 2:7')
+    expect(citationValueLabel('facts.sources', 'genesis 2:7')).toBe('genesis 2:7')
+    expect(citationValueLabel('facts.sources', undefined)).toBeUndefined()
   })
 
   it('새 항목 초기값은 초안이고 비어 있다', () => {
     for (const kind of ['characters', 'places', 'eras', 'things'] as const) {
       const e = emptyEntry(kind)
       expect(e.status).toBe('draft')
-      expect(formToEntry(kind, entryToForm(kind, e), e)).toEqual(e)
+      expect(formToEntry(kind, entryToForm(kind, e), e, 'genesis')).toEqual(e)
     }
     expect(emptyEntry('places').location).toEqual({ lat: null, lng: null, certainty: '불명' })
   })
 
   it('checkForm은 잘못된 값을 잡는다', () => {
-    expect(checkForm('characters', entryToForm('characters', adam))).toEqual([])
-    // 책이 붙은 인용과 책 없는 인용을 다 받는다
+    expect(checkForm('characters', entryToForm('characters', adam), 'genesis')).toEqual([])
+    // 세 모양의 인용과 세 자리 장을 다 받는다
     const mixed = entryToForm('characters', adam)
     mixed['facts.firstAppearance'] = '2:7'
-    mixed['facts.sources'] = 'genesis 1:26\n1-samuel 3:4\n2:7-8'
-    expect(checkForm('characters', mixed)).toEqual([])
+    mixed['facts.sources'] = 'genesis 1:26\n사무엘상 3:4\n2:7-8\npsalms 119:105\n시편 119:105'
+    expect(checkForm('characters', mixed, 'genesis')).toEqual([])
+    // 책 없는 인용은 고른 책이 있어야 한다
+    expect(checkForm('characters', mixed, null)).toEqual([
+      '첫 등장: 절 인용 형식이 아니에요 (2:7)',
+      '근거 절: 절 인용 형식이 아니에요 (2:7-8)',
+    ])
+    // 그 책에 없는 장
+    const outside = entryToForm('places', eden)
+    outside['facts.firstAppearance'] = '창세기 51:1'
+    expect(checkForm('places', outside, 'genesis')).toEqual(['첫 등장: 절 인용 형식이 아니에요 (창세기 51:1)'])
 
     const form = entryToForm('characters', emptyEntry('characters'))
     form.id = 'Adam'
     form['facts.years.born'] = '1.5'
     form['facts.attire'] = [{ from: '3장', description: '가죽옷' }]
-    const problems = checkForm('characters', form)
+    const problems = checkForm('characters', form, 'genesis')
     expect(problems.some((p) => p.startsWith('id'))).toBe(true)
     expect(problems.some((p) => p.startsWith('이름'))).toBe(true)
     expect(problems.some((p) => p.startsWith('첫 등장'))).toBe(true)
@@ -142,90 +220,266 @@ describe('canonForm', () => {
     expect(problems.some((p) => p.startsWith('근거 절'))).toBe(true)
   })
 
-  it('firstCitation은 종류마다 맞는 절을 고른다', () => {
+  it('firstCitation은 종류마다 맞는 절을 고르고, 목록에는 책 이름으로 보인다', () => {
     expect(firstCitation('characters', adam)).toBe('genesis 1:26')
     expect(firstCitation('eras', flood)).toBe('genesis 6:9')
     expect(firstCitation('things', ark)).toBe('genesis 6:14-16')
+    expect(citationLabel(firstCitation('characters', adam))).toBe('창세기 1:26')
   })
 })
 
+const jobForm = (overrides: Partial<JobForm> = {}): JobForm => ({ ...EMPTY_JOB_FORM, ...overrides })
+
 describe('jobForm', () => {
   it('단계마다 쓰는 옵션만 보낸다', () => {
-    const form = { chapter: '3', scenes: 'a, b c', force: true, allowDraft: true, dryRun: true, limit: '2' }
+    const form = jobForm({
+      book: 'genesis',
+      chapter: '3',
+      chapters: '1-10',
+      scenes: 'a, b c',
+      force: true,
+      allowDraft: true,
+      dryRun: true,
+      limit: '2',
+    })
     expect(buildJobOptions('build', form)).toEqual({ ok: true, options: {} })
-    expect(buildJobOptions('source', form)).toEqual({ ok: true, options: {} })
-    expect(buildJobOptions('canon', form)).toEqual({ ok: true, options: { chapter: 3, dryRun: true } })
-    expect(buildJobOptions('tts', form)).toEqual({ ok: true, options: { chapter: 3, force: true, limit: 2, dryRun: true } })
+    expect(buildJobOptions('source', form)).toEqual({ ok: true, options: { book: 'genesis', chapters: '1-10' } })
+    expect(buildJobOptions('canon', form)).toEqual({ ok: true, options: { book: 'genesis', chapter: 3, dryRun: true } })
+    expect(buildJobOptions('tts', form)).toEqual({
+      ok: true,
+      options: { book: 'genesis', chapter: 3, force: true, limit: 2, dryRun: true },
+    })
     expect(buildJobOptions('images', form)).toEqual({
       ok: true,
-      options: { chapter: 3, scenes: ['a', 'b', 'c'], force: true, allowDraft: true, dryRun: true, limit: 2 },
+      options: { book: 'genesis', chapter: 3, scenes: ['a', 'b', 'c'], force: true, allowDraft: true, dryRun: true, limit: 2 },
     })
   })
 
   it('scenario와 review-text의 옵션', () => {
-    const form = { chapter: '3', scenes: 'genesis-03-01 genesis-03-02', force: true, allowDraft: true, dryRun: true, limit: '2' }
-    expect(buildJobOptions('scenario', form)).toEqual({ ok: true, options: { chapter: 3, force: true, dryRun: true } })
+    const form = jobForm({
+      book: 'genesis',
+      chapter: '3',
+      scenes: 'genesis-03-01 genesis-03-02',
+      force: true,
+      allowDraft: true,
+      dryRun: true,
+      limit: '2',
+    })
+    expect(buildJobOptions('scenario', form)).toEqual({ ok: true, options: { book: 'genesis', chapter: 3, force: true, dryRun: true } })
     expect(buildJobOptions('review-text', form)).toEqual({
       ok: true,
-      options: { chapter: 3, scenes: ['genesis-03-01', 'genesis-03-02'], dryRun: true },
+      options: { book: 'genesis', chapter: 3, scenes: ['genesis-03-01', 'genesis-03-02'], dryRun: true },
     })
-    expect(buildJobOptions('review-text', { ...form, scenes: '' })).toEqual({ ok: true, options: { chapter: 3, dryRun: true } })
-    expect(buildJobOptions('scenario', { ...EMPTY_JOB_FORM, chapter: '' }).ok).toBe(false)
-    expect(buildJobOptions('review-text', { ...EMPTY_JOB_FORM, chapter: '' }).ok).toBe(false)
+    expect(buildJobOptions('review-text', { ...form, scenes: '' })).toEqual({
+      ok: true,
+      options: { book: 'genesis', chapter: 3, dryRun: true },
+    })
+    expect(buildJobOptions('scenario', { ...form, chapter: '' }).ok).toBe(false)
+    expect(buildJobOptions('review-text', { ...form, chapter: '' }).ok).toBe(false)
   })
 
   it('original·original-gloss·quiz의 옵션', () => {
-    const form = { chapter: '4', scenes: 'a', force: true, allowDraft: true, dryRun: true, limit: '20' }
-    expect(buildJobOptions('original', form)).toEqual({ ok: true, options: {} })
+    const form = jobForm({ book: 'genesis', chapter: '4', scenes: 'a', force: true, allowDraft: true, dryRun: true, limit: '20' })
+    expect(buildJobOptions('original', form)).toEqual({ ok: true, options: { book: 'genesis' } })
+    // original은 책을 고르지 않으면("모든 책") 본문이 있는 모든 책이다
+    expect(buildJobOptions('original', { ...form, book: '' })).toEqual({ ok: true, options: {} })
     expect(buildJobOptions('original-gloss', form)).toEqual({ ok: true, options: { limit: 20, force: true, dryRun: true } })
     expect(buildJobOptions('original-gloss', { ...form, chapter: '' }).ok).toBe(true)
-    expect(buildJobOptions('quiz', form)).toEqual({ ok: true, options: { chapter: 4, force: true, dryRun: true } })
+    expect(buildJobOptions('quiz', form)).toEqual({ ok: true, options: { book: 'genesis', chapter: 4, force: true, dryRun: true } })
     expect(buildJobOptions('quiz', { ...form, chapter: '' }).ok).toBe(false)
   })
 
-  it('장 번호가 필요한 단계에서 빠지면 오류', () => {
-    expect(buildJobOptions('canon', { ...EMPTY_JOB_FORM, chapter: '' }).ok).toBe(false)
-    expect(buildJobOptions('images', { ...EMPTY_JOB_FORM, limit: '0' }).ok).toBe(false)
+  it('장 단계와 source는 책을 골라야 한다', () => {
+    for (const stage of ['source', 'canon', 'scenario', 'review-text', 'images', 'tts', 'quiz'] as const) {
+      expect(buildJobOptions(stage, jobForm())).toEqual({ ok: false, error: '책을 고르세요' })
+    }
+    expect(buildJobOptions('canon', jobForm({ book: 'genesys' }))).toEqual({ ok: false, error: '모르는 책이에요 (genesys)' })
   })
 
-  it('옵션 설명', () => {
+  it('장 번호는 그 책의 장 수까지', () => {
+    expect(buildJobOptions('canon', jobForm({ book: 'ruth', chapter: '4' })).ok).toBe(true)
+    expect(buildJobOptions('canon', jobForm({ book: 'ruth', chapter: '5' }))).toEqual({ ok: false, error: '룻기는 4장까지 있어요' })
+    expect(buildJobOptions('quiz', jobForm({ book: 'psalms', chapter: '150' })).ok).toBe(true)
+  })
+
+  it('source의 장 범위: 비우면 책 전체, 모양과 그 책의 장 수를 본다', () => {
+    expect(buildJobOptions('source', jobForm({ book: 'exodus' }))).toEqual({ ok: true, options: { book: 'exodus' } })
+    expect(buildJobOptions('source', jobForm({ book: 'exodus', chapters: ' 3 ' }))).toEqual({
+      ok: true,
+      options: { book: 'exodus', chapters: '3' },
+    })
+    expect(buildJobOptions('source', jobForm({ book: 'exodus', chapters: '1~10' }))).toEqual({
+      ok: false,
+      error: '장 범위는 3-7이나 3처럼 써요',
+    })
+    expect(buildJobOptions('source', jobForm({ book: 'exodus', chapters: '35-41' }))).toEqual({
+      ok: false,
+      error: '장 범위가 맞지 않아요: 35-41 (출애굽기 1~40장)',
+    })
+    expect(buildJobOptions('source', jobForm({ book: 'exodus', chapters: '7-3' })).ok).toBe(false)
+    expect(buildJobOptions('source', jobForm({ book: 'exodus', chapters: '0' })).ok).toBe(false)
+  })
+
+  it('장 번호가 필요한 단계에서 빠지면 오류', () => {
+    expect(buildJobOptions('canon', jobForm({ book: 'genesis', chapter: '' })).ok).toBe(false)
+    expect(buildJobOptions('images', jobForm({ book: 'genesis', limit: '0' })).ok).toBe(false)
+  })
+
+  it('단계마다 고를 수 있는 책', () => {
+    const withSource = ['genesis', 'exodus'] as const
+    expect(bookChoices('canon', withSource)).toEqual([
+      { value: 'genesis', label: '창세기' },
+      { value: 'exodus', label: '출애굽기' },
+    ])
+    expect(bookChoices('original', withSource)).toEqual([
+      { value: '', label: '모든 책' },
+      { value: 'genesis', label: '창세기' },
+      { value: 'exodus', label: '출애굽기' },
+    ])
+    // source는 본문이 없는 책도 고른다
+    const source = bookChoices('source', withSource)
+    expect(source.length).toBe(66)
+    expect(source[0]).toEqual({ value: 'genesis', label: '창세기' })
+    expect(source.at(-1)).toEqual({ value: 'revelation', label: '요한계시록' })
+    expect(bookChoices('build', withSource)).toEqual([])
+    expect(bookChoices('original-gloss', withSource)).toEqual([])
+  })
+
+  it('책 칸의 값: 고른 책, 이 단계에 없으면 머리에서 고른 책, 그것도 없으면 첫 책', () => {
+    const original = bookChoices('original', ['genesis', 'exodus'])
+    expect(pickBookChoice(original, null, 'exodus')).toBe('exodus')
+    expect(pickBookChoice(original, '', 'exodus')).toBe('')
+    expect(pickBookChoice(original, 'genesis', 'exodus')).toBe('genesis')
+    // canon에는 "모든 책"이 없다
+    const canon = bookChoices('canon', ['genesis', 'exodus'])
+    expect(pickBookChoice(canon, '', 'exodus')).toBe('exodus')
+    expect(pickBookChoice(canon, 'leviticus', null)).toBe('genesis')
+    expect(pickBookChoice([], 'genesis', 'genesis')).toBe('')
+  })
+
+  it('옵션 설명과 책 칸', () => {
     expect(describeOptions({})).toBe('—')
-    expect(describeOptions({ chapter: 1, dryRun: true })).toBe('1장 · 미리 보기')
+    expect(describeOptions({ book: 'genesis', chapter: 1, dryRun: true })).toBe('1장 · 미리 보기')
+    expect(describeOptions({ book: 'genesis', chapters: '1-10' })).toBe('1~10장')
+    expect(jobBookLabel('canon', { book: 'exodus', chapter: 1 })).toBe('출애굽기')
+    expect(jobBookLabel('original', {})).toBe('모든 책')
+    expect(jobBookLabel('build', {})).toBe('모든 책')
+    expect(jobBookLabel('original-gloss', {})).toBe('—')
   })
 })
 
 describe('route', () => {
-  it('해시를 읽는다', () => {
-    expect(parseRoute('')).toEqual({ page: 'dashboard' })
-    expect(parseRoute('#/')).toEqual({ page: 'dashboard' })
-    expect(parseRoute('#/canon/places')).toEqual({ page: 'canon', kind: 'places', id: null })
-    expect(parseRoute('#/canon/eras/flood')).toEqual({ page: 'canon', kind: 'eras', id: 'flood' })
-    expect(parseRoute('#/canon/unknown')).toEqual({ page: 'canon', kind: 'characters', id: null })
-    expect(parseRoute('#/scenes/3/s3-1')).toEqual({ page: 'scenes', chapter: 3, sceneId: 's3-1' })
-    expect(parseRoute('#/scenes/x')).toEqual({ page: 'scenes', chapter: 1, sceneId: null })
-    expect(parseRoute('#/jobs')).toEqual({ page: 'jobs' })
-    expect(parseRoute('#/images')).toEqual({ page: 'images' })
-    expect(parseRoute('#/nothing')).toEqual({ page: 'dashboard' })
-    expect(parseRoute('#/lexicon')).toEqual({ page: 'lexicon', filter: 'draft' })
-    expect(parseRoute('#/lexicon/none')).toEqual({ page: 'lexicon', filter: 'none' })
-    expect(parseRoute('#/lexicon/odd')).toEqual({ page: 'lexicon', filter: 'draft' })
-    expect(parseRoute('#/quiz/4')).toEqual({ page: 'quiz', chapter: 4 })
-    expect(parseRoute('#/quiz')).toEqual({ page: 'quiz', chapter: 1 })
-    expect(parseRoute('#/quiz/0')).toEqual({ page: 'quiz', chapter: 1 })
+  // 본문이 있는 책
+  const books = ['genesis', 'exodus'] as const
+  const parse = (hash: string, book: BookId = 'genesis') => parseRoute(hash, books, book)
+  const redirect = (hash: string, book: BookId = 'genesis') => redirectHref(hash, parse(hash, book))
+
+  it('책을 가리는 화면의 주소를 읽는다', () => {
+    expect(parse('#/genesis/dashboard')).toEqual({ page: 'dashboard', book: 'genesis' })
+    expect(parse('#/exodus/dashboard')).toEqual({ page: 'dashboard', book: 'exodus' })
+    expect(parse('#/exodus/scenes/3/exodus-03-01')).toEqual({ page: 'scenes', book: 'exodus', chapter: 3, sceneId: 'exodus-03-01' })
+    expect(parse('#/exodus/scenes/x')).toEqual({ page: 'scenes', book: 'exodus', chapter: 1, sceneId: null })
+    expect(parse('#/exodus/quiz/4')).toEqual({ page: 'quiz', book: 'exodus', chapter: 4 })
+    expect(parse('#/exodus/quiz')).toEqual({ page: 'quiz', book: 'exodus', chapter: 1 })
+    expect(parse('#/exodus/quiz/0')).toEqual({ page: 'quiz', book: 'exodus', chapter: 1 })
+    expect(parse('#/exodus')).toEqual({ page: 'dashboard', book: 'exodus' })
+  })
+
+  it('옛 주소와 책이 없는 주소는 고른 책으로 읽는다', () => {
+    expect(parse('', 'exodus')).toEqual({ page: 'dashboard', book: 'exodus' })
+    expect(parse('#/', 'exodus')).toEqual({ page: 'dashboard', book: 'exodus' })
+    expect(parse('#/scenes/4', 'exodus')).toEqual({ page: 'scenes', book: 'exodus', chapter: 4, sceneId: null })
+    expect(parse('#/scenes/3/genesis-03-01')).toEqual({ page: 'scenes', book: 'genesis', chapter: 3, sceneId: 'genesis-03-01' })
+    expect(parse('#/quiz/4', 'exodus')).toEqual({ page: 'quiz', book: 'exodus', chapter: 4 })
+    expect(parse('#/nothing')).toEqual({ page: 'dashboard', book: 'genesis' })
+  })
+
+  it('모르는 책이나 본문이 없는 책은 고른 책으로 읽는다', () => {
+    expect(parse('#/nobook/scenes/4', 'exodus')).toEqual({ page: 'scenes', book: 'exodus', chapter: 4, sceneId: null })
+    expect(parse('#/nobook/quiz/2')).toEqual({ page: 'quiz', book: 'genesis', chapter: 2 })
+    expect(parse('#/leviticus/dashboard', 'exodus')).toEqual({ page: 'dashboard', book: 'exodus' })
+  })
+
+  it('모든 책이 함께 쓰는 화면의 주소를 읽는다', () => {
+    expect(parse('#/canon/places')).toEqual({ page: 'canon', kind: 'places', id: null })
+    expect(parse('#/canon/eras/flood')).toEqual({ page: 'canon', kind: 'eras', id: 'flood' })
+    expect(parse('#/canon/unknown')).toEqual({ page: 'canon', kind: 'characters', id: null })
+    expect(parse('#/jobs')).toEqual({ page: 'jobs' })
+    expect(parse('#/images')).toEqual({ page: 'images' })
+    expect(parse('#/queue')).toEqual({ page: 'queue' })
+    expect(parse('#/repo')).toEqual({ page: 'repo' })
+    expect(parse('#/lexicon')).toEqual({ page: 'lexicon', filter: 'draft' })
+    expect(parse('#/lexicon/none')).toEqual({ page: 'lexicon', filter: 'none' })
+    expect(parse('#/lexicon/odd')).toEqual({ page: 'lexicon', filter: 'draft' })
   })
 
   it('경로를 만들고 다시 읽으면 같다', () => {
     const routes = [
+      { page: 'dashboard', book: 'exodus' },
       { page: 'canon', kind: 'characters', id: 'adam' },
-      { page: 'scenes', chapter: 2, sceneId: null },
+      { page: 'scenes', book: 'genesis', chapter: 2, sceneId: null },
+      { page: 'scenes', book: 'exodus', chapter: 3, sceneId: 'exodus-03-02' },
       { page: 'queue' },
       { page: 'images' },
       { page: 'lexicon', filter: 'approved' },
       { page: 'lexicon', filter: 'all' },
-      { page: 'quiz', chapter: 7 },
+      { page: 'quiz', book: 'exodus', chapter: 7 },
     ] as const
-    for (const r of routes) expect(parseRoute(routeHref(r))).toEqual(r)
+    for (const r of routes) expect(parse(routeHref(r))).toEqual(r)
     expect(routeHref({ page: 'images' })).toBe('#/images')
+    expect(routeHref({ page: 'dashboard', book: 'genesis' })).toBe('#/genesis/dashboard')
+    expect(routeHref({ page: 'scenes', book: 'genesis', chapter: 4, sceneId: 'genesis-04-01' })).toBe('#/genesis/scenes/4/genesis-04-01')
+    expect(routeHref({ page: 'quiz', book: 'genesis', chapter: 4 })).toBe('#/genesis/quiz/4')
+  })
+
+  it('옛 주소와 고를 수 없는 책의 주소는 고른 책의 주소로 바꿔 쓴다', () => {
+    expect(redirect('')).toBe('#/genesis/dashboard')
+    expect(redirect('#/')).toBe('#/genesis/dashboard')
+    expect(redirect('#/', 'exodus')).toBe('#/exodus/dashboard')
+    expect(redirect('#/scenes/4')).toBe('#/genesis/scenes/4')
+    expect(redirect('#/scenes/4/genesis-04-02')).toBe('#/genesis/scenes/4/genesis-04-02')
+    expect(redirect('#/quiz/4', 'exodus')).toBe('#/exodus/quiz/4')
+    expect(redirect('#/nobook/scenes/4', 'exodus')).toBe('#/exodus/scenes/4')
+    expect(redirect('#/leviticus/quiz/2')).toBe('#/genesis/quiz/2')
+    expect(redirect('#/exodus')).toBe('#/exodus/dashboard')
+  })
+
+  it('맞는 주소와 모든 책이 함께 쓰는 화면의 주소는 그대로 둔다', () => {
+    expect(redirect('#/genesis/dashboard')).toBeNull()
+    expect(redirect('#/exodus/scenes/4/exodus-04-01')).toBeNull()
+    expect(redirect('#/exodus/quiz/4')).toBeNull()
+    expect(redirect('#/canon/places')).toBeNull()
+    expect(redirect('#/canon/unknown')).toBeNull()
+    expect(redirect('#/lexicon')).toBeNull()
+    expect(redirect('#/jobs')).toBeNull()
+  })
+
+  it('머리에서 책을 바꾸면 같은 종류의 화면으로 가고, 장면·퀴즈는 새 책의 1장이다', () => {
+    expect(switchBook({ page: 'dashboard', book: 'genesis' }, 'exodus')).toEqual({ page: 'dashboard', book: 'exodus' })
+    expect(switchBook({ page: 'scenes', book: 'genesis', chapter: 4, sceneId: 'genesis-04-02' }, 'exodus')).toEqual({
+      page: 'scenes',
+      book: 'exodus',
+      chapter: 1,
+      sceneId: null,
+    })
+    expect(switchBook({ page: 'quiz', book: 'genesis', chapter: 4 }, 'exodus')).toEqual({ page: 'quiz', book: 'exodus', chapter: 1 })
+    const canon = { page: 'canon', kind: 'places', id: 'eden' } as const
+    expect(switchBook(canon, 'exodus')).toBe(canon)
+  })
+})
+
+describe('bookChoice', () => {
+  it('기억한 책에 본문이 있으면 그 책, 아니면 첫 책, 본문이 있는 책이 없으면 null', () => {
+    expect(chooseBook(['genesis', 'exodus'], 'exodus')).toBe('exodus')
+    expect(chooseBook(['genesis', 'exodus'], 'leviticus')).toBe('genesis')
+    expect(chooseBook(['genesis', 'exodus'], null)).toBe('genesis')
+    expect(chooseBook([], 'genesis')).toBeNull()
+  })
+
+  it('저장소를 쓸 수 없어도 오류 없이 지나간다', () => {
+    // 시험은 브라우저 밖에서 돌아 window가 없다.
+    expect(readStoredBook()).toBeNull()
+    expect(() => storeBook('genesis')).not.toThrow()
   })
 })
 

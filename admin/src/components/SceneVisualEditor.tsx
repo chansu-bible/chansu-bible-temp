@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { api, imageUrl } from '../api.ts'
 import { splitIds } from '../ids.ts'
 import { routeHref } from '../route.ts'
-import type { ImageVersion, PromptResponse, Scene } from '../types.ts'
+import type { BookId, ImageVersion, PromptResponse, Scene } from '../types.ts'
 import { errorMessage } from '../useLoad.ts'
 import { TextAreaField, TextField } from './Fields.tsx'
 
@@ -18,12 +18,14 @@ function toForm(scene: Scene): VisualForm {
 
 // 장면 카드의 "그림 지시" 구역. 묘사·구도·인물을 고쳐 저장하고, 최종 프롬프트를 보고, 이 장면만 다시 그린다.
 export default function SceneVisualEditor({
+  book,
   scene,
   chapter,
   images,
   imageVersions,
   onSaved,
 }: {
+  book: BookId
   scene: Scene
   chapter: number
   images: Record<string, string>
@@ -60,7 +62,7 @@ export default function SceneVisualEditor({
         characters: splitIds(form.characters),
         ...(shot.trim() ? { shot } : {}),
       }
-      const saved = await api.sceneSave(chapter, { ...scene, visual })
+      const saved = await api.sceneSave(book, chapter, { ...scene, visual })
       setSavedNote(true)
       onSaved(saved)
     } catch (err) {
@@ -129,8 +131,8 @@ export default function SceneVisualEditor({
       )}
 
       <Thumbnails images={images} imageVersions={imageVersions} />
-      <PromptView chapter={chapter} sceneId={scene.id} dirty={dirty} />
-      <RedrawButton chapter={chapter} sceneId={scene.id} />
+      <PromptView book={book} chapter={chapter} sceneId={scene.id} dirty={dirty} />
+      <RedrawButton book={book} chapter={chapter} sceneId={scene.id} />
     </section>
   )
 }
@@ -160,7 +162,7 @@ function Thumbnails({ images, imageVersions }: { images: Record<string, string>;
 }
 
 // "최종 프롬프트 보기": 서버가 조립한 글을 그대로 보여 준다.
-function PromptView({ chapter, sceneId, dirty }: { chapter: number; sceneId: string; dirty: boolean }) {
+function PromptView({ book, chapter, sceneId, dirty }: { book: BookId; chapter: number; sceneId: string; dirty: boolean }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<PromptResponse | null>(null)
@@ -175,7 +177,7 @@ function PromptView({ chapter, sceneId, dirty }: { chapter: number; sceneId: str
     setLoading(true)
     setError(null)
     try {
-      setResult(await api.scenePrompt(chapter, sceneId))
+      setResult(await api.scenePrompt(book, chapter, sceneId))
     } catch (err) {
       setResult(null)
       setError(errorMessage(err))
@@ -216,8 +218,8 @@ function PromptView({ chapter, sceneId, dirty }: { chapter: number; sceneId: str
   )
 }
 
-// "이 장면만 다시 그리기": images 작업을 이 장면 하나로 시작한다.
-function RedrawButton({ chapter, sceneId }: { chapter: number; sceneId: string }) {
+// "이 장면만 다시 그리기": images 작업을 이 책·이 장면 하나로 시작한다.
+function RedrawButton({ book, chapter, sceneId }: { book: BookId; chapter: number; sceneId: string }) {
   const [busy, setBusy] = useState(false)
   const [started, setStarted] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -227,7 +229,7 @@ function RedrawButton({ chapter, sceneId }: { chapter: number; sceneId: string }
     setError(null)
     setStarted(false)
     try {
-      await api.startJob('images', { chapter, scenes: [sceneId], allowDraft: true })
+      await api.startJob('images', { book, chapter, scenes: [sceneId], allowDraft: true })
       setStarted(true)
     } catch (err) {
       // 작업이 이미 돌고 있으면(409) 서버 문장을 그대로 보여 준다.

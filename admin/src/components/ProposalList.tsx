@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { api } from '../api.ts'
-import { getPath } from '../canonForm.ts'
+import { citationLabel, citationValueLabel, getPath } from '../canonForm.ts'
 import { formatTime } from '../labels.ts'
 import type { Proposal } from '../types.ts'
 import { errorMessage } from '../useLoad.ts'
 import JsonView from './JsonView.tsx'
 
 // 한 항목에 걸린 열린 제안. 지금 값과 제안 값을 나란히 보여 주고 적용/버리기.
+// 절 인용은 책 이름으로 보인다("창세기 2:7").
 export default function ProposalList({
   proposals,
   entry,
@@ -54,15 +55,15 @@ export default function ProposalList({
           <div className="proposal-compare">
             <div>
               <h4>지금 값</h4>
-              <JsonView value={getPath(entry, p.field)} label="지금 값" />
+              <JsonView value={citationValueLabel(p.field, getPath(entry, p.field))} label="지금 값" />
             </div>
             <div>
               <h4>제안 값</h4>
-              <JsonView value={p.value} label="제안 값" />
+              <JsonView value={citationValueLabel(p.field, p.value)} label="제안 값" />
             </div>
           </div>
           {p.reason && <p>{p.reason}</p>}
-          {p.sources.length > 0 && <p className="muted">근거: {p.sources.join(', ')}</p>}
+          {p.sources.length > 0 && <p className="muted">근거: {p.sources.map(citationLabel).join(', ')}</p>}
           <div className="button-row">
             <button
               type="button"

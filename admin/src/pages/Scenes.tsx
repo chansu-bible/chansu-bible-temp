@@ -4,18 +4,19 @@ import { SelectField } from '../components/Fields.tsx'
 import { Empty, ErrorBox, Loading } from '../components/Notice.tsx'
 import SceneVisualEditor from '../components/SceneVisualEditor.tsx'
 import StatusBadge from '../components/StatusBadge.tsx'
+import { bookName } from '../labels.ts'
 import { navigate } from '../route.ts'
-import type { ImageVersion, Scene, Verdict, Verse } from '../types.ts'
+import type { BookId, ImageVersion, Scene, Verdict, Verse } from '../types.ts'
 import { useLoad } from '../useLoad.ts'
 
-const FALLBACK_CHAPTERS = Array.from({ length: 10 }, (_, i) => i + 1)
-
-// 장면 화면. 본문·해설은 읽기 전용이고, 그림 지시는 고쳐 저장할 수 있다.
-export default function Scenes({ chapter, sceneId }: { chapter: number; sceneId: string | null }) {
-  const status = useLoad(api.status, 'status')
-  const data = useLoad(() => api.scenes(chapter), String(chapter))
-  const chapters = status.data?.chapters.map((c) => c.chapter) ?? FALLBACK_CHAPTERS
+// 고른 책의 장면 화면. 본문·해설은 읽기 전용이고, 그림 지시는 고쳐 저장할 수 있다.
+// 장 목록은 그 책의 상태(본문에 있는 장)에서 온다.
+export default function Scenes({ book, chapter, sceneId }: { book: BookId; chapter: number; sceneId: string | null }) {
+  const status = useLoad(() => api.status(book), `status/${book}`)
+  const data = useLoad(() => api.scenes(book, chapter), `${book}/${chapter}`)
+  const chapters = status.data?.chapters.map((c) => c.chapter) ?? [chapter]
   const options = chapters.includes(chapter) ? chapters : [...chapters, chapter].sort((a, b) => a - b)
+  const name = bookName(book)
 
   // 저장한 장면을 목록에 바로 반영한다.
   function replaceScene(saved: Scene) {
@@ -27,12 +28,14 @@ export default function Scenes({ chapter, sceneId }: { chapter: number; sceneId:
   return (
     <div className="page">
       <header className="page-head">
-        <h1>장면</h1>
+        <h1>
+          {name} {chapter}장 장면
+        </h1>
         <div className="page-actions">
           <SelectField
             label="장"
             value={String(chapter)}
-            onChange={(v) => navigate({ page: 'scenes', chapter: Number(v), sceneId: null })}
+            onChange={(v) => navigate({ page: 'scenes', book, chapter: Number(v), sceneId: null })}
             options={options.map((n) => ({ value: String(n), label: `${n}장` }))}
           />
           <button type="button" className="btn" onClick={data.reload} disabled={data.loading}>
@@ -47,14 +50,19 @@ export default function Scenes({ chapter, sceneId }: { chapter: number; sceneId:
       {!data.data && !data.error && <Loading />}
       {data.data &&
         (data.data.scenes === null ? (
-          <Empty>{chapter}장에는 아직 장면 파일이 없어요. ({data.data.verses.length}절)</Empty>
+          <Empty>
+            {name} {chapter}장에는 아직 장면 파일이 없어요. ({data.data.verses.length}절)
+          </Empty>
         ) : data.data.scenes.length === 0 ? (
-          <Empty>{chapter}장 장면 파일에 장면이 없어요.</Empty>
+          <Empty>
+            {name} {chapter}장 장면 파일에 장면이 없어요.
+          </Empty>
         ) : (
           <div className="scene-list">
             {data.data.scenes.map((s) => (
               <SceneCard
                 key={s.id}
+                book={book}
                 scene={s}
                 verses={data.data?.verses ?? []}
                 focused={s.id === sceneId}
@@ -70,6 +78,7 @@ export default function Scenes({ chapter, sceneId }: { chapter: number; sceneId:
 }
 
 function SceneCard({
+  book,
   scene,
   verses,
   focused,
@@ -77,6 +86,7 @@ function SceneCard({
   imageVersions,
   onSaved,
 }: {
+  book: BookId
   scene: Scene
   verses: Verse[]
   focused: boolean
@@ -186,6 +196,7 @@ function SceneCard({
           </section>
 
           <SceneVisualEditor
+            book={book}
             scene={scene}
             chapter={scene.chapter}
             images={images}
