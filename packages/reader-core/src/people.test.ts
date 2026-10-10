@@ -17,4 +17,17 @@ describe('만난 인물', () => {
     const people = [character('noah', '5:29'), character('cain', '4:1'), character('adam', '2:7'), character('abel', '4:2')]
     expect(metCharacters(people, 4).map((item) => item.id)).toEqual(['adam', 'cain', 'abel'])
   })
+
+  it('앞 책에서 나온 인물(0장으로 읽힘)은 1장부터 이미 만난 인물이고, 받은 순서대로 맨 앞에 둔다', () => {
+    // 출애굽기 묶음: 아담과 하와는 창세기에서 나왔다(책 이름이 붙은 인용). 모세는 2:10, 아론은 4:14에 처음 나온다.
+    const exodus = [
+      character('moses', '2:10'),
+      character('eve', '창세기 2:22'),
+      character('aaron', '4:14'),
+      character('adam', '창세기 2:7'),
+    ]
+    // 책 이름이 붙은 인용은 장·절을 읽지 않으므로 앞 책 인물끼리는 받은 순서(설정집 파일 순서)다.
+    expect(metCharacters(exodus, 1).map((item) => item.id)).toEqual(['eve', 'adam'])
+    expect(metCharacters(exodus, 4).map((item) => item.id)).toEqual(['eve', 'adam', 'moses', 'aaron'])
+  })
 })

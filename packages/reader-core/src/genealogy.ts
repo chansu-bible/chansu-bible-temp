@@ -1,4 +1,4 @@
-import { parseRef } from './refs.ts'
+import { chapterOfReference, verseOfReference } from './refs.ts'
 import type { Character } from './types.ts'
 
 export type FamilyNode = { id: string; spouses: string[]; children: FamilyNode[] }
@@ -6,9 +6,10 @@ export type FamilyNode = { id: string; spouses: string[]; children: FamilyNode[]
 const CHILD_TYPES = new Set(['아들', '딸'])
 const SPOUSE_TYPES = new Set(['아내', '남편'])
 
+// 처음 나온 자리(장 × 1000 + 절). 뿌리·아내·자식을 이 순서로 둔다.
+// 0장으로 읽히는 인물(뒤 책 묶음의 앞 책 인용 "창세기 2:7")은 이 책을 읽기 전에 이미 만난 인물이라 0으로 맨 앞이다(그들끼리는 받은 순서).
 function appearance(character: Character): number {
-  const ref = parseRef(character.firstAppearance)
-  return ref ? ref.chapter * 1000 + ref.verse : 999_000
+  return chapterOfReference(character.firstAppearance) * 1000 + verseOfReference(character.firstAppearance)
 }
 
 // 부모·자식 관계로 가계 나무를 만든다. visible에 든 인물만 넣는다(아직 읽지 않은 장의 인물은 가린다).

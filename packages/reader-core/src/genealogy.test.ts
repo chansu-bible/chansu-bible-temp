@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildFamilyTree, type FamilyNode } from './genealogy.ts'
+import { metCharacters } from './people.ts'
 import type { Character } from './types.ts'
 
 function person(id: string, firstAppearance: string, relations: [string, string][] = [], gender: Character['gender'] = '남'): Character {
@@ -58,5 +59,24 @@ describe('buildFamilyTree', () => {
     const roots = buildFamilyTree(people, visible)
     expect(roots.map((root) => root.id)).toEqual(['adam', 'enosh'])
     expect(roots[0]!.children.map((child) => child.id)).toEqual(['cain'])
+  })
+
+  it('앞 책에서 나온 인물(0장으로 읽힘)은 1장부터 가계도에 나오고 맨 앞에 둔다', () => {
+    // 출애굽기 묶음: 아담 집안은 창세기에서 나왔고(책 이름이 붙은 인용), 모세 집안은 출애굽기에서 나온다.
+    const exodus = [
+      person('amram', '6:18', [['아내', 'jochebed'], ['아들', 'moses']]),
+      person('jochebed', '6:20', [['남편', 'amram']], '여'),
+      person('moses', '2:10', [['아버지', 'amram']]),
+      person('adam', '창세기 2:7', [['아내', 'eve']]),
+      person('eve', '창세기 2:22', [['남편', 'adam']], '여'),
+      person('seth', '창세기 4:25', [['아버지', 'adam']]),
+    ]
+    const metAt = (chapter: number) => new Set(metCharacters(exodus, chapter).map((item) => item.id))
+    expect(buildFamilyTree(exodus, metAt(1)).map(shape)).toEqual([
+      { id: 'adam', spouses: ['eve'], children: [{ id: 'seth', spouses: [], children: [] }] },
+    ])
+    // 모세 집안이 보여도 아담 집안이 먼저다.
+    expect(buildFamilyTree(exodus, metAt(6)).map((root) => root.id)).toEqual(['adam', 'amram'])
+    expect(buildFamilyTree(exodus, metAt(6))[1]!.children.map((child) => child.id)).toEqual(['moses'])
   })
 })
