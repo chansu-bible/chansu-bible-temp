@@ -1,6 +1,6 @@
 import type { BookId } from 'reader-core'
 import type { BundleSource, Style } from '../schema.ts'
-import { wikisourcePageTitle } from '../source/fetchSource.ts'
+import { wikisourcePageTitle } from '../source/wikisource.ts'
 
 // 출처 글에 적힌 이용 조건. 이름이 null이면 글에 적힌 대로(대문자로) 쓴다.
 const LICENSES: [RegExp, string | null][] = [

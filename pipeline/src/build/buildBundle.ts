@@ -1,18 +1,4 @@
-import {
-  bookOrder,
-  compareRefs,
-  fallbackSceneIdOf,
-  formatRef,
-  getBook,
-  josa,
-  localRef,
-  parseRef,
-  sceneIdOf,
-  verseAudioName,
-  type BookId,
-  type VerseRef,
-} from 'reader-core'
-import { mapItemCitations, type CitationMapper } from '../canon/citations.ts'
+import { fallbackSceneIdOf, getBook, josa, sceneIdOf, verseAudioName, type BookId } from 'reader-core'
 import {
   BUNDLE_SCHEMA_VERSION,
   type Bundle,
@@ -40,11 +26,12 @@ import {
 } from '../schema.ts'
 import { posLabel } from '../original/morph.ts'
 import { findCoverageProblems } from '../scenes/coverage.ts'
+import { canonForBook } from './canonForBook.ts'
 
 // files: 버전 id → 그 버전 폴더에 있는 그림 파일 이름들
 export type ImageCatalog = { versions: ImageVersion[]; files: Record<string, string[]> }
 
-// 묶음에 넣을 설정집(모든 책). 승인 여부와 그 책까지 나왔는지는 buildBundle이 거른다.
+// 묶음에 넣을 설정집(모든 책). 승인 여부는 buildBundle이, 그 책까지 나왔는지와 인용 모양은 canonForBook이 맡는다.
 export type BundleCanon = { characters: Character[]; places: Place[]; eras: Era[]; things?: Thing[] }
 
 // 음성 파일 이름 → 재생 길이(ms, 모르면 null). 이름만 아는 Set도 받는다.
@@ -75,18 +62,21 @@ export function buildBundle(
   const bookName = getBook(book).name
   if (source.book !== bookName) throw new Error(`본문의 책 이름(${source.book})이 ${josa(bookName, '이가')} 아닙니다`)
   const durations = audioDurations(audio)
-  // 설정집 항목은 사람이 승인했고, 이 책을 다 읽은 독자가 아는 것(처음 나오는 곳이 이 책이거나 앞 책)만 넣는다.
-  // 처음 나오는 곳은 인물·장소는 처음 나오는 절, 시대는 시작 절, 물건은 근거 절 가운데 가장 앞선 절이다.
-  // 검수 전 초안은 지도와 인물 카드에 올리지 않는다.
-  const shown = (status: string, first: VerseRef | null) => status === 'approved' && knownBy(first, book)
-  const places = canon.places.filter((place) => shown(place.status, parseRef(place.facts.firstAppearance)))
+  // 사람이 승인한 항목만 앱에 나간다. 검수 전 초안은 지도와 인물 카드에 올리지 않는다.
+  // 그 가운데 이 책을 다 읽은 독자가 아는 항목만, 인용을 묶음 모양으로 바꿔 넣는다(canonForBook).
+  const approved = <T extends { status: string }>(items: T[]) => items.filter((item) => item.status === 'approved')
+  const { places, characters, eras, things } = canonForBook(
+    {
+      places: approved(canon.places),
+      characters: approved(canon.characters),
+      eras: approved(canon.eras),
+      things: approved(canon.things ?? []),
+    },
+    book,
+    lastVerseOf(source),
+  )
   const placeIds = new Set(places.map((place) => place.id))
-  const characters = canon.characters.filter((character) => shown(character.status, parseRef(character.facts.firstAppearance)))
   const characterIds = new Set(characters.map((character) => character.id))
-  const eras = canon.eras.filter((era) => shown(era.status, parseRef(era.range.from)))
-  const things = (canon.things ?? []).filter((thing) => shown(thing.status, earliestRef(thing.facts.sources, book)))
-  // 넣는 항목의 인용은 bundleCitation의 규칙으로 바꾼다.
-  const cite = bundleCitation(book, lastVerseOf(source))
 
   const seenChapters = new Set<number>()
   for (const file of sceneFiles) {
@@ -170,9 +160,9 @@ export function buildBundle(
     book: source.book,
     translation: source.translation,
     places: places.map(toBundlePlace),
-    characters: characters.map((character) => toBundleCharacter(mapItemCitations('characters', character, cite), characterIds)),
-    eras: eras.map((era) => toBundleEra(mapItemCitations('eras', era, cite))),
-    things: things.map((thing) => toBundleThing(mapItemCitations('things', thing, cite))),
+    characters: characters.map(toBundleCharacter),
+    eras: eras.map(toBundleEra),
+    things: things.map(toBundleThing),
     imageVersions: catalog.versions,
     // 가장 나중에 추가한 버전을 기본으로 보여 준다.
     defaultImageVersion: catalog.versions.at(-1)?.id ?? null,
@@ -194,22 +184,6 @@ function toBundlePlace(place: Place): BundlePlace {
   }
 }
 
-// 처음 나오는 곳이 이 책이거나 앞 책이면 이 책을 다 읽은 독자가 아는 항목이다. 책 없는 인용은 이 책의 절로 본다.
-// 읽을 수 없는 인용(null)은 어느 책인지 몰라 넣는다. 인용의 모양은 설정집 검증이 따로 본다.
-function knownBy(first: VerseRef | null, book: BookId): boolean {
-  return first === null || bookOrder(first.book ?? book) <= bookOrder(book)
-}
-
-// 근거 절 가운데 가장 앞선 절(물건이 처음 나오는 곳). 읽을 수 있는 절이 없으면 null이다.
-function earliestRef(citations: string[], book: BookId): VerseRef | null {
-  let earliest: VerseRef | null = null
-  for (const citation of citations) {
-    const ref = parseRef(citation)
-    if (ref && (earliest === null || compareRefs(ref, earliest, book) < 0)) earliest = ref
-  }
-  return earliest
-}
-
 // 본문의 마지막 절("50:26"). 본문에 장이 없으면 null이다.
 function lastVerseOf(source: Source): string | null {
   const chapter = source.chapters.at(-1)
@@ -217,26 +191,8 @@ function lastVerseOf(source: Source): string | null {
   return chapter && verse ? `${chapter.chapter}:${verse.verse}` : null
 }
 
-// 묶음에 넣는 항목의 인용을 쓰는 규칙. 묶음의 인용은 앱이 읽는 데이터라 화면용 모양(displayRef)이 아니다.
-// - 같은 책: 책 없이("2:7")
-// - 앞 책: 책 이름을 붙여("창세기 2:7"). 앱은 책 이름이 붙은 인용을 0장, 곧 이 책을 읽기 전에 이미 만난 것으로 읽는다.
-// - 뒤 책: 목록(sources, attire)에서 빼고, 시대의 끝(range.to)이면 이 책 본문의 마지막 절로 둔다.
-// - 읽을 수 없는 글: 그대로 둔다.
-function bundleCitation(book: BookId, lastVerse: string | null): CitationMapper {
-  return (citation, field) => {
-    const local = localRef(citation, book)
-    if (local !== null) return local
-    const ref = parseRef(citation)
-    if (ref?.book == null) return citation
-    if (bookOrder(ref.book) < bookOrder(book)) return formatRef(ref, 'name')
-    if (field !== 'range.to') return null
-    if (lastVerse === null) throw new Error(`본문에 절이 없어 시대의 끝(${citation})을 이 책의 마지막 절로 둘 수 없습니다`)
-    return lastVerse
-  }
-}
-
-// 인물 카드와 연표에 쓸 사실만 옮긴다. 묶음에 없는 인물을 가리키는 관계는 뺀다. 인용은 bundleCitation으로 바꿔 받는다.
-function toBundleCharacter(character: Character, characterIds: ReadonlySet<string>): BundleCharacter {
+// 인물 카드와 연표에 쓸 사실만 옮긴다. 관계와 인용은 canonForBook이 이 책 묶음에 맞게 거르고 바꿔 둔 것이다.
+function toBundleCharacter(character: Character): BundleCharacter {
   const { facts } = character
   return {
     id: character.id,
@@ -245,7 +201,7 @@ function toBundleCharacter(character: Character, characterIds: ReadonlySet<strin
     gender: facts.gender,
     firstAppearance: facts.firstAppearance,
     years: facts.years,
-    relations: facts.relations.filter((relation) => characterIds.has(relation.to)),
+    relations: facts.relations,
     attire: facts.attire,
     notes: facts.notes,
     sources: facts.sources,

@@ -5,20 +5,11 @@ import { fetchErrorReason } from '../fetchError.ts'
 import { sourceDir, sourceFilePath } from '../paths.ts'
 import { SourceSchema, type Source } from '../schema.ts'
 import { findSourceProblems, parseWikisource, type ChapterRange } from './parseWikisource.ts'
+import { wikisourcePageTitle } from './wikisource.ts'
 
 export type { ChapterRange }
-
-// 위키문헌에는 요한일서·요한이서·요한삼서가 요한1서·요한2서·요한3서라는 쪽 이름으로 있다. 나머지 63권은 책 이름 그대로다.
-// 본문 파일의 책 이름은 쪽 이름과 상관없이 개역한글 이름(요한일서)이다.
-const pageNames: Partial<Record<BookId, string>> = {
-  '1-john': '요한1서',
-  '2-john': '요한2서',
-  '3-john': '요한3서',
-}
-
-export function wikisourcePageTitle(book: BookId): string {
-  return `개역한글판/${pageNames[book] ?? getBook(book).name}`
-}
+// 쪽 이름 규칙은 받기와 상관없는 작은 모듈(wikisource.ts)에 있다. 이 모듈에서 가져오던 곳을 위해 다시 내보낸다.
+export { wikisourcePageTitle }
 
 // 장 범위 글을 읽는다. 3-7은 3~7장, 3은 3장 하나다. 책에 그 장이 있는지는 fetchSource가 본다.
 export function parseChapterRange(text: string): ChapterRange {

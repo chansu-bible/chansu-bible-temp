@@ -1,6 +1,6 @@
 import { parseRef, qualifyRef, type BookId } from 'reader-core'
-import type { Canon, CanonKind, Proposal } from '../schema.ts'
-import { mapItemCitations, type CitationMapper } from './citations.ts'
+import type { Canon, Proposal } from '../schema.ts'
+import { mapItemCitations } from './citations.ts'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -11,16 +11,25 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 export function migrateCanonRefs(canon: Canon, book: BookId): { canon: Canon; changed: number } {
   let changed = 0
 
-  // where는 오류에 적을 자리다(예: "characters/adam facts.sources").
-  const qualify = (where: string, text: unknown): string => {
+  // 책을 붙인 인용. 읽을 수 없으면 오류다.
+  // 항목의 인용은 mapItemCitations가 오류 앞에 자리(예: "characters/adam facts.sources")를 붙인다.
+  const qualify = (text: unknown): string => {
     if (typeof text === 'string' && parseRef(text)?.book != null) return text
     const qualified = typeof text === 'string' ? qualifyRef(text, book) : null
     if (qualified === null) {
       // 빈 글이나 문자열이 아닌 값은 보이게 JSON으로 적는다
-      throw new Error(`${where}: ${typeof text === 'string' && text !== '' ? text : JSON.stringify(text)}을 읽을 수 없습니다`)
+      throw new Error(`${typeof text === 'string' && text !== '' ? text : JSON.stringify(text)}을 읽을 수 없습니다`)
     }
     if (qualified !== text) changed++
     return qualified
+  }
+  // 제안의 인용. where는 오류 앞에 붙일 자리다(예: "proposals/p value.to").
+  const qualifyAt = (where: string, text: unknown): string => {
+    try {
+      return qualify(text)
+    } catch (error) {
+      throw new Error(`${where}: ${error instanceof Error ? error.message : String(error)}`, { cause: error })
+    }
   }
 
   // 제안의 value는 형식이 정해져 있지 않아 모양부터 본다. 인용이 들어 있는 필드는 넷뿐이다.
@@ -36,35 +45,33 @@ export function migrateCanonRefs(canon: Canon, book: BookId): { canon: Canon; ch
     }
     switch (field) {
       case 'facts.firstAppearance':
-        return qualify(where, value)
+        return qualifyAt(where, value)
       case 'facts.sources':
-        return list().map((text) => qualify(where, text))
+        return list().map((text) => qualifyAt(where, text))
       case 'facts.attire':
         return list().map((item) => {
           const attire = record(item)
-          return { ...attire, from: qualify(`${where}.from`, attire.from) }
+          return { ...attire, from: qualifyAt(`${where}.from`, attire.from) }
         })
       case 'range': {
         const range = record(value)
-        return { ...range, from: qualify(`${where}.from`, range.from), to: qualify(`${where}.to`, range.to) }
+        return { ...range, from: qualifyAt(`${where}.from`, range.from), to: qualifyAt(`${where}.to`, range.to) }
       }
       default:
         return value
     }
   }
 
-  // 항목의 인용(citations.ts의 필드)마다 책을 붙인다. 오류에는 "characters/adam facts.sources"처럼 항목과 필드를 적는다.
-  const qualifyItem = (kind: CanonKind, id: string): CitationMapper => (citation, field) => qualify(`${kind}/${id} ${field}`, citation)
-
+  // 항목의 인용(citations.ts의 필드)마다 책을 붙인다.
   const migrated: Canon = {
-    characters: canon.characters.map((item) => mapItemCitations('characters', item, qualifyItem('characters', item.id))),
-    places: canon.places.map((item) => mapItemCitations('places', item, qualifyItem('places', item.id))),
-    eras: canon.eras.map((item) => mapItemCitations('eras', item, qualifyItem('eras', item.id))),
-    things: canon.things.map((item) => mapItemCitations('things', item, qualifyItem('things', item.id))),
+    characters: canon.characters.map((item) => mapItemCitations('characters', item, qualify)),
+    places: canon.places.map((item) => mapItemCitations('places', item, qualify)),
+    eras: canon.eras.map((item) => mapItemCitations('eras', item, qualify)),
+    things: canon.things.map((item) => mapItemCitations('things', item, qualify)),
     proposals: canon.proposals.map((proposal) => ({
       ...proposal,
       value: proposalValue(proposal),
-      sources: proposal.sources.map((source) => qualify(`proposals/${proposal.id} sources`, source)),
+      sources: proposal.sources.map((source) => qualifyAt(`proposals/${proposal.id} sources`, source)),
     })),
   }
   return { canon: migrated, changed }

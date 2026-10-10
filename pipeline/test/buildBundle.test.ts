@@ -1,6 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import type { BookId } from 'reader-core'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 import { buildBundle, sceneAudioParts } from '../src/build/buildBundle.ts'
-import type { Character, Era, Place, Scene, Source, Thing } from '../src/schema.ts'
+import {
+  BundleSchema,
+  type Bundle,
+  type Character,
+  type Era,
+  type Place,
+  type Scene,
+  type Source,
+  type Thing,
+} from '../src/schema.ts'
 
 const source: Source = {
   book: '창세기',
@@ -471,8 +481,19 @@ describe('buildBundle', () => {
 
 describe('책마다 묶음', () => {
   const facts = character({ id: 'x', name: 'x' }).facts
-  // 두 책에 걸친 설정집: 아담은 창세기에 처음 나오고 출애굽기에도 근거가 있다. 모세는 출애굽기에 처음 나온다.
-  // 족장 시대는 창세기에서 시작해 출애굽기에서 끝난다.
+  const verses = (count: number) => Array.from({ length: count }, (_, index) => ({ verse: index + 1, text: '말' }))
+  // 시대의 끝을 맞출 본문: 창세기는 12:20, 출애굽기는 16:36에서 끝난다.
+  const genesisTo12: Source = { ...source, chapters: [...source.chapters, { chapter: 12, verses: verses(20) }] }
+  const exodusTo16: Source = { ...exodusSource, chapters: [...exodusSource.chapters, { chapter: 16, verses: verses(36) }] }
+  // 두 책에 걸친 설정집. 아담과 에덴은 창세기에 처음 나오고 아담은 출애굽기에도 근거가 있다. 모세와 미디안은 출애굽기에 처음 나온다.
+  // 족장 시대는 창세기에서 시작해 출애굽기에서 끝나고, 광야 시대는 출애굽기에서 시작해 민수기에서 끝난다.
+  const eden: Place = { ...places[0]!, facts: { ...places[0]!.facts, firstAppearance: 'genesis 2:8', sources: ['genesis 2:8'] } }
+  const midian: Place = {
+    ...eden,
+    id: 'midian',
+    name: '미디안',
+    facts: { firstAppearance: 'exodus 2:15', description: '광야', sources: ['exodus 2:15'] },
+  }
   const adam = character({
     id: 'adam',
     name: '아담',
@@ -480,25 +501,32 @@ describe('책마다 묶음', () => {
   })
   const moses = character({ id: 'moses', name: '모세', facts: { ...facts, firstAppearance: 'exodus 2:10', sources: ['exodus 2:10'] } })
   const patriarchs = era({ id: 'patriarchs', name: '족장 시대', range: { from: 'genesis 12:1', to: 'exodus 1:7' } })
-  const canonWithMoses = canonOf(places, [adam, moses], [patriarchs])
+  const wilderness = era({ id: 'wilderness', name: '광야 시대', range: { from: 'exodus 16:1', to: 'numbers 14:45' } })
+  const canonWithMoses = canonOf([eden, midian], [adam, moses], [patriarchs, wilderness])
 
   it('책 id를 넣고, 그 책까지 나온 설정집 항목을 넣는다(같은 책은 책 없이, 앞 책은 책 이름으로, 뒤 책은 뺀다)', () => {
-    const genesis = buildBundle('genesis', source, [], canonWithMoses)
+    const genesis = buildBundle('genesis', genesisTo12, [], canonWithMoses)
     expect(genesis.bookId).toBe('genesis')
     expect(Object.keys(genesis).slice(0, 3)).toEqual(['schemaVersion', 'bookId', 'book'])
     expect(genesis.characters.map((item) => item.id)).toEqual(['adam'])
     expect(genesis.characters[0]!.firstAppearance).toBe('2:7')
     expect(genesis.characters[0]!.sources).toEqual(['2:7'])
-    // 시대의 끝이 뒤 책이면 이 책 본문의 마지막 절로 둔다(source는 2:2에서 끝난다).
-    expect(genesis.eras[0]!.range).toEqual({ from: '12:1', to: '2:2' })
+    expect(genesis.places.map((item) => item.id)).toEqual(['eden'])
+    // 시대의 끝이 뒤 책이면 이 책 본문의 마지막 절로 둔다. 광야 시대는 뒤 책에서 시작해 넣지 않는다.
+    expect(genesis.eras.map((item) => [item.id, item.range])).toEqual([['patriarchs', { from: '12:1', to: '12:20' }]])
 
-    const exodus = buildBundle('exodus', exodusSource, [], canonWithMoses)
+    const exodus = buildBundle('exodus', exodusTo16, [], canonWithMoses)
     expect(exodus.bookId).toBe('exodus')
     expect(exodus.characters.map((item) => item.id)).toEqual(['adam', 'moses'])
     expect(exodus.characters[0]!.firstAppearance).toBe('창세기 2:7')
     expect(exodus.characters[0]!.sources).toEqual(['창세기 2:7', '1:1'])
     expect(exodus.characters[1]!.firstAppearance).toBe('2:10')
-    expect(exodus.eras[0]!.range).toEqual({ from: '창세기 12:1', to: '1:7' })
+    // 앞 책의 장소도 들어간다. 묶음의 장소에는 인용이 없어서, 장소의 인용이 "창세기 2:8"이 되는 것은 canonForBook 시험이 본다.
+    expect(exodus.places.map((item) => item.id)).toEqual(['eden', 'midian'])
+    expect(exodus.eras.map((item) => [item.id, item.range])).toEqual([
+      ['patriarchs', { from: '창세기 12:1', to: '1:7' }],
+      ['wilderness', { from: '16:1', to: '16:36' }],
+    ])
   })
 
   it('장면 파일이 없는 장의 대체 장면 id와 제목에 책을 쓴다', () => {
@@ -517,86 +545,37 @@ describe('책마다 묶음', () => {
     expect(() => buildBundle('exodus', source, [], canonOf(places))).toThrow('본문의 책 이름(창세기)이 출애굽기가 아닙니다')
   })
 
-  it('앞 책에서 끝난 시대는 두 끝에 책 이름을 붙이고, 뒤 책에서 시작하는 시대는 넣지 않는다', () => {
-    const flood = era({ id: 'flood', name: '홍수', range: { from: 'genesis 6:9', to: 'genesis 8:22' } })
-    const wilderness = era({ id: 'wilderness', name: '광야', range: { from: 'exodus 16:1', to: 'numbers 14:45' } })
-    const canon = canonOf(places, [], [flood, wilderness])
-    expect(buildBundle('genesis', source, [], canon).eras.map((item) => item.id)).toEqual(['flood'])
-    expect(buildBundle('exodus', exodusSource, [], canon).eras.map((item) => [item.id, item.range])).toEqual([
-      ['flood', { from: '창세기 6:9', to: '창세기 8:22' }],
-      ['wilderness', { from: '16:1', to: '1:7' }],
-    ])
-  })
-
-  it('물건은 근거 절 가운데 가장 앞선 절이, 장소는 처음 나오는 절이 이 책이거나 앞 책이면 넣는다', () => {
-    const staff: Thing = {
-      id: 'staff',
-      name: '지팡이',
-      aliases: [],
-      status: 'approved',
-      // 가장 앞선 근거는 목록의 첫 글이 아니라 창세기 32:10이다.
-      facts: { description: '지팡이', details: [], sources: ['exodus 4:2', 'genesis 32:10'] },
-      design: { visualNotes: '' },
-    }
-    const manna: Thing = { ...staff, id: 'manna', name: '만나', facts: { ...staff.facts, sources: ['exodus 16:15'] } }
-    const midian: Place = {
-      ...places[0]!,
-      id: 'midian',
-      name: '미디안',
-      facts: { firstAppearance: 'exodus 2:15', description: '광야', sources: ['exodus 2:15'] },
-    }
-    const canon = canonOf([...places, midian], [], [], [staff, manna])
-
-    const genesis = buildBundle('genesis', source, [], canon)
-    expect(genesis.things.map((item) => [item.id, item.sources])).toEqual([['staff', ['32:10']]])
-    expect(genesis.places.map((item) => item.id)).toEqual(['eden'])
-    const exodus = buildBundle('exodus', exodusSource, [], canon)
-    expect(exodus.things.map((item) => [item.id, item.sources])).toEqual([
-      ['staff', ['4:2', '창세기 32:10']],
-      ['manna', ['16:15']],
-    ])
-    expect(exodus.places.map((item) => item.id)).toEqual(['eden', 'midian'])
-
-    // 장면이 뒤 책에 처음 나오는 장소를 가리키면 묶음에 없는 장소라 오류다.
-    const file = { chapter: 1, scenes: [scene({ placeId: 'midian' })] }
-    expect(() => buildBundle('genesis', source, [file], canon)).toThrow(
+  it('장면이 뒤 책에서 처음 나오는 장소를 가리키면 오류이고, 뒤 책 인물은 장면과 관계에서 뺀다', () => {
+    // 뒤 책에서 처음 나오는 장소는 묶음에 없으므로 승인되지 않은 장소와 같은 오류다.
+    const placeFile = { chapter: 1, scenes: [scene({ placeId: 'midian' })] }
+    expect(() => buildBundle('genesis', source, [placeFile], canonWithMoses)).toThrow(
       'genesis-01-01: 장소 midian가 places.json의 승인된 항목에 없습니다',
     )
-  })
-
-  it('뒤 책의 옷차림은 빼고, 묶음에 없는 뒤 책 인물을 가리키는 관계와 장면의 인물도 뺀다', () => {
-    const dressed = character({
-      id: 'adam',
-      name: '아담',
-      facts: {
-        ...adam.facts,
-        relations: [{ type: '후손', to: 'moses' }],
-        attire: [
-          { from: 'genesis 3:21', description: '가죽옷' },
-          { from: 'exodus 1:1', description: '뒤 책의 옷' },
-        ],
-      },
-    })
-    const canon = canonOf(places, [dressed, moses])
+    const descendant = character({ id: 'adam', name: '아담', facts: { ...adam.facts, relations: [{ type: '후손', to: 'moses' }] } })
     const file = { chapter: 1, scenes: [scene({ visual: { description: '그림', characters: ['adam', 'moses'] } })] }
-
-    const genesis = buildBundle('genesis', source, [file], canon)
-    expect(genesis.characters[0]).toMatchObject({ relations: [], attire: [{ from: '3:21', description: '가죽옷' }] })
+    const genesis = buildBundle('genesis', source, [file], canonOf([eden], [descendant, moses]))
+    expect(genesis.characters[0]!.relations).toEqual([])
     expect(genesis.chapters[0]!.scenes[0]!.characters).toEqual(['adam'])
-    expect(buildBundle('exodus', exodusSource, [], canon).characters[0]).toMatchObject({
-      relations: [{ type: '후손', to: 'moses' }],
-      attire: [
-        { from: '창세기 3:21', description: '가죽옷' },
-        { from: '1:1', description: '뒤 책의 옷' },
-      ],
-    })
+    expect(buildBundle('exodus', exodusSource, [], canonOf([eden], [descendant, moses])).characters[0]!.relations).toEqual([
+      { type: '후손', to: 'moses' },
+    ])
   })
 
-  it('읽을 수 없는 인용은 그대로 두고, 처음 나오는 곳을 읽을 수 없는 항목은 넣는다', () => {
-    const odd = character({ id: 'odd', name: '이상', facts: { ...facts, firstAppearance: '엉터리', sources: ['엉터리', 'genesis 1:1'] } })
-    expect(buildBundle('exodus', exodusSource, [], canonOf(places, [odd])).characters).toMatchObject([
-      { id: 'odd', firstAppearance: '엉터리', sources: ['엉터리', '창세기 1:1'] },
-    ])
+  it('묶음 스키마는 알 수 없는 bookId를 받지 않는다', () => {
+    // 스키마의 bookId는 책 id 형(BookId)으로 읽힌다.
+    expectTypeOf<Bundle['bookId']>().toEqualTypeOf<BookId>()
+    const bundle = buildBundle('genesis', source, [], canonOf(places))
+    expect(BundleSchema.parse(bundle).bookId).toBe('genesis')
+    const result = BundleSchema.safeParse({ ...bundle, bookId: 'genesis-2' })
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]).toMatchObject({ path: ['bookId'], message: '알 수 없는 책 id입니다' })
+  })
+
+  it('본문에 장이 없으면 시대의 끝을 맞출 수 없어 어느 시대인지 적은 오류를 낸다', () => {
+    // 본문 파일 형식(SourceSchema)은 빈 장 목록도 받으므로, 손으로 고친 본문 파일이면 일어날 수 있다.
+    expect(() => buildBundle('genesis', { ...source, chapters: [] }, [], canonWithMoses)).toThrow(
+      'eras/patriarchs range.to: 본문에 절이 없어 시대의 끝(exodus 1:7)을 이 책의 마지막 절로 둘 수 없습니다',
+    )
   })
 
   it('사전의 횟수는 이 묶음의 원어에서 센다(lexicon.json의 count는 모든 책의 합이다)', () => {
