@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { askSuggestions, localDay, paragraphs, type BookId, type Bundle } from 'reader-core'
+import { askSuggestions, localDay, paragraphs, type Bundle } from 'reader-core'
 import { useAuth } from '../auth/AuthContext'
 import { goBack, goToReader } from '../navigation'
 import { useSettings } from '../settings/SettingsContext'
@@ -33,10 +33,20 @@ type Props = {
 
 const FOOTNOTE = '답은 본문과 검수된 해설·설정집 안에서만 만들어요. AI가 쓴 글이라 틀릴 수 있으니 근거 표식을 눌러 원문을 확인해 주세요.'
 
-// 근거 표식을 눌러 열 수 있는지. 읽기 화면은 지금 묶음의 책만 열어서(다른 책은 3단계에서 연다), 다른 책의 본문·해설은 열지 못한다.
-// 설정집은 그 자리에서 펼쳐 보이는 것이라 어느 책의 항목이든 누를 수 있다.
-function opensHere(citation: AskCitation, bookId: BookId): boolean {
-  return citation.kind === 'canon' || citation.book === bookId
+// 설정집 항목의 설명(인물은 notes, 장소와 물건은 description). 이 묶음에 그 항목이 없으면 undefined다(다른 책에서 처음 나온 항목).
+function canonBody(bundle: Bundle, entity: NonNullable<AskCitation['entity']>): string | undefined {
+  return entity.kind === 'character'
+    ? bundle.characters.find((item) => item.id === entity.id)?.notes
+    : entity.kind === 'place'
+      ? bundle.places.find((item) => item.id === entity.id)?.description
+      : bundle.things.find((item) => item.id === entity.id)?.description
+}
+
+// 근거 표식을 눌러 열 수 있는지. 설정집은 그 자리에서 펼쳐 보이는 것이라 이 묶음에 그 항목이 있을 때만 연다.
+// 본문·해설은 읽기 화면이 지금 묶음의 책만 열어서(다른 책은 3단계에서 연다) 이 책의 것만 연다.
+function opensHere(citation: AskCitation, bundle: Bundle): boolean {
+  if (citation.kind === 'canon') return citation.entity !== null && canonBody(bundle, citation.entity) !== undefined
+  return citation.book === bundle.bookId
 }
 
 // 질문하기(목업 13). 로그인한 사람만 쓴다. 서버가 검수된 자료에서 대목을 찾아 그 안에서만 답하고, 문장마다 근거를 붙인다.
@@ -114,13 +124,14 @@ export default function AskScreen({ bundle, chapterNumber, from }: Props) {
   }
 
   function openCitation(turnId: number, citation: AskCitation) {
+    // 열 수 있는지는 opensHere 하나로 가린다. 열 수 없는 표식은 눌리지 않고 이름표 글로만 보인다.
+    if (!opensHere(citation, bundle)) return
     if (citation.kind === 'canon') {
       const key = `${turnId}:${citation.id}`
       setOpenCanon((current) => (current === key ? null : key))
       return
     }
-    // 다른 책의 대목으로는 가지 않는다. 그런 표식은 눌리지 않고 이름표 글로만 보인다.
-    if (citation.book !== bundle.bookId) return
+    // 본문·해설 근거는 장과 절을 늘 달고 온다. 여기서는 형만 좁힌다.
     if (citation.chapter === null || citation.verse === null) return
     goToReader(router, from, {
       position: { chapter: citation.chapter, verse: citation.verse },
@@ -318,7 +329,7 @@ function Reply({
   // 딱지가 이미 "자료에 없어요"라서 글머리의 같은 말은 뺀다.
   const text = none ? reply.text.replace(/^자료에 없어요\.\s*/, '') : reply.text
   // 눌러서 열 수 있는 근거가 하나도 없으면 "눌러서 직접 읽어 보세요"라고 하지 않는다.
-  const openable = reply.citations.some((citation) => opensHere(citation, bundle.bookId))
+  const openable = reply.citations.some((citation) => opensHere(citation, bundle))
   return (
     <View
       style={[
@@ -332,13 +343,23 @@ function Reply({
       <Text style={[styles.replyText, { color: palette.ink }]}>{text}</Text>
       {reply.citations.length > 0 && (
         <>
-          {none && openable && <Text style={[styles.related, { color: palette.inkSoft }]}>가까운 대목이에요. 눌러서 직접 읽어 보세요.</Text>}
+          {none && (
+            <Text style={[styles.related, { color: palette.inkSoft }]}>
+              {openable ? '가까운 대목이에요. 눌러서 직접 읽어 보세요.' : '가까운 대목이에요.'}
+            </Text>
+          )}
           <View style={styles.citations}>
             {reply.citations.map((citation) => {
-              // 다른 책의 본문·해설은 읽기 화면으로 갈 수 없어서 누르는 표식이 아니라 글로만 보인다. 책 이름은 서버가 이름표에 붙여 준다.
-              if (!opensHere(citation, bundle.bookId)) {
+              // 열 수 없는 근거(다른 책의 본문·해설, 이 묶음에 없는 설정집 항목)는 누르는 표식이 아니라 글로만 보인다.
+              // 서버는 책 묶음을 둘 이상 읽을 때만 본문·해설 이름표에 책 이름을 붙이고, 설정집 이름표에는 붙이지 않는다.
+              if (!opensHere(citation, bundle)) {
                 return (
-                  <View key={citation.id} style={[styles.citation, { backgroundColor: palette.line }]}>
+                  <View
+                    key={citation.id}
+                    accessible
+                    accessibilityLabel={`${citation.label}, 지금은 열 수 없어요`}
+                    style={[styles.citation, { backgroundColor: palette.line }]}
+                  >
                     <Text style={[styles.citationText, { color: palette.inkSoft }]}>{citation.label}</Text>
                   </View>
                 )
@@ -367,22 +388,18 @@ function Reply({
           </View>
         </>
       )}
-      {opened?.entity && <CanonNote bundle={bundle} entity={opened.entity} label={opened.label} />}
+      {opened?.entity && <CanonNote bundle={bundle} entity={opened.entity} />}
     </View>
   )
 }
 
-function CanonNote({ bundle, entity, label }: { bundle: Bundle; entity: NonNullable<AskCitation['entity']>; label: string }) {
+// 펼친 설정집 설명. 이 묶음에 그 항목이 없으면 그리지 않는다(그런 표식은 눌러도 펼쳐지지 않아 여기까지 오지 않는다).
+// 항목은 있는데 설명이 비었으면 그렇다고 알린다.
+function CanonNote({ bundle, entity }: { bundle: Bundle; entity: NonNullable<AskCitation['entity']> }) {
   const { palette } = useSettings()
-  const body =
-    entity.kind === 'character'
-      ? bundle.characters.find((item) => item.id === entity.id)?.notes
-      : entity.kind === 'place'
-        ? bundle.places.find((item) => item.id === entity.id)?.description
-        : bundle.things.find((item) => item.id === entity.id)?.description
-  const parts = paragraphs(body ?? '')
-  // 이 묶음에서 항목을 찾지 못하면(body가 undefined, 다른 책에서 처음 나온 것) 설명 없이 이름표만 보인다.
-  const empty = body === undefined ? label : '설정집에 설명이 아직 없어요.'
+  const body = canonBody(bundle, entity)
+  if (body === undefined) return null
+  const parts = paragraphs(body)
   return (
     <View style={[styles.canon, { backgroundColor: palette.paper }]}>
       {parts.length > 0 ? (
@@ -392,7 +409,7 @@ function CanonNote({ bundle, entity, label }: { bundle: Bundle; entity: NonNulla
           </Text>
         ))
       ) : (
-        <Text style={[styles.canonText, { color: palette.inkSoft }]}>{empty}</Text>
+        <Text style={[styles.canonText, { color: palette.inkSoft }]}>설정집에 설명이 아직 없어요.</Text>
       )}
     </View>
   )

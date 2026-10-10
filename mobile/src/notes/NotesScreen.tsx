@@ -70,29 +70,34 @@ export default function NotesScreen({ bundle }: { bundle: Bundle }) {
             const text = here
               ? (bundle.chapters.find((c) => c.chapter === mark.chapter)?.verses.find((v) => v.verse === mark.verse)?.text ?? '')
               : ''
+            const place = `${bookName} ${mark.chapter}장 ${mark.verse}절`
+            const note = mark.note.trim()
+            // 스크린 리더는 이름표가 안의 글을 대신 읽으므로, 열 수 있는지와 메모를 이름표에 넣는다.
+            const where = here ? `${place}로 가기` : `${place}. 이 책은 아직 앱에서 열 수 없어요`
+            const label = note !== '' ? `${where}. 메모: ${note}` : where
             return (
               <Pressable
                 key={markId(mark.book, mark.chapter, mark.verse)}
                 accessibilityRole="button"
-                accessibilityLabel={`${bookName} ${mark.chapter}장 ${mark.verse}절로 가기`}
+                accessibilityLabel={label}
                 disabled={!here}
                 onPress={() => goToReader(router, from, { position: { chapter: mark.chapter, verse: mark.verse } })}
-                style={({ pressed }) => [styles.row, { backgroundColor: palette.surface, opacity: pressed ? 0.7 : 1 }]}
+                style={({ pressed }) => [styles.row, { backgroundColor: palette.surface, opacity: !here ? 0.6 : pressed ? 0.7 : 1 }]}
               >
                 <View style={styles.rowHead}>
-                  <Text style={[styles.reference, { color: palette.inkSoft }]}>
-                    {bookName} {mark.chapter}장 {mark.verse}절
-                  </Text>
+                  <Text style={[styles.reference, { color: palette.inkSoft }]}>{place}</Text>
                   {mark.bookmark && <Icon name="bookmark" size={14} color={palette.accent} filled />}
                 </View>
-                <Text style={[styles.verse, { color: palette.ink }]}>
-                  <Text style={mark.color ? { backgroundColor: markColor(mark.color, palette) } : undefined}>{text}</Text>
-                </Text>
-                {mark.note.trim() ? (
+                {text !== '' && (
+                  <Text style={[styles.verse, { color: palette.ink }]}>
+                    <Text style={mark.color ? { backgroundColor: markColor(mark.color, palette) } : undefined}>{text}</Text>
+                  </Text>
+                )}
+                {note !== '' && (
                   <View style={[styles.note, { borderLeftColor: palette.accent }]}>
-                    <Text style={[styles.noteText, { color: palette.ink }]}>{mark.note}</Text>
+                    <Text style={[styles.noteText, { color: palette.ink }]}>{note}</Text>
                   </View>
-                ) : null}
+                )}
               </Pressable>
             )
           })

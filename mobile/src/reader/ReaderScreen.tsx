@@ -304,7 +304,6 @@ export default function ReaderScreen({ bundle }: { bundle: Bundle }) {
       {typeof overlay === 'object' && overlay.kind === 'mark' && (
         <MarkSheet
           book={bundle.bookId}
-          bookName={bundle.book}
           chapter={chapter.chapter}
           verse={chapter.verses.find((v) => v.verse === overlay.verse)!}
           onShare={() => setOverlay({ kind: 'share', verse: overlay.verse })}

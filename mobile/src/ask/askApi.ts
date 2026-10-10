@@ -53,7 +53,13 @@ export function fetchAskUsage(token: string): Promise<AskUsage> {
   return call('/ask/usage', token)
 }
 
+// 서버가 보낸 그대로의 답. 옛 서버는 근거에 책을 달지 않아서 book이 없을 수 있다.
+type RawCitation = Omit<AskCitation, 'book'> & { book?: BookId }
+type RawReply = Omit<AskReply, 'citations'> & { citations: RawCitation[] }
+
 // 질문은 기기에도 서버에도 남기지 않는다(서버는 하루 횟수만 센다). book과 chapter는 읽고 있는 책과 장이다.
-export function postQuestion(token: string, question: string, chapter: number, book: BookId): Promise<AskReply> {
-  return call('/ask', token, { method: 'POST', body: JSON.stringify({ question, chapter, book }) })
+export async function postQuestion(token: string, question: string, chapter: number, book: BookId): Promise<AskReply> {
+  const reply = await call<RawReply>('/ask', token, { method: 'POST', body: JSON.stringify({ question, chapter, book }) })
+  // Task 9 전 서버는 근거에 책을 달지 않는다. 그런 근거는 물은 책의 것이다.
+  return { ...reply, citations: reply.citations.map((citation) => ({ ...citation, book: citation.book ?? book })) }
 }
