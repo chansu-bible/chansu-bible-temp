@@ -1,4 +1,6 @@
+import type { BookId } from 'reader-core'
 import type { BundleSource, Style } from '../schema.ts'
+import { wikisourcePageTitle } from '../source/fetchSource.ts'
 
 // 출처 글에 적힌 이용 조건. 이름이 null이면 글에 적힌 대로(대문자로) 쓴다.
 const LICENSES: [RegExp, string | null][] = [
@@ -34,16 +36,17 @@ function referenceSource(source: string, index: number): BundleSource {
   }
 }
 
-// 앱의 자료 출처 화면에 보일 목록. 그림 참고 작품은 style.json의 출처에서 모은다.
-export function buildSources(style: Style | null): BundleSource[] {
+// 책 묶음의 자료 출처 화면에 보일 목록. 본문 출처는 그 책을 받은 위키문헌 쪽이고, 그림 참고 작품은 style.json의 출처에서 모은다.
+export function buildSources(book: BookId, style: Style | null): BundleSource[] {
+  const title = wikisourcePageTitle(book)
   const references = [...new Set((style?.references ?? []).map((reference) => reference.source))]
   return [
     {
       id: 'krv',
       title: '개역한글판 성경',
-      detail: '본문. 위키문헌의 "개역한글판/창세기"에서 받았어요.',
+      detail: `본문. 위키문헌의 "${title}"에서 받았어요.`,
       license: '2012년에 저작권이 끝난 저작물(위키문헌 PD-old-60)',
-      url: 'https://ko.wikisource.org/wiki/개역한글판/창세기',
+      url: `https://ko.wikisource.org/wiki/${title}`,
     },
     {
       id: 'wlc',

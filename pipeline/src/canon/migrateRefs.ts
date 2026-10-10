@@ -1,5 +1,6 @@
 import { parseRef, qualifyRef, type BookId } from 'reader-core'
-import type { Canon, Proposal } from '../schema.ts'
+import type { Canon, CanonKind, Proposal } from '../schema.ts'
+import { mapItemCitations, type CitationMapper } from './citations.ts'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -52,46 +53,14 @@ export function migrateCanonRefs(canon: Canon, book: BookId): { canon: Canon; ch
     }
   }
 
+  // 항목의 인용(citations.ts의 필드)마다 책을 붙인다. 오류에는 "characters/adam facts.sources"처럼 항목과 필드를 적는다.
+  const qualifyItem = (kind: CanonKind, id: string): CitationMapper => (citation, field) => qualify(`${kind}/${id} ${field}`, citation)
+
   const migrated: Canon = {
-    characters: canon.characters.map((item) => {
-      const where = `characters/${item.id}`
-      return {
-        ...item,
-        facts: {
-          ...item.facts,
-          firstAppearance: qualify(`${where} facts.firstAppearance`, item.facts.firstAppearance),
-          attire: item.facts.attire.map((attire) => ({ ...attire, from: qualify(`${where} facts.attire`, attire.from) })),
-          sources: item.facts.sources.map((source) => qualify(`${where} facts.sources`, source)),
-        },
-      }
-    }),
-    places: canon.places.map((item) => {
-      const where = `places/${item.id}`
-      return {
-        ...item,
-        facts: {
-          ...item.facts,
-          firstAppearance: qualify(`${where} facts.firstAppearance`, item.facts.firstAppearance),
-          sources: item.facts.sources.map((source) => qualify(`${where} facts.sources`, source)),
-        },
-      }
-    }),
-    eras: canon.eras.map((item) => {
-      const where = `eras/${item.id}`
-      return {
-        ...item,
-        range: {
-          ...item.range,
-          from: qualify(`${where} range.from`, item.range.from),
-          to: qualify(`${where} range.to`, item.range.to),
-        },
-        facts: { ...item.facts, sources: item.facts.sources.map((source) => qualify(`${where} facts.sources`, source)) },
-      }
-    }),
-    things: canon.things.map((item) => ({
-      ...item,
-      facts: { ...item.facts, sources: item.facts.sources.map((source) => qualify(`things/${item.id} facts.sources`, source)) },
-    })),
+    characters: canon.characters.map((item) => mapItemCitations('characters', item, qualifyItem('characters', item.id))),
+    places: canon.places.map((item) => mapItemCitations('places', item, qualifyItem('places', item.id))),
+    eras: canon.eras.map((item) => mapItemCitations('eras', item, qualifyItem('eras', item.id))),
+    things: canon.things.map((item) => mapItemCitations('things', item, qualifyItem('things', item.id))),
     proposals: canon.proposals.map((proposal) => ({
       ...proposal,
       value: proposalValue(proposal),

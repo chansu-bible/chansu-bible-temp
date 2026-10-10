@@ -7,9 +7,9 @@
 ```
 app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 기준 폴더
   content/                      묶음 폴더. 빌드할 때마다 지우고 다시 만든다
-    genesis.json                묶음 본체
+    <bookId>.json               책마다 묶음 본체 (예: genesis.json). 본문이 있는 책마다 하나
     images/<versionId>/<sceneId>.<ext>   장면 그림 (png, jpg 등)
-    audio/genesis-<장 2자리>-<절 3자리>.mp3  절 낭독 (예: genesis-01-001.mp3)
+    audio/<bookId>-<장>-<절 3자리>.mp3  절 낭독 (예: genesis-01-001.mp3). 장은 그 책의 장 수 자리수로 채운다
     audio/scenes/<sceneId>.mp3   장면 낭독. 장면에 든 절 낭독을 차례로 이은 것
 ```
 
@@ -17,19 +17,20 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 
 ## 필드
 
-**형식 버전.** 키를 더하기만 할 때는 `schemaVersion`을 올리지 않는다. `characters`, `eras`, `things`, 장면의 `characters`·`audio`·`audioMs`, 절의 `audioMs`, `lexicon`, `sources`, 장의 `original`·`quiz`는 나중에 더한 키라 `schemaVersion`은 1 그대로이며, 이 키를 모르는 옛 독자는 무시하면 된다. 있던 키의 뜻이나 형식을 바꿀 때만 올린다.
+**형식 버전.** 키를 더하기만 할 때는 `schemaVersion`을 올리지 않는다. `bookId`, `characters`, `eras`, `things`, 장면의 `characters`·`audio`·`audioMs`, 절의 `audioMs`, `lexicon`, `sources`, 장의 `original`·`quiz`는 나중에 더한 키라 `schemaVersion`은 1 그대로이며, 이 키를 모르는 옛 독자는 무시하면 된다. 있던 키의 뜻이나 형식을 바꿀 때만 올린다.
 
 ### 최상위
 
 | 필드 | 형식 | 뜻 |
 |---|---|---|
 | `schemaVersion` | `1` | 묶음 형식 버전. 앱은 모르는 값이면 읽지 않고 오류를 낸다(웹: `묶음 형식이 다릅니다 (schemaVersion n)`) |
-| `book` | string | 책 이름. 지금은 `창세기` |
+| `bookId` | string | 책 id. `packages/reader-core/src/books.ts`의 `id`(예: `genesis`, `1-john`)이고 묶음 파일 이름과 같다. 옛 묶음에는 없어서 앱은 `book`으로 찾아 채운다 |
+| `book` | string | 책 이름(개역한글, 예: `창세기`). `bookId`의 책과 같다 |
 | `translation` | string | 번역본 이름. 지금은 `개역한글` |
-| `places` | Place[] | 지도에 쓰는 장소. 설정집에서 사람이 승인한(`approved`) 장소만 들어간다 |
-| `characters` | Character[] | 인물 카드와 연표에 쓰는 인물. 설정집에서 승인한 인물만, 설정집 파일 순서 |
-| `eras` | Era[] | 연표에 쓰는 시대. 설정집에서 승인한 시대만, 설정집 파일 순서 |
-| `things` | Thing[] | 검색과 설정집 카드에 쓰는 물건. 설정집에서 승인한 물건만, 설정집 파일 순서 |
+| `places` | Place[] | 지도에 쓰는 장소. 설정집에서 사람이 승인한(`approved`) 장소 가운데 이 책까지 나온 것만 들어간다(아래 "책 묶음에 드는 설정집 항목과 인용") |
+| `characters` | Character[] | 인물 카드와 연표에 쓰는 인물. 승인한 인물 가운데 이 책까지 나온 것만, 설정집 파일 순서 |
+| `eras` | Era[] | 연표에 쓰는 시대. 승인한 시대 가운데 이 책까지 나온 것만, 설정집 파일 순서 |
+| `things` | Thing[] | 검색과 설정집 카드에 쓰는 물건. 승인한 물건 가운데 이 책까지 나온 것만, 설정집 파일 순서 |
 | `imageVersions` | ImageVersion[] | 그림 버전 목록. 추가한 순서 |
 | `defaultImageVersion` | string \| null | 처음 보여 줄 그림 버전 id. 목록의 마지막 버전이고, 버전이 없으면 null |
 | `lexicon` | Record<string, LexiconEntry> | 스트롱 번호(`H7225`) → 사전 항목. 장들의 원어 낱말에 나오는 번호만 |
@@ -56,7 +57,7 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 | `name` | string | 이름 |
 | `aliases` | string[] | 다른 이름 |
 | `gender` | `남` \| `여` \| `불명` | 성별 |
-| `firstAppearance` | string | 처음 나오는 절. `장:절` 또는 `장:절-절` (예: `4:1`) |
+| `firstAppearance` | string | 처음 나오는 절. `장:절` 또는 `장:절-절` (예: `4:1`). 앞 책의 절이면 책 이름이 붙는다(예: `창세기 2:7`) |
 | `years` | `{ born: number \| null, died: number \| null }` | 창조 원년 기준 태어난 해와 죽은 해. 모르면 null(에녹처럼 죽지 않고 데려간 경우도 `died`가 null) |
 | `relations` | `{ type: string, to: string }[]` | 관계. `type`은 `아내`, `아들` 같은 말, `to`는 인물 id |
 | `attire` | `{ from: string, description: string }[]` | 옷차림. `from`은 근거 절 |
@@ -71,7 +72,7 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 |---|---|---|
 | `id` | string | 시대 id |
 | `name` | string | 이름 |
-| `range` | `{ from: string, to: string }` | 시대가 덮는 본문 범위(절 인용) |
+| `range` | `{ from: string, to: string }` | 시대가 덮는 본문 범위(절 인용). 끝이 뒤 책이면 이 책의 마지막 절이다 |
 | `years` | `{ from: number \| null, to: number \| null }` | 창조 원년 기준 햇수. 모르면 null |
 | `description` | string | 설명 |
 | `present`, `absent` | string[] | 그 시대에 있는 것과 아직 없는 것 |
@@ -88,6 +89,21 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 | `description` | string | 설명. 줄바꿈(`\n`)으로 문단을 나눈다 |
 | `details` | string[] | 본문이 말하는 세부 사실 |
 | `sources` | string[] | 본문 근거 절(예: `3:21`) |
+
+### 책 묶음에 드는 설정집 항목과 인용
+
+설정집은 모든 책이 함께 쓴다. 책 묶음에는 그 책을 다 읽은 독자가 아는 항목만 들어간다. 사람이 승인한 항목 가운데 처음 나오는 곳이 이 책이거나 앞 책(성경 순서)인 것이다. 처음 나오는 곳은 인물·장소는 `firstAppearance`, 시대는 `range.from`, 물건은 `sources` 가운데 가장 앞선 절이다. 인물의 `relations`와 장면의 `characters`는 묶음에 든 인물만 가리킨다.
+
+묶음의 절 인용(`firstAppearance`, `attire[].from`, `sources`, `range`)은 앱이 읽는 데이터라 화면에 보일 모양이 아니라 아래 모양으로 쓴다.
+
+- 이 책의 절: 책 없이 `장:절`(예: `2:7`).
+- 앞 책의 절: 책 이름을 붙인다(예: `창세기 2:7`). reader-core의 `chapterOfReference`는 책 이름을 읽지 않아 이런 인용을 0장으로 읽는다. 0장은 이 책을 읽기 전에 이미 만난 것이라는 뜻이다(본문의 이름 잇기 `splitVerse`는 이런 인물을 1장부터 잇는다).
+- 뒤 책의 절: `sources`와 `attire`에서 뺀다. 시대의 끝(`range.to`)이 뒤 책이면 이 책 본문의 마지막 절(예: `50:26`)로 둔다.
+- 읽을 수 없는 글: 그대로 둔다.
+
+창세기만 있으면 승인된 항목이 모두 들어가고 모든 인용이 책 없는 `장:절`이다.
+
+**넘어가는 동안의 한계.** 두 책에 걸친 시대는 뒤 책 묶음에서 `창세기 12:1 ~ 1:7`처럼 보인다(앱의 설정집 카드가 두 끝을 그대로 잇는다). 3단계에서 묶음 대신 꾸러미와 공용 설정집(책이 붙은 인용)을 쓰고 책을 아는 표시로 바꾸면 없어진다.
 
 ### ImageVersion
 
@@ -124,7 +140,7 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 
 | 필드 | 형식 | 뜻 |
 |---|---|---|
-| `id` | string | `genesis-<장 2자리>-<순번 2자리>`. 장면 파일이 없는 장의 기본 장면은 순번이 `00` |
+| `id` | string | `<bookId>-<장>-<순번 2자리>`(예: `genesis-01-03`). 장은 그 책의 장 수 자리수로 채운다. 장면 파일이 없는 장의 기본 장면은 순번이 `00`이고 제목은 `<책 이름> <장>장`(예: `창세기 6장`)이다 |
 | `verseStart`, `verseEnd` | number | 장면이 덮는 절 범위(양 끝 포함) |
 | `title` | string | 장면 제목 |
 | `commentary` | string \| null | 짧은 해설. 없을 수 있다 |
@@ -150,7 +166,7 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 - 한 장의 장면들은 1절부터 마지막 절까지 순서대로, 빈틈도 겹침도 없이 덮는다. 그래서 어떤 절이든 그 절을 담은 장면이 정확히 하나 있다.
 - 풀이한 낱말(`glossary[].word`)은 그 절(`glossary[].verse`)의 본문에 글자 그대로 있고, 그 절은 장면 범위 안이다.
 - 장면의 `placeId`가 null이 아니면 `places`에 그 id가 있다.
-- 장면의 `characters`와 인물의 `relations[].to`는 모두 최상위 `characters`에 있는 id다. 승인되지 않은 인물을 가리키는 것은 빌드가 오류 없이 뺀다.
+- 장면의 `characters`와 인물의 `relations[].to`는 모두 최상위 `characters`에 있는 id다. 승인되지 않았거나 뒤 책에서 처음 나오는 인물을 가리키는 것은 빌드가 오류 없이 뺀다.
 - `images`의 키는 모두 `imageVersions`에 있는 버전 id다.
 - 그림·음성 경로가 가리키는 파일은 묶음과 함께 복사되어 있다.
 

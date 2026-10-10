@@ -1,4 +1,4 @@
-import { formatRef, parseRef } from 'reader-core'
+import { formatRef, isBookId, parseRef } from 'reader-core'
 import { z } from 'zod'
 
 // 본문
@@ -306,6 +306,8 @@ export const BundleSourceSchema = z.object({
 
 export const BundleSchema = z.object({
   schemaVersion: z.literal(BUNDLE_SCHEMA_VERSION),
+  // 책 id(reader-core의 books.ts). book은 그 책의 한국어 이름이다.
+  bookId: z.string().refine(isBookId, '알 수 없는 책 id입니다'),
   book: z.string(),
   translation: z.string(),
   places: z.array(BundlePlaceSchema),

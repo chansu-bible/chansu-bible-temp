@@ -76,11 +76,11 @@ export async function writeBundles(books: BookId[]): Promise<Bundle[]> {
     const original = existsSync(originalFilePath(book)) ? await readOriginal(book) : null
     const quizzes = await readQuizFiles(book)
     const bundle = BundleSchema.parse(
-      buildBundle(source, sceneFiles, { characters, places, eras, things }, audio, catalog, {
+      buildBundle(book, source, sceneFiles, { characters, places, eras, things }, audio, catalog, {
         original,
         lexicon,
         quizzes,
-        sources: buildSources(style),
+        sources: buildSources(book, style),
       }),
     )
     checkImages(sceneFiles, catalog)

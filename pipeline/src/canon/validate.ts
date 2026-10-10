@@ -1,5 +1,6 @@
 import { compareRefs, getBook, parseRef, type BookId, type VerseRef } from 'reader-core'
 import type { Canon, CanonKind } from '../schema.ts'
+import { itemCitations } from './citations.ts'
 
 // 책마다 장별 절 수. 장 n의 절 수는 counts[n - 1]이고, 본문에 없는 장은 0이다(source/files.ts의 readVerseCounts).
 export type VerseCounts = ReadonlyMap<BookId, readonly number[]>
@@ -53,20 +54,14 @@ export function validateCanon(canon: Canon, verseCounts: VerseCounts): string[] 
     for (const relation of character.facts.relations) {
       if (!characterIds.has(relation.to)) problems.push(`${label}: 관계가 가리키는 인물 ${relation.to}가 없습니다`)
     }
-    checkCitations(label, [
-      character.facts.firstAppearance,
-      ...character.facts.attire.map((attire) => attire.from),
-      ...character.facts.sources,
-    ])
+    checkCitations(label, itemCitations('characters', character))
   }
 
-  for (const place of canon.places) {
-    checkCitations(`places/${place.id}`, [place.facts.firstAppearance, ...place.facts.sources])
-  }
+  for (const place of canon.places) checkCitations(`places/${place.id}`, itemCitations('places', place))
 
   for (const era of canon.eras) {
     const label = `eras/${era.id}`
-    checkCitations(label, [era.range.from, era.range.to, ...era.facts.sources])
+    checkCitations(label, itemCitations('eras', era))
     // 책이 없는 인용은 위에서 모양이 틀렸다고 적었으므로 둘 다 책이 있을 때만 앞뒤를 본다.
     const from = parseRef(era.range.from)
     const to = parseRef(era.range.to)
@@ -75,7 +70,7 @@ export function validateCanon(canon: Canon, verseCounts: VerseCounts): string[] 
     }
   }
 
-  for (const thing of canon.things) checkCitations(`things/${thing.id}`, thing.facts.sources)
+  for (const thing of canon.things) checkCitations(`things/${thing.id}`, itemCitations('things', thing))
   for (const proposal of canon.proposals) checkCitations(`proposals/${proposal.id}`, proposal.sources)
 
   return problems

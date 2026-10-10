@@ -1,6 +1,7 @@
 import { compareRefs, parseRef, qualifyRef, type BookId } from 'reader-core'
 import { z } from 'zod'
 import { CanonIdSchema, CitationSchema, type Canon, type CanonKind, type Proposal } from '../schema.ts'
+import { mapItemCitations } from './citations.ts'
 import { canonItemSchemas } from './files.ts'
 import { validateCanon, type VerseCounts } from './validate.ts'
 
@@ -108,30 +109,15 @@ function earlierCitation(a: string, b: string): string {
   return compareRefs(y, x) < 0 ? b : a
 }
 
-// 모델 출력의 절 인용에 책을 붙인다. 이미 책이 있는 인용("exodus 1:1")은 그대로다.
+// 모델 출력의 절 인용(citations.ts의 필드)에 책을 붙인다. 이미 책이 있는 인용("exodus 1:1")은 그대로다.
 // 읽을 수 없는 글은 바꾸지 않아 뒤의 스키마 검사가 그 항목을 경고와 함께 거르게 한다. 모름을 뜻하는 빈 글("")도 그대로다.
 function qualifyOutput(output: CanonOutput, book: BookId): CanonOutput {
   const qualify = (text: string) => qualifyRef(text, book) ?? text
   return {
-    characters: output.characters.map((item) => ({
-      ...item,
-      facts: {
-        ...item.facts,
-        firstAppearance: qualify(item.facts.firstAppearance),
-        attire: item.facts.attire.map((attire) => ({ ...attire, from: qualify(attire.from) })),
-        sources: item.facts.sources.map(qualify),
-      },
-    })),
-    places: output.places.map((item) => ({
-      ...item,
-      facts: { ...item.facts, firstAppearance: qualify(item.facts.firstAppearance), sources: item.facts.sources.map(qualify) },
-    })),
-    eras: output.eras.map((item) => ({
-      ...item,
-      range: { ...item.range, from: qualify(item.range.from), to: qualify(item.range.to) },
-      facts: { ...item.facts, sources: item.facts.sources.map(qualify) },
-    })),
-    things: output.things.map((item) => ({ ...item, facts: { ...item.facts, sources: item.facts.sources.map(qualify) } })),
+    characters: output.characters.map((item) => mapItemCitations('characters', item, qualify)),
+    places: output.places.map((item) => mapItemCitations('places', item, qualify)),
+    eras: output.eras.map((item) => mapItemCitations('eras', item, qualify)),
+    things: output.things.map((item) => mapItemCitations('things', item, qualify)),
   }
 }
 
