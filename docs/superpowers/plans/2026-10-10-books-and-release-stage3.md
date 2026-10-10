@@ -17,7 +17,9 @@
 - 앱의 "지금 책"은 읽던 곳의 책이다. 읽던 곳 기록 `{ book, chapter, verse }`, 책이 없는 옛 기록은 창세기다(다음 저장 때 책을 넣는다). 계획 기록에도 책을 넣는다.
 - 받은 파일은 `expo-file-system`의 문서 폴더 `content/` 아래 목록의 경로 그대로 둔다(`content/packs/genesis/4.<해시>.json`). 이름에 해시가 있으므로 이미 있는 파일은 다시 받지 않는다. 목록에 없는 파일은 목록을 받은 뒤 지운다(공개 취소, 다시 공개 전의 옛 파일).
 - 꾸러미와 공용 설정집·사전은 목록을 받으면 저절로 받는다(작다). 그림은 장을 열 때(설정에 따라 다음 장도), 낭독은 재생할 때 받는다. 받는 동안 낭독은 서버 주소로 바로 재생한다. "와이파이에서만 받기"가 켜져 있으면 모바일 데이터로는 그림·낭독을 받지 않는다(글은 받는다). 웹은 받지 않고 서버 주소로 읽는다.
-- 콘텐츠 주소는 `EXPO_PUBLIC_CONTENT_URL`(기본 `http://localhost:8790/content`), 미리 보기는 `EXPO_PUBLIC_CONTENT_PREVIEW=1`(목록을 `preview/catalog.json`에서 받는다).
+- 콘텐츠 주소는 `EXPO_PUBLIC_CONTENT_URL`이다.
+  - 기본은 `${apiUrl}/content`다. `apiUrl`은 `mobile/src/auth/config.ts`에서 가져온다. 안드로이드 에뮬레이터는 `10.0.2.2`를 쓰므로 `localhost`를 박지 않는다.
+  - 미리 보기는 `EXPO_PUBLIC_CONTENT_PREVIEW=1`이다. 목록을 `preview/catalog.json`에서 받는다.
 - 시작 꾸러미: 빌드할 때 `publish/`의 공개 목록과 공개된 창세기 앞 장들의 꾸러미·그림·낭독(합계 30 MB까지)을 앱에 넣는다. 앱은 처음 켤 때 시작 꾸러미를 문서 폴더로 옮겨 쓰고, 더 새 목록을 받으면 바꾼다. 공개된 장이 없으면 시작 꾸러미도 비어 있다(그때 앱은 목록을 받아야 열린다).
 - 앱의 질문하기는 지금 책을 함께 보낸다.
 
@@ -27,9 +29,9 @@
 
 | 파일 | 할 일 |
 |---|---|
-| `packages/reader-core/src/canonForBook.ts` (새) | 공용 설정집 → 그 책 묶음용 설정집(그 책까지 나온 항목, 같은 책 인용은 책 없이, 앞 책은 책 이름, 뒤 책은 뺌, 시대 끝 맞춤). 파이프라인 `buildBundle`도 쓴다 |
+| `packages/reader-core/src/canonForBook.ts` (새) | 공용 설정집 → 그 책 묶음용 설정집(그 책까지 나온 항목, 같은 책 인용은 책 없이, 앞 책은 책 이름, 뒤 책은 뺌, 시대 끝 맞춤). 출력은 묶음 모양이다(파이프라인의 `toBundle*`도 옮긴다). `CanonKind`도 여기서 정한다. 파이프라인 `buildBundle`도 쓴다 |
 | `packages/reader-core/src/packs.ts` (새) | `bundleFromPacks`, `chapterStates`, `readableRange`, `nextReadable` |
-| `packages/reader-core/src/position.ts`, `plan.ts` | 책이 든 읽던 곳·계획, 옛 기록 읽기 |
+| `packages/reader-core/src/position.ts`, `plan.ts` | 기록용 `BookPosition`(웹 목업이 쓰는 `Position`은 그대로), 책이 든 계획, 옛 기록 읽기 |
 | `mobile/src/content/config.ts` (새) | 콘텐츠 주소, 미리 보기 |
 | `mobile/src/content/files.ts`, `files.web.ts` (새) | 받은 파일 저장소(문서 폴더) / 웹은 서버 주소 |
 | `mobile/src/content/catalog.ts` (새) | 목록 받기(ETag), 기기에 두기, 시작 꾸러미 |
@@ -40,6 +42,7 @@
 | `mobile/src/settings/StorageScreen.tsx` (새), `mobile/src/app/storage.tsx` (새) | 저장 공간 |
 | `mobile/src/narration/*`, `mobile/src/player/*` | 낭독 주소(받아 둔 파일 또는 서버) |
 | `mobile/src/data/reading.ts` | 읽던 곳·계획의 책 |
+| `mobile/src/widgets/*` | 위젯이 앱에 넣은 묶음 대신 기기에 둔 목록과 받아 둔 꾸러미로 지금 책을 읽는다 |
 | `mobile/scripts/sync-starter.mjs` (새), `mobile/package.json` | 시작 꾸러미 |
 | `README.md`, `docs/content-publish.md`, 설계 문서 | 앱 실행(콘텐츠 주소, 미리 보기), 진행 |
 
@@ -51,9 +54,27 @@
 - Create: `packages/reader-core/src/canonForBook.ts`, `packages/reader-core/src/packs.ts`와 시험
 - Modify: `packages/reader-core/src/index.ts`, `pipeline/src/build/buildBundle.ts`(옮긴 규칙을 쓴다)
 
-- [ ] **Step 0: 앞 책 같은 이름 인물** — 1단계의 묶음 규칙은 앞 책 인용을 책 이름 모양("창세기 5:21")으로 써서 `reader-core`가 0장(이미 만남)으로 읽는다. 그래서 나중 책 묶음에서는 같은 이름의 앞 책 인물(셋 계열 에녹과 가인 계열 에녹)을 처음 나온 곳으로 가르지 못하고 첫 후보를 고른다(1단계 Task 7 검토, 알려진 한계로 시험이 있다). 앱이 공용 설정집을 쓰는 이 단계에서는, 묶음의 인물에 책이 붙은 첫 등장(`genesis 5:21`)을 함께 넘기고 `names.ts`·`people.ts`·`genealogy.ts`가 `compareRefs`로 책 순서까지 보아 고르게 바꾼다. 그 시험을 바른 결과로 뒤집는다.
-- [ ] **Step 1: `canonForBook(canon, book, lastVerse)`** — 1단계 Task 7의 규칙(파이프라인 `build/canonForBook.ts`와 `canon/citations.ts`)을 그대로 옮긴다. 입력은 승인된 항목만 든 공용 설정집(`CanonFile`, 인용은 책이 붙은 모양), 출력은 묶음용 `places`, `characters`, `eras`, `things`. 파이프라인의 `buildBundle`은 이 함수를 쓰도록 바꾸고, `npm run pipeline -- build` 결과가 바이트까지 같은지 본다.
-- [ ] **Step 2: `bundleFromPacks({ catalog, book, packs, canon, lexicon })`** — 목록에 있는 그 책의 장 가운데 꾸러미가 있는 장으로 `Bundle`을 만든다. `book`(한국어 이름), `bookId`, `translation`(목록), 설정집(`canonForBook`, 마지막 절은 받은 장 가운데 마지막 장의 마지막 절), `imageVersions`·`defaultImageVersion`(목록), `lexicon`(공용 사전에서 그 묶음의 원어에 나오는 번호만, `count`는 그 묶음에서 센다), `sources`(목록), `chapters`(꾸러미의 장, 장 번호 순서). 그림·낭독 경로는 꾸러미의 `media/` 경로 그대로다(앱이 주소로 바꾼다).
+- [ ] **Step 0: 앞 책 같은 이름 인물** — 1단계의 묶음 규칙은 앞 책 인용을 책 이름 모양("창세기 5:21")으로 써서 `reader-core`가 0장(이미 만남)으로 읽는다. 그래서 나중 책 묶음에서는 같은 이름의 앞 책 인물(셋 계열 에녹과 가인 계열 에녹)을 처음 나온 곳으로 가르지 못하고 첫 후보를 고른다(1단계 Task 7 검토, 알려진 한계로 시험이 있다). 앱이 공용 설정집을 쓰는 이 단계에서는 책 순서까지 보아 고르게 바꾼다.
+  - 묶음의 인물(`reader-core/types.ts`의 `Character`)에 `firstAppearanceRef: string`을 더한다. 책이 붙은 첫 등장(`genesis 5:21`)이다. `firstAppearance`는 화면용으로 지금처럼 둔다.
+  - 이 필드를 만드는 곳:
+    - `canonForBook`(Step 1, 파이프라인 `build`와 앱의 `bundleFromPacks`가 함께 쓴다)
+    - 옛 묶음을 채우는 `fillMissing`: 책 없는 인용은 그 묶음의 `bookId`를 붙인다. 책 이름 모양은 이름으로 책을 찾아 id를 붙인다(`refs.ts`의 `parseRef`는 이름 모양을 읽지 않는다).
+    - `docs/content-bundle.md`
+  - 읽는 함수에 지금 책을 더한다. `linkNames(text, chapter, characters, places)`, `metCharacters(characters, upTo)`, `buildFamilyTree(characters, visible)`에 `book: BookId`를 넣는다.
+  - 비교는 `firstAppearanceRef`와 읽는 곳(`{ book, chapter, verse }`)을 `compareRefs`로 한다. `compareRefs`는 책이 붙은 것과 책 없는 것을 섞으면 오류를 내므로 두 쪽 모두 책을 붙인다.
+  - `names.test.ts`의 알려진 한계 시험(158줄 근처)을 바른 결과로 뒤집는다.
+- [ ] **Step 1: `canonForBook(canon, book, lastVerse)`** — 1단계 Task 7의 규칙을 `reader-core`로 옮긴다.
+  - 입력은 승인된 항목만 든 공용 설정집이다(`CanonFile`, 인용은 책이 붙은 모양).
+  - 출력은 묶음 모양(`reader-core/types.ts`)의 `places`, `characters`, `eras`, `things`다.
+  - 지금 코드는 세 곳에 나뉘어 있다. 넷을 함께 옮긴다.
+    - 파이프라인 `build/canonForBook.ts`는 설정집 모양 그대로(`facts`, `location`, `status`, `design`) 그 책에 맞춰 거른 항목을 돌려준다.
+    - 묶음 모양으로 바꾸는 것은 `build/buildBundle.ts`의 `toBundle*` 넷(176~232줄 근처)이다.
+    - 승인 거르기는 67줄 근처에 있다.
+  - `canon/citations.ts`는 파이프라인 `schema.ts`의 `CanonKind`를 쓰고, 파이프라인의 `validate.ts`, `merge.ts`, `migrateRefs.ts`도 쓴다. `reader-core`에 `CanonKind`를 다시 정하고 파이프라인의 import를 옮긴 곳으로 바꾼다.
+  - 파이프라인의 `buildBundle`은 이 함수를 쓰도록 바꾼다.
+  - `npm run pipeline -- build` 결과가 바이트까지 같은지 본다. `pipeline/test/writeBundles.test.ts`도 그대로 통과해야 한다.
+- [ ] **Step 2: `bundleFromPacks({ catalog, book, packs, canon, lexicon })`** — 목록에 있는 그 책의 장 가운데 꾸러미가 있는 장으로 `Bundle`을 만든다. `book`(한국어 이름), `bookId`, `translation`(목록), 설정집(`canonForBook`, 마지막 절은 받은 장 가운데 마지막 장의 마지막 절), `imageVersions`·`defaultImageVersion`(목록), `lexicon`(공용 사전에서 그 묶음의 원어에 나오는 번호만, `count`는 그 묶음에서 센다), `sources`, `chapters`(꾸러미의 장, 장 번호 순서).
+  - `sources`는 목록의 출처 가운데 그 책의 개역한글판 출처(`krv-<책 id>`, id는 1단계 묶음처럼 `krv`로 되돌린다)와 책마다 다르지 않은 출처(원어, 그림 참고)만 넣는다. 자료 출처 화면이 다른 책의 개역한글판 출처까지 늘어놓지 않게 하려는 것이다. 그림·낭독 경로는 꾸러미의 `media/` 경로 그대로다(앱이 주소로 바꾼다).
 - [ ] **Step 3: 장 상태** — `chapterStates(catalog, book, has: (path) => boolean)`: 그 책의 1장부터 마지막 장까지 `downloaded`(꾸러미와 그 장의 그림이 모두 있음), `published`(목록에 있으나 다 받지 않음), `preview`(미리 보기 장), `locked`. `readableRange(states)`는 "창세기 1~4장" 같은 안내 글에 쓸 연속 범위들, `nextReadable(states, chapter)`/`lastReadable(states)`.
 - [ ] **Step 4: 시험** — 고정값 목록·꾸러미(창세기 1, 2, 4장 공개, 3장 미리 보기)로 묶음의 장, 설정집, 사전 횟수, 장 상태, 안내 범위(1~2장, 4장), 공개 취소된 장이 빠지는지.
 
@@ -72,7 +93,10 @@ git commit -m "feat(core): 공개 목록과 꾸러미로 책 묶음을 만든다
 
 **Files:** `packages/reader-core/src/{position,plan,readingPosition}.ts`와 시험, `mobile/src/data/reading.ts`, 읽던 곳을 쓰는 화면
 
-- [ ] **Step 1:** `Position`에 `book: BookId`를 더한다. `parsePosition`은 책이 없거나 모르는 책이면 `'genesis'`로 읽는다. 계획 기록에 `book`(없으면 `'genesis'`).
+- [ ] **Step 1:** `Position`(`reader-core/position.ts`)은 웹 목업(`app/src/components/ReaderScreen.tsx`, `ContentsScreen.tsx`)도 `{ chapter, verse }`로 쓴다. `npm run build -w app`이 형 검사를 하므로 `Position`은 그대로 둔다.
+  - 기록에 쓰는 형을 따로 둔다: `BookPosition = Position & { book: BookId }`.
+  - `parsePosition`(또는 새 `parseBookPosition`)은 책이 없거나 모르는 책이면 `'genesis'`로 읽는다.
+  - 계획 기록에 `book`을 넣는다. 없으면 `'genesis'`다.
 - [ ] **Step 2:** 앱이 읽던 곳을 저장할 때 책을 넣는다. 이어 읽기, 위젯, 홈의 계획은 기록의 책을 쓴다.
 - [ ] **Step 3: 시험** — 옛 기록(`{chapter, verse}`)이 창세기로 읽힌다, 저장하면 책이 들어간다, 동기화 기록의 모양이 바뀌어도 서버 컬렉션은 그대로다.
 
@@ -93,7 +117,14 @@ git commit -m "feat: 읽던 곳과 계획 기록에 책을 넣는다(책 없는 
 - [ ] **Step 2: 목록** — `loadCatalog()`: 기기에 둔 마지막 목록(문서 폴더의 `catalog.json` 또는 웹은 kv) → 서버에서 `If-None-Match`로 받기 → 바뀌었으면 검사(`validateCatalog`)하고 저장. 연결이 안 되면 마지막 목록. 목록 판이 바뀌면 공용 설정집·사전과 꾸러미를 받고, 목록에 없는 받은 파일을 지운다.
 - [ ] **Step 3: ContentContext** — 상태: `catalog`, `canon`, `lexicon`, 책마다 받은 꾸러미, `status`(`loading`·`ready`·`offline`·`empty`·`error`). 함수: `bundleFor(book)`(Task 1의 `bundleFromPacks`, 꾸러미가 바뀔 때만 다시 만든다), `chapterStates(book)`, `ensureChapter(book, chapter, onProgress)`(꾸러미와 그 장 그림 받기), `mediaUri(path)`, `downloadBook(book)`, `removeBook(book)`, `usage()`. 앱을 켤 때와 다시 앞으로 올 때 목록을 받는다(`AppState`).
 - [ ] **Step 4: 지금 책 묶음** — `BundleGate`는 ContentContext의 지금 책(읽던 곳의 책) 묶음을 넘긴다. 받은 장이 없으면 상태에 맞는 안내(목록을 받는 중, 연결 없음, 공개된 장 없음)를 보인다. 그림·낭독 경로는 `mediaUri`로 바꾼다(지금 `imageSource`, `audioSource`를 쓰는 곳). 앱에 넣던 묶음과 `assets.generated.ts`는 다음 Task 9(시작 꾸러미)에서 지운다. 이 작업 동안은 둘 다 둔다.
-- [ ] **Step 5: 확인** — 서버(`npm run server`)와 2단계의 `publish/`(미리 보기)로 Expo 웹을 띄워(`EXPO_PUBLIC_CONTENT_PREVIEW=1`) 창세기 1~5장이 지금처럼 읽히는지 브라우저에서 본다.
+  - 맨 위의 `NarrationProvider bundle={content.bundle}`(`app/_layout.tsx`)도 지금 책 묶음을 받게 한다.
+  - 홈 화면 위젯은 React 밖에서 돈다. 안드로이드 위젯 작업(`widgets/androidTaskHandler.tsx`)이 `widgets/snapshot.ts`로 앱에 넣은 묶음을 읽고, 작은 그림은 `widgetImageAssets`(`updateWidgets.tsx`, `TodaySceneWidget.tsx`)에서 온다.
+  - 이 Task에서는 위젯이 지금처럼 앱에 넣은 묶음을 읽게 둔다. 바꾸는 일은 Task 9에서 한다.
+- [ ] **Step 5: 확인** — 2단계의 `publish/`(미리 보기)로 창세기 1~5장이 지금처럼 읽히는지 브라우저에서 본다.
+  - 서버는 Postgres가 없으면 뜨지 않으므로 `npm run infra:up`부터 한다.
+  - 서버는 미리 보기를 켜서 띄운다(`CONTENT_PREVIEW=1 npm run server`). `/content/preview/*`는 미리 보기가 켜져 있을 때만 열린다.
+  - Expo 웹은 `EXPO_PUBLIC_CONTENT_PREVIEW=1`로 띄운다.
+  - 확인이 끝나면 서버와 Expo 웹을 끈다.
 
 Run: `npm run typecheck -w mobile && npm test -w reader-core`
 
@@ -173,6 +204,11 @@ git commit -m "feat(mobile): 저장 공간(받아 둔 용량, 책마다 받기·
 **Files:** 검색, 인물 사전, 가계도, 연표, 지도, 질문하기, 위젯, `mobile/src/reader/*`(미리 보기 띠)
 
 - [ ] **Step 1** — 검색, 인물, 가계도, 연표, 지도는 지금 책 묶음(받아 둔 장)만 쓴다. 지금 책 묶음으로 바뀌었으므로 대부분 그대로 맞다. 각 화면에서 받지 않은 장의 내용이 보이지 않는지 확인한다.
+  - 창세기에 맞춰 박아 둔 글이 세 곳 남아 있다(1단계 Task 10에서 미룬 것). 책 이름이나 창세기의 장 번호를 박지 않은 글로 바꾼다.
+    - `GenealogyScreen.tsx`(81줄 근처)
+    - `HomeScreen.tsx`(89줄 근처, 가계도 바로 가기의 "2장부터 시작돼요")
+    - `TimelineView.tsx`(92줄 근처, "5장의 나이…")
+  - 바꾼 글의 예: "가계도에 넣을 인물을 아직 만나지 않았어요"처럼 그 책의 데이터로 판단한 글.
   - 인물 화면은 인물을 처음 만난 장으로 묶는다(`PeopleScreen`). 0장은 "앞 책에서 만남"으로, 맨 앞에 온다. 이 묶기와 이름표를 `reader-core`의 순수 함수로 옮기고 `people.test.ts`로 고정한다.
 - [ ] **Step 2** — 질문하기는 지금 책을 보낸다(1단계 Task 10에서 넣은 것이 지금 책을 따르는지 본다).
   - 근거 모양은 서버(`server/src/ask/answer.ts`)와 앱(`mobile/src/ask/askApi.ts`)이 따로 정해 두어서, `book`도 두 곳에 손으로 더했다. `reader-core`에 공용 형을 두고 둘 다 그 형을 쓰게 한다.
@@ -187,14 +223,20 @@ git commit -m "feat(mobile): 공개되고 받은 장만 쓰는 기능들과 미�
 
 ### Task 9: 시작 꾸러미
 
-**Files:** `mobile/scripts/sync-starter.mjs`(새), `mobile/package.json`(`starter`, `eas-build-post-install`), `mobile/src/content/starter.generated.ts`(만들어짐), 앱에 넣던 묶음 지우기(`sync-content.mjs`, `assets.generated.ts`, `assets/content`)
+**Files:** `mobile/scripts/sync-starter.mjs`(새), `mobile/package.json`(`starter`, `typecheck`, `eas-build-post-install`), `mobile/src/content/starter.generated.ts`(만들어짐, git에서 뺌), `mobile/.gitignore`, `mobile/src/widgets/*`, `README.md`(네이티브 앱 명령), 앱에 넣던 묶음 지우기(`sync-content.mjs`, `assets.generated.ts`, `assets/content`)
 
 - [ ] **Step 1** — `npm run starter -w mobile`: `publish/catalog.json`과 공용 설정집·사전, 공개된 창세기 앞 장부터 꾸러미·그림·낭독을 합계 30 MB가 넘지 않을 때까지 `mobile/assets/starter/`에 복사하고 `require()` 표(`starter.generated.ts`)를 만든다. 앱은 처음 켤 때 시작 꾸러미 파일을 문서 폴더로 옮기고 시작 목록을 마지막 목록으로 둔다.
-- [ ] **Step 2** — `eas-build-post-install`은 `npm run pipeline -- publish && npm run starter -w mobile`. 앱에 넣던 묶음(`sync-content.mjs`, `assets.generated.ts`, `assets/content`)과 그 스크립트를 지운다. 위젯용 작은 그림은 시작 꾸러미 스크립트가 만든다(지금 `sync-content.mjs`가 하는 일을 옮긴다).
+- [ ] **Step 2** — `eas-build-post-install`은 `cd .. && npm run pipeline -- publish && npm run starter -w mobile`이다. `pipeline` 스크립트는 리포 루트에만 있어서 지금처럼 `cd ..`로 시작한다.
+  - 앱에 넣던 묶음(`sync-content.mjs`, `assets.generated.ts`, `assets/content`)과 그 스크립트를 지운다.
+  - 만들어지는 `require()` 표는 git에서 뺀다(`mobile/.gitignore`). 그래서 지금 `typecheck`가 `sync-content.mjs`를 먼저 돌린다. `typecheck`는 `node scripts/sync-starter.mjs && tsc --noEmit`이 된다. `publish/`가 없으면 시작 꾸러미 스크립트는 빈 표를 만들고 실패하지 않는다.
+  - README의 네이티브 앱 명령(`npm run content -w mobile`)을 `npm run pipeline -- publish`와 `npm run starter -w mobile`로 바꾼다.
+- [ ] **Step 2b: 위젯** — 위젯은 React 밖에서 돈다(안드로이드 위젯 작업, iOS는 앱이 넘겨준 그림).
+  - `widgets/snapshot.ts`가 앱에 넣은 묶음 대신 기기에 둔 마지막 목록과 받아 둔 꾸러미로 지금 책 묶음을 만든다. React 없이 Task 3의 파일 저장소와 `bundleFromPacks`를 쓴다.
+  - 위젯용 작은 그림(`widgetImageAssets`)은 시작 꾸러미 스크립트가 시작 장들만 만든다. 그 밖의 장은 받아 둔 장면 그림을 줄여 쓴다. 줄일 수 없으면 그림 없는 위젯을 보인다.
 - [ ] **Step 3** — 공개된 장이 없으면 시작 꾸러미는 빈 목록이다. 그때 앱은 목록을 받아야 열린다는 안내를 보인다.
 
 ```bash
-git add mobile
+git add mobile README.md
 git commit -m "feat(mobile): 시작 꾸러미(공개 목록과 앞 장들, 30 MB까지)로 첫 실행을 연다"
 ```
 
@@ -202,7 +244,11 @@ git commit -m "feat(mobile): 시작 꾸러미(공개 목록과 앞 장들, 30 MB
 
 ### Task 10: 공개 흐름 확인과 문서
 
-- [ ] **Step 1: 공개 흐름** — 실제 콘텐츠에는 승인된 장면이 없으므로, 콘텐츠를 임시 폴더에 복사해 창세기 1·2장 장면을 승인으로 바꾼 고정값으로 공개 상태를 만들고 `publish`를 그 임시 폴더의 `publish/`로 돌린다(실제 `content/`는 건드리지 않는다). 서버를 `CONTENT_DIR`로 그 폴더에 붙이고 Expo 웹에서 본다: 1·2장만 열림 → 3장 공개 뒤 앱을 다시 앞으로 오면 3장이 열림 → 2장 해설을 바꿔 다시 공개하면 2장 꾸러미만 새로 받음 → 3장 공개 취소하면 3장이 잠기고 읽던 곳이 2장으로 옮겨짐.
+- [ ] **Step 1: 공개 흐름** — 실제 콘텐츠에는 승인된 장면이 없으므로, 콘텐츠를 임시 폴더에 복사해 창세기 1·2장 장면을 승인으로 바꾼 고정값으로 공개 상태를 만들고 `publish`를 그 임시 폴더의 `publish/`로 돌린다(실제 `content/`는 건드리지 않는다).
+  - 파이프라인 CLI는 리포의 `content/`와 `publish/`에 고정이다. 임시 사본은 작은 스크립트로 돌린다. 시스템 임시 폴더에 두고 커밋하지 않는다.
+  - 이 스크립트는 2단계의 `readReleaseInputs`, `buildPack`, `publishChapter`, `writeReleases`, `runPublish`를 임시 폴더 옵션으로 부른다.
+  - 서버는 `npm run infra:up` 뒤에 `CONTENT_DIR`로 그 폴더에 붙여 띄운다. 확인이 끝나면 끈다.
+  - Expo 웹에서 본다: 1·2장만 열림 → 3장 공개 뒤 앱을 다시 앞으로 오면 3장이 열림 → 2장 해설을 바꿔 다시 공개하면 2장 꾸러미만 새로 받음 → 3장 공개 취소하면 3장이 잠기고 읽던 곳이 2장으로 옮겨짐.
 - [ ] **Step 2: 네이티브** — 개발 빌드(EAS development 또는 미리 보기 APK)에서 받기, 저장 공간, 와이파이에서만 받기를 사용자가 폰으로 확인할 목록을 README에 적는다(이 PC에는 안드로이드 SDK가 없다).
 - [ ] **Step 3: 문서** — README(앱 실행: 콘텐츠 주소, 미리 보기, 시작 꾸러미), `docs/content-publish.md`(앱이 받는 방법, 파일 저장소), 설계 문서 3절 표 아래 3단계 진행.
 - [ ] **Step 4: 전체 확인**
@@ -212,4 +258,11 @@ npm test && npm run typecheck -w mobile && npm run typecheck -w server && npm ru
 ```
 
 - [ ] **Step 5: 커밋과 합치기** — `docs: 여러 책과 장 공개 3단계(앱) 완료`. 세 단계가 끝났으므로 `docs/git-convention.md`대로 main에 `--no-ff`로 합친다(`merge: 여러 책과 장 공개 (feature/books-and-release)`). 푸시는 사용자가 정한다.
-  - 합치기 전에 리눅스 컨테이너(도커 `node:22-bookworm-slim`, `npm ci`)에서 `npm test -w server`를 한 번 돌린다. `server/test/bundles.test.ts`의 링크 시험은 이 PC의 Windows 계정에서 링크를 만들 수 없어 건너뛰는데, Pages 배포는 main에 푸시할 때 Ubuntu에서 `npm test`를 돌리기 때문이다.
+  - 합치기 전에 리눅스 컨테이너에서 `npm test`를 한 번 돌린다.
+    - 이 PC의 Windows 계정에서 건너뛰는 시험이 있을 수 있다. 1단계의 링크 시험이 그랬고, 이 시험은 2단계 Task 9에서 묶음 읽기와 함께 지운다.
+    - Pages 배포는 main에 푸시할 때 Ubuntu에서 `npm test`를 돌린다.
+  - 리포를 붙이지 않고 커밋된 파일만 넣어 돌린다. 그래야 Windows의 `node_modules`를 건드리지 않는다.
+
+    ```bash
+    git archive --format=tar HEAD | docker run --rm -i node:22-bookworm-slim bash -c "mkdir -p /app && cd /app && tar -x && npm ci --ignore-scripts && npm test"
+    ```
