@@ -108,7 +108,7 @@ describe('책 묶음 폴더', () => {
     })
     const load = (target = dir) => loadAskIndex(target, (message) => warnings.push(message))
     // 경고의 앞머리: 어느 폴더인지 밝힌다.
-    const turnedOff = (target: string) => `책 묶음(${target})을 읽지 못해 질문하기를 끕니다. `
+    const turnedOff = (target: string) => `묶음 폴더(${target})의 책 묶음을 쓰지 못해 질문하기를 끕니다. `
 
     it('묶음이 있으면 모든 책의 색인을 돌려주고 경고는 없다', () => {
       write('exodus.json', withVerse('exodus', '출애굽기'))
@@ -165,6 +165,19 @@ describe('책 묶음 폴더', () => {
       expect(warnings[0]!.startsWith(turnedOff(dir))).toBe(true)
       // 어느 파일로 대목을 만들다 실패했는지 밝힌다.
       expect(warnings[0]).toContain('genesis.json으로 대목을 만들지 못했습니다')
+    })
+
+    it('본문 절의 글이 문자열이 아니면 질문하기만 꺼지고, 어느 파일의 몇 장 몇 절인지 알린다', () => {
+      // 성한 묶음이 앞에 있어도 문제의 둘째 묶음을 밝힌다. 글이 null이거나 숫자이거나 아예 없는 절이다.
+      write('genesis.json', withVerse('genesis', '창세기'))
+      for (const text of [null, 15, undefined]) {
+        write('exodus.json', { ...bundleOf('exodus', '출애굽기'), chapters: [{ chapter: 2, verses: [{ verse: 3, text }], scenes: [] }] })
+        expect(load()).toBeNull()
+        const warning = warnings.pop()!
+        expect(warning.startsWith(turnedOff(dir))).toBe(true)
+        expect(warning).toContain('exodus.json으로 대목을 만들지 못했습니다: 2장 3절의 본문이 글이 아닙니다')
+      }
+      expect(warnings).toEqual([])
     })
 
     it.skipIf(!canSymlink)('가리키는 파일이 없는 링크면 질문하기를 끄고 어느 파일인지 알린다', () => {

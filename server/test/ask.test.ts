@@ -181,6 +181,12 @@ describe('책 묶음이 여럿일 때의 대목', () => {
     expect(() => buildPassages([bundle, noVerses])).toThrow('exodus.json으로 대목을 만들지 못했습니다')
   })
 
+  it('본문 절의 글이 null이어도 어느 묶음 파일의 몇 장 몇 절인지 밝힌다', () => {
+    // 둘째 묶음(출애굽기)의 3장 2절에 글이 없다. 그대로 두면 색인을 만들다 파일도 밝히지 못하고 죽는다.
+    const nullText = { ...exodus, chapters: [{ chapter: 3, verses: [{ verse: 2, text: null }], scenes: [] }] } as unknown as AskBundle
+    expect(() => buildPassages([bundle, nullText])).toThrow('exodus.json으로 대목을 만들지 못했습니다: 3장 2절의 본문이 글이 아닙니다')
+  })
+
   it('설정집을 만들다 나는 오류도, 오류가 아닌 값을 던져도 파일을 밝히고 원래 값을 cause에 남긴다', () => {
     const failureOf = (patch: object) => {
       try {
@@ -389,6 +395,13 @@ describe('POST /ask', () => {
     const { app, bearer } = await askApp(good)
     expect((await post(app, bearer, { question: '  ' })).status).toBe(400)
     expect((await post(app, bearer, { question: '가'.repeat(301) })).status).toBe(400)
+  })
+
+  it('JSON이 아닌 본문은 질문 오류로 400이다', async () => {
+    const { app, bearer } = await askApp(good)
+    const reply = await app.request('/ask', { method: 'POST', headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' }, body: 'not json' })
+    expect(reply.status).toBe(400)
+    expect(await reply.json()).toEqual({ error: '질문은 1자에서 300자 사이로 써 주세요' })
   })
 
   it('모르는 책이면 400이고 하루 횟수를 쓰지 않는다', async () => {

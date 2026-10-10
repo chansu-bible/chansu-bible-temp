@@ -51,6 +51,8 @@ function textPassages(bundle: AskBundle, named: boolean): Passage[] {
   const passages: Passage[] = []
   for (const chapter of bundle.chapters) {
     for (const verse of chapter.verses) {
+      // 본문이 글이 아니면 색인을 만들다 파일도 밝히지 못하고 죽는다. 여기서 던져 inBundle이 파일을 밝히게 한다.
+      if (typeof verse.text !== 'string') throw new Error(`${chapter.chapter}장 ${verse.verse}절의 본문이 글이 아닙니다`)
       const ref = `${chapter.chapter}:${verse.verse}`
       passages.push({
         id: `v:${book}:${ref}`,
