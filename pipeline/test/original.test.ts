@@ -153,6 +153,115 @@ describe('parseOshb', () => {
   })
 })
 
+// 크티브(쓰인 대로)와 크레(읽는 대로)가 있는 OSHB 절 그대로(줄 앞 들여쓰기만 뺐다).
+// 창세기 8:17: 크티브 하나(הוצא) → 크레 하나(הַיְצֵא)
+const gen817 = `<verse osisID="Gen.8.17">
+<w lemma="3605" morph="HNcmsc" id="01PUa">כָּל</w><seg type="x-maqqef">־</seg><w lemma="d/2416 c" morph="HTd/Ncfsa" id="01r3q">הַ/חַיָּ֨ה</w>
+<w lemma="834 a" morph="HTr" id="01i7e">אֲשֶֽׁר</w><seg type="x-maqqef">־</seg><w lemma="854" n="1.0.2.0" morph="HR/Sp2ms" id="01Mem">אִתְּ/ךָ֜</w>
+<w lemma="m/3605" morph="HR/Ncmsc" id="01wNK">מִ/כָּל</w><seg type="x-maqqef">־</seg><w lemma="1320" n="1.0.2" morph="HNcmsa" id="01bwY">בָּשָׂ֗ר</w>
+<w lemma="b/5775" morph="HRd/Ncmsa" id="015e6">בָּ/ע֧וֹף</w>
+<w lemma="c/b/929" n="1.0.1" morph="HC/Rd/Ncfsa" id="01yr6">וּ/בַ/בְּהֵמָ֛ה</w>
+<w lemma="c/b/3605" morph="HC/R/Ncmsc" id="01ckn">וּ/בְ/כָל</w><seg type="x-maqqef">־</seg><w lemma="d/7431" n="1.0.0" morph="HTd/Ncmsa" id="01vA4">הָ/רֶ֛מֶשׂ</w>
+<w lemma="d/7430" morph="HTd/Vqrmsa" id="01KEn">הָ/רֹמֵ֥שׂ</w>
+<w lemma="5921 a" morph="HR" id="01cPC">עַל</w><seg type="x-maqqef">־</seg><w lemma="d/776" n="1.0" morph="HTd/Ncbsa" id="01Eoc">הָ/אָ֖רֶץ</w>
+<w type="x-ketiv" lemma="3318" morph="HVhv2ms" id="01Pdv">הוצא</w><note type="variant"><catchWord>הוצא</catchWord><rdg type="x-qere"><w lemma="3318" morph="HVhv2ms" id="01S7t">הַיְצֵ֣א</w></rdg></note>
+<w lemma="854" n="1" morph="HR/Sp2fs" id="018F2">אִתָּ֑/ךְ</w>
+<w lemma="c/8317" morph="HC/Vqq3cp" id="01T2K">וְ/שָֽׁרְצ֣וּ</w>
+<w lemma="b/776" n="0.1" morph="HRd/Ncbsa" id="01ouG">בָ/אָ֔רֶץ</w>
+<w lemma="c/6509" morph="HC/Vqq3cp" id="01xxG">וּ/פָר֥וּ</w>
+<w lemma="c/7235 a" n="0.0" morph="HC/Vqq3cp" id="01vin">וְ/רָב֖וּ</w>
+<w lemma="5921 a" morph="HR" id="01KSD">עַל</w><seg type="x-maqqef">־</seg><w lemma="d/776" n="0" morph="HTd/Ncbsa" id="01Eiv">הָ/אָֽרֶץ</w><seg type="x-sof-pasuq">׃</seg>
+</verse>`
+// 창세기 30:11: 크티브 하나(ב/גד) → 크레 둘(בָּא גָד)
+const gen3011 = `<verse osisID="Gen.30.11">
+<w lemma="c/559" morph="HC/Vqw3fs" id="01uhc">וַ/תֹּ֥אמֶר</w>
+<w lemma="3812" n="1.0" morph="HNp" id="01iC6">לֵאָ֖ה</w>
+<w type="x-ketiv" lemma="b/1409" morph="HR/Ncmsa" id="01VG3">ב/גד</w><note type="variant"><catchWord>ב/גד</catchWord><rdg type="x-qere"><w lemma="935" morph="HVqrmsa" id="01Q3H">בָּ֣א</w> <w lemma="1409" n="1" morph="HNcmsa" id="01gKG">גָ֑ד</w></rdg></note>
+<w lemma="c/7121" morph="HC/Vqw3fs" id="01tXk">וַ/תִּקְרָ֥א</w>
+<w lemma="853" morph="HTo" id="01Nsp">אֶת</w><seg type="x-maqqef">־</seg><w lemma="8034" n="0.0" morph="HNcmsc/Sp3ms" id="01Pj7">שְׁמ֖/וֹ</w>
+<w lemma="1410" n="0" morph="HNp" id="0188b">גָּֽד</w><seg type="x-sof-pasuq">׃</seg>
+</verse>`
+// 욥기 38:1: 크티브 둘(מנ ה/סערה) 사이에 다른 note가 있고 → 크레 둘
+const job381 = `<verse osisID="Job.38.1">
+<w lemma="c/6030 b" morph="HC/Vqw3ms" id="18A8D">וַ/יַּֽעַן</w><seg type="x-maqqef">־</seg><w lemma="3068" morph="HNp" id="18hrv">יְהוָ֣ה</w>
+<w lemma="853" morph="HTo" id="18vzq">אֶת</w><seg type="x-maqqef">־</seg><w lemma="347" n="1.0" morph="HNp" id="18RTB">אִ֭יּוֹב</w>
+<w type="x-ketiv" lemma="4480 a" morph="HR" id="18rDJ">מנ</w>
+<note n="M">Marks a word with a final consonant that is a medial (not a final) form. </note>
+<w type="x-ketiv" lemma="d/5591 b" morph="HTd/Ncfsa" id="18ZbD">ה/סערה</w><note type="variant"><catchWord>מנ ה/סערה</catchWord><rdg type="x-qere"><w lemma="4480 a" morph="HR" id="18pe5">מִ֥ן</w> <seg type="x-paseq">׀</seg><w lemma="d/5591 b" n="1" morph="HTd/Ncfsa" id="18Gfh">הַ/סְּעָרָ֗ה</w></rdg></note>
+<w lemma="c/559" n="0" morph="HC/Vqw3ms" id="18sZ7">וַ/יֹּאמַֽר</w><seg type="x-sof-pasuq">׃</seg>
+</verse>`
+// 룻기 3:12: 크레가 비었다(쓰였지만 읽지 않는 אם)
+const ruth312 = `<verse osisID="Ruth.3.12">
+<w lemma="c/6258" n="1.1.0" morph="HC/D" id="08pVx">וְ/עַתָּה֙</w>
+<w lemma="3588 a" morph="HC" id="08WAq">כִּ֣י</w>
+<w lemma="551" n="1.1" morph="HD" id="08PxM">אָמְנָ֔ם</w>
+<w lemma="3588 a" morph="HC" id="08oCH">כִּ֥י</w>
+<w type="x-ketiv" lemma="518 a" morph="HC" id="08tQE">אם</w><note type="variant"><catchWord>אם</catchWord><rdg type="x-qere"/></note>
+<w lemma="1350 a" n="1.0" morph="HVqrmsa" id="08wtX">גֹאֵ֖ל</w>
+<w lemma="595" n="1" morph="HPp1cs" id="08Hso">אָנֹ֑כִי</w>
+<w lemma="c/1571" n="0.0.0" morph="HC/Ta" id="08yS3">וְ/גַ֛ם</w>
+<w lemma="3426" morph="HTm" id="08PHG">יֵ֥שׁ</w>
+<w lemma="1350 a" n="0.0" morph="HVqrmsa" id="081go">גֹּאֵ֖ל</w>
+<w lemma="7138" morph="HAamsa" id="08XLB">קָר֥וֹב</w>
+<w lemma="4480 a" n="0" morph="HR/Sp1cs" id="08KTJ">מִמֶּֽ/נִּי</w><seg type="x-sof-pasuq">׃</seg>
+</verse>`
+// 룻기 3:5: 크티브 없는 크레(쓰이지 않았지만 읽는 אֵלַי)
+const ruth35 = `<verse osisID="Ruth.3.5">
+<w lemma="c/559" n="1.0" morph="HC/Vqw3fs" id="08pcg">וַ/תֹּ֖אמֶר</w>
+<w lemma="413" n="1" morph="HR/Sp3fs" id="081pD">אֵלֶ֑י/הָ</w>
+<w lemma="3605" n="0.0.0" morph="HNcmsa" id="08UCh">כֹּ֛ל</w>
+<w lemma="834 a" morph="HTr" id="08jZZ">אֲשֶׁר</w><seg type="x-maqqef">־</seg><w lemma="559" morph="HVqi2fs" id="087a3">תֹּאמְרִ֥י</w>
+<note type="variant"><rdg type="x-qere"><w lemma="413" n="0.0" morph="HR/Sp1cs" id="08k23">אֵלַ֖/י</w></rdg></note>
+<w lemma="6213 a" n="0" morph="HVqi1cs" id="08nxs">אֶֽעֱשֶֽׂה</w><seg type="x-sof-pasuq">׃</seg>
+</verse>`
+
+// 첫 절의 낱말
+const wordsOf = (xml: string) => parseOshb(xml)[0]!.verses[0]!.words
+// 고정값의 크레 낱말(<rdg type="x-qere"> 안의 <w>)과 크티브 낱말(<w type="x-ketiv">)을 parseOshb처럼 다듬은 글
+const qereTexts = (xml: string) =>
+  [...xml.matchAll(/<rdg type="x-qere">([\s\S]*?)<\/rdg>/g)].flatMap((rdg) =>
+    [...rdg[1]!.matchAll(/<w [^>]*>([^<]*)<\/w>/g)].map((word) => cleanHebrew(word[1]!)),
+  )
+const ketivTexts = (xml: string) => [...xml.matchAll(/<w type="x-ketiv"[^>]*>([^<]*)<\/w>/g)].map((word) => cleanHebrew(word[1]!))
+
+describe('parseOshb 크티브와 크레', () => {
+  it('크티브 자리에 크레를 쓰고 크레를 따로 한 번 더 읽지 않는다(창세기 8:17은 H3318 하나)', () => {
+    const words = wordsOf(gen817)
+    expect(words.map((word) => word.strong)).toEqual([
+      'H3605', 'H2416', 'H834', 'H854', 'H3605', 'H1320', 'H5775', 'H929', 'H3605', 'H7431', 'H7430',
+      'H5921', 'H776', 'H3318', 'H854', 'H8317', 'H776', 'H6509', 'H7235', 'H5921', 'H776',
+    ])
+    expect(words.filter((word) => word.strong === 'H3318')).toEqual([{ text: qereTexts(gen817)[0], strong: 'H3318', morph: 'HVhv2ms' }])
+    expect(words.map((word) => word.text)).not.toContain(ketivTexts(gen817)[0])
+  })
+
+  it('크티브 하나가 크레 둘로 바뀐다(창세기 30:11)', () => {
+    const words = wordsOf(gen3011)
+    expect(words.map((word) => word.strong)).toEqual(['H559', 'H3812', 'H935', 'H1409', 'H7121', 'H853', 'H8034', 'H1410'])
+    expect(words.slice(2, 4).map((word) => word.text)).toEqual(qereTexts(gen3011))
+    expect(words.map((word) => word.text)).not.toContain(ketivTexts(gen3011)[0])
+  })
+
+  it('크티브 둘 사이에 다른 note가 있어도 둘 다 크레 둘로 바뀐다(욥기 38:1)', () => {
+    const words = wordsOf(job381)
+    expect(words.map((word) => word.strong)).toEqual(['H6030', 'H3068', 'H853', 'H347', 'H4480', 'H5591', 'H559'])
+    expect(words.slice(4, 6).map((word) => word.text)).toEqual(qereTexts(job381))
+    for (const ketiv of ketivTexts(job381)) expect(words.map((word) => word.text)).not.toContain(ketiv)
+  })
+
+  it('크레가 비었으면(쓰였지만 읽지 않는 낱말) 크티브를 뺀다(룻기 3:12)', () => {
+    const words = wordsOf(ruth312)
+    expect(words.map((word) => word.strong)).toEqual(['H6258', 'H3588', 'H551', 'H3588', 'H1350', 'H595', 'H1571', 'H3426', 'H1350', 'H7138', 'H4480'])
+    expect(words.map((word) => word.text)).not.toContain(ketivTexts(ruth312)[0])
+  })
+
+  it('크티브 없는 크레(쓰이지 않았지만 읽는 낱말)는 그 자리에 넣는다(룻기 3:5)', () => {
+    const words = wordsOf(ruth35)
+    expect(words.map((word) => word.strong)).toEqual(['H559', 'H413', 'H3605', 'H834', 'H559', 'H413', 'H6213'])
+    expect(words[5]!.text).toBe(qereTexts(ruth35)[0])
+  })
+})
+
 // 출애굽기 OSHB. 아래 대응표(시험용으로 지어낸 것)로 WLC 2:1이 KJV 1:3이 된다.
 const exodusOshb = `<chapter osisID="Exod.1">
 <verse osisID="Exod.1.1"><w lemma="1" morph="HNcmsc" id="e1">אֲבִי</w><w lemma="b/7225" morph="HR/Ncfsa" id="e2">בְּ/רֵאשִׁית</w></verse>
