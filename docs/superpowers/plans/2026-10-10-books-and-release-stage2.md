@@ -256,7 +256,7 @@ export function chapterChecks(inputs: ReleaseInputs, book: BookId, chapter: numb
   - 꾸러미의 절 `audio`는 늘 null이다. 앱은 절의 `audioMs`로 그 절이 장면 낭독에 들었는지를 가린다(`reader-core` `narration.ts`의 `sceneTrack`). 그래서 길이를 잴 수 없는 절이 공개되면 그 절은 낭독에서 빠진다.
 - 선택: `quizApproved`(승인된 문제 수), `glossesTotal`(그 장 원어의 서로 다른 스트롱 번호 수), `glossesApproved`(그 가운데 한국어 뜻이 승인된 수).
 
-- [ ] **Step 3: 시험** — 고정값 폴더(임시 폴더에 본문 2장, 장면 파일, 그림 버전 둘, 낭독 몇 개)로: 모두 갖춘 장, 장면 하나가 `reviewed`, 장면 파일 없음, 기본 버전에 그림 하나 빠짐(앞 버전에는 있음), 절 낭독 하나 빠짐, 퀴즈·뜻 개수.
+- [ ] **Step 3: 시험** — 고정값 폴더(임시 폴더에 본문 2장, 장면 파일, 그림 버전 둘, 낭독 몇 개)로: 모두 갖춘 장, 장면 하나가 `reviewed`, 장면 파일 없음, 기본 버전에 그림 하나 빠짐(앞 버전에는 있음), 절 낭독 하나 빠짐, 길이를 잴 수 없는 절 낭독(`audioComplete` 거짓), 퀴즈·뜻 개수.
 
 Run: `npm test -w pipeline && npm run typecheck -w pipeline`
 
@@ -290,6 +290,10 @@ export async function buildPack(inputs: ReleaseInputs, book: BookId, chapter: nu
 - 같은 콘텐츠면 같은 바이트·해시가 나온다(시각, 순서가 정해지지 않은 것을 쓰지 않는다).
 
 - [ ] **Step 2: 시험** — 고정값 폴더로: 같은 입력이면 해시가 같다, 장면 해설 한 글자가 바뀌면 `text` 부분과 `hash`만 바뀐다, 그림 파일이 바뀌면 그 그림 경로와 `images`, `hash`가 바뀐다, 공개 꾸러미에는 기본 버전 그림만, 미리 보기에는 모든 버전, 절 `audio`는 null이고 장면 낭독 경로가 붙는다, 승인된 퀴즈만 들어간다.
+- [ ] **Step 2b: reader-core 꾸러미 검사 보강**(Task 1 마지막 검토, `packages/reader-core`도 이 Task에서 고친다)
+  - `publish.ts`의 `checkPackVerse`: 절 `audioMs`는 없거나 null이거나 0 이상의 정수(`isCount`)다. 아니면 `꾸러미 ${label}절의 낭독 길이가 올바르지 않습니다`. 장면 `audioMs`도 같은 규칙이다. 꾸러미에서는 이 값이 "그 절이 장면 낭독에 들었는지"를 정하므로(`sceneTrack`) 글자나 음수가 들어가면 화면의 시각이 깨진다.
+  - 오래된 주석 두 곳: `types.ts`의 `Verse.audio`(꾸러미에서는 늘 null이고, `audio !== null || audioMs != null`이면 낭독된 절이다), `narration.ts`의 `SceneTrack.audio`(꾸러미는 `media/…` 경로다).
+  - 시험을 더하고 `npm test -w reader-core`도 돌린다. 커밋에 `packages/reader-core`를 더한다.
 
 Run: `npm test -w pipeline && npm run typecheck -w pipeline`
 
