@@ -66,7 +66,7 @@ npm run server               # 동기화 서버 (http://127.0.0.1:8790)
 
 홈 머리의 계정 단추로 로그인한다(시험 계정은 `infra/README.md`). 로그인하면 읽은 장면, 읽던 곳, 계획, 밑줄·메모, 끝까지 푼 퀴즈가 계정에 올라가고 다른 기기와 맞춰진다. 로그아웃하면 그 기기의 기록을 지우고, 다시 로그인하면 받아 온다.
 
-질문하기는 로그인한 사람만 쓴다. 동기화 서버가 앱 묶음(`app/public/content/genesis.json`)에서 본문 절, 검수된 장면 해설, 설정집 대목을 찾아 그 대목만 OpenAI 모델에 주고, 문장마다 근거가 맞지 않으면 "자료에 없어요"로 답한다. 리포 루트 `.env`에 `OPENAI_API_KEY`가 있어야 켜지고, 모델은 `ASK_MODEL`(비우면 작성 모델), 한도는 계정마다 하루 `ASK_DAILY_LIMIT`번(비우면 20)이다. 서버는 시작할 때 묶음을 읽으므로 묶음을 다시 만들면 서버를 다시 띄운다. 질문과 답은 저장하지 않는다(서버는 하루 횟수만 센다).
+질문하기는 로그인한 사람만 쓴다. 동기화 서버가 묶음 폴더(`BUNDLE_DIR`, 비우면 `app/public/content`)의 책 묶음(`<책 id>.json`)을 모두 읽어 본문 절, 검수된 장면 해설, 설정집 대목을 찾는다. 읽고 있는 책의 대목을 앞에 두고, 찾은 대목만 OpenAI 모델에 준다. 문장마다 근거가 맞지 않으면 "자료에 없어요"로 답한다. 리포 루트 `.env`에 `OPENAI_API_KEY`가 있어야 켜지고, 모델은 `ASK_MODEL`(비우면 작성 모델), 한도는 계정마다 하루 `ASK_DAILY_LIMIT`번(비우면 20)이다. 서버는 시작할 때 묶음을 읽으므로 묶음을 다시 만들면 서버를 다시 띄운다. 묶음 하나라도 읽지 못하면 경고를 남기고 질문하기만 끈다(동기화는 그대로 된다). 질문과 답은 저장하지 않는다(서버는 하루 횟수만 센다).
 
 ## 관리 도구
 
@@ -78,7 +78,9 @@ npm run admin
 
 ## 설정집
 
-`content/story-bible/`의 `characters.json`, `places.json`, `eras.json`, `things.json`이 인물·장소·시대·물건의 확정 정보다. 항목마다 `facts`(본문 근거, 절 인용)와 `design`(제작상 결정)을 나누고, `status`가 `approved`인 항목만 그림과 시나리오가 참조한다. `npm run pipeline -- canon --chapter N`이 본문에서 초안을 뽑고, 승인된 항목에 대한 변경은 `proposals.json`에 제안으로만 쌓인다. 초안은 그릴 대상만 담는다. 이름 있는 인물과 고유 지명, 본문이 지목한 사물이 대상이고, 하나님과 "땅·하늘·빛" 같은 일반 명사는 넣지 않는다. 시대 구분은 사람이 미리 해 둔다.
+`content/story-bible/`의 `characters.json`, `places.json`, `eras.json`, `things.json`이 인물·장소·시대·물건의 확정 정보다. 항목마다 `facts`(본문 근거, 절 인용)와 `design`(제작상 결정)을 나누고, `status`가 `approved`인 항목만 그림과 시나리오가 참조한다. `npm run pipeline -- canon --book genesis --chapter N`이 본문에서 초안을 뽑고, 승인된 항목에 대한 변경은 `proposals.json`에 제안으로만 쌓인다. 초안은 그릴 대상만 담는다. 이름 있는 인물과 고유 지명, 본문이 지목한 사물이 대상이고, 하나님과 "땅·하늘·빛" 같은 일반 명사는 넣지 않는다. 시대 구분은 사람이 미리 해 둔다.
+
+설정집은 성경 전체에 하나다. 절 인용은 `genesis 2:7`처럼 책 id를 붙여 저장한다(관리 도구에서는 `창세기 2:7`로 보이고, 그렇게 써도 받는다). 설정집을 읽고 쓸 때마다 인용한 책의 본문으로 절 수를 확인하므로, 설정집이 어떤 책을 인용하면 그 책의 본문 파일(`content/source/<책 id>.json`)도 함께 커밋한다. 없으면 `build`와 Pages 배포가 실패한다.
 
 ## 명령
 
@@ -88,16 +90,17 @@ npm run admin
 | `npm test` | 전체 테스트 |
 | `npm run infra:up`, `npm run infra:down` | 개발용 Postgres·키클락을 띄우고 멈춘다 |
 | `npm run server` | 동기화 서버를 띄운다 (http://127.0.0.1:8790) |
-| `npm run pipeline -- source` | 개역한글 창세기 1~10장을 받아 `content/source/genesis.json`에 저장한다 |
-| `npm run pipeline -- images --chapter 1 --allow-draft` | 1장 장면 중 그림이 없는 것을 OpenAI로 그려 `content/images/`에 저장한다 |
-| `npm run pipeline -- canon --chapter 1` | 1장 본문에서 설정집 초안(인물·장소·시대·물건)을 뽑는다. `--dry-run`은 프롬프트만 보여 준다 |
-| `npm run pipeline -- scenario --chapter 3` | 3장 본문과 승인된 설정집으로 장면(제목·해설·낱말 풀이·역사 배경·그림 지시)을 쓴다. 파일이 있으면 `--force`로 다시 쓴다 |
-| `npm run pipeline -- review-text --chapter 3` | 3장 장면의 글을 검수 모델이 검수한다. 지적이 있으면 작성 모델이 고쳐 쓰고(최대 2회), 통과하면 `reviewed`, 안 되면 `flagged`가 된다 |
-| `npm run pipeline -- tts --chapter 1` | 1장의 절마다 낭독 음성을 OpenAI로 만들어 `content/audio/`에 저장한다 |
-| `npm run pipeline -- original` | OSHB(히브리어 낱말과 형태)와 스트롱 사전을 고정된 커밋에서 받아 `content/original/`에 장 1~10의 낱말과 사전 항목을 둔다(이미 쓴 한국어 뜻은 지킨다) |
-| `npm run pipeline -- original-gloss` | 사전 항목마다 한국어 뜻 초안을 40개씩 쓴다. `--limit`, `--force`(초안도 다시 씀), `--dry-run` |
-| `npm run pipeline -- quiz --chapter 4` | 4장 이해 확인 문제 다섯을 쓰고 검수 모델이 근거 절을 확인한다. 통과하면 `reviewed`, 지적이 남으면 `flagged`. `--force`는 승인된 문제를 두고 나머지를 다시 쓴다 |
-| `npm run pipeline -- build` | 본문·장면·장소·그림·음성을 합쳐 `app/public/content/`에 묶음을 만든다 |
+| `npm run pipeline -- source --book genesis --chapters 1-10` | 위키문헌에서 개역한글 본문을 받아 `content/source/<책 id>.json`에 저장한다. `--chapters`(`3`, `1-10`)가 없으면 책 전체를 받는다 |
+| `npm run pipeline -- images --book genesis --chapter 1 --allow-draft` | 1장 장면 중 그림이 없는 것을 OpenAI로 그려 `content/images/`에 저장한다 |
+| `npm run pipeline -- canon --book genesis --chapter 1` | 1장 본문에서 설정집 초안(인물·장소·시대·물건)을 뽑는다. `--dry-run`은 프롬프트만 보여 준다 |
+| `npm run pipeline -- migrate-canon-refs --book genesis` | 책이 없는 옛 설정집 인용(`2:7`)에 책을 붙인다. 한 번만 쓰는 이전이고, `--dry-run`은 몇 개인지만 보여 준다 |
+| `npm run pipeline -- scenario --book genesis --chapter 3` | 3장 본문과 승인된 설정집으로 장면(제목·해설·낱말 풀이·역사 배경·그림 지시)을 쓴다. 파일이 있으면 `--force`로 다시 쓴다 |
+| `npm run pipeline -- review-text --book genesis --chapter 3` | 3장 장면의 글을 검수 모델이 검수한다. 지적이 있으면 작성 모델이 고쳐 쓰고(최대 2회), 통과하면 `reviewed`, 안 되면 `flagged`가 된다 |
+| `npm run pipeline -- tts --book genesis --chapter 1` | 1장의 절마다 낭독 음성을 OpenAI로 만들어 `content/audio/`에 저장한다 |
+| `npm run pipeline -- original` | 본문이 있는 구약 책마다(`--book`으로 한 책만) OSHB(히브리어 낱말과 형태)와 스트롱 사전을 고정된 커밋에서 받아 `content/original/<책 id>.json`과 `lexicon.json`을 만든다. 히브리어 절 번호는 개역한글 절 번호에 맞추고, 맞출 수 없는 장은 원어 없이 둔다. 신약 책은 건너뛴다. 이미 쓴 한국어 뜻은 지킨다 |
+| `npm run pipeline -- original-gloss` | 모든 책이 함께 쓰는 사전 항목마다 한국어 뜻 초안을 40개씩 쓴다(`--book`은 받지 않는다). `--limit`, `--force`(초안도 다시 씀), `--dry-run` |
+| `npm run pipeline -- quiz --book genesis --chapter 4` | 4장 이해 확인 문제 다섯을 쓰고 검수 모델이 근거 절을 확인한다. 통과하면 `reviewed`, 지적이 남으면 `flagged`. `--force`는 승인된 문제를 두고 나머지를 다시 쓴다 |
+| `npm run pipeline -- build` | 본문이 있는 모든 책마다 본문·장면·장소·그림·음성을 합쳐 `app/public/content/<책 id>.json` 묶음을 만든다(`--book`은 받지 않는다) |
 
 그림은 버전별로 `content/images/<버전 id>/`에 보관하고, 버전 목록은 `content/images/versions.json`에 있다. `images` 명령은 목록의 마지막 버전에 그리며, 앱에서는 그림 위 버튼으로 버전을 바꿔 볼 수 있다.
 
