@@ -59,7 +59,7 @@
 ```ts
 // publish.ts
 import type { BookId } from './books.ts'
-import type { BundleSource, Character, Era, ImageVersion, LexiconEntry, OriginalVerse, Place, QuizQuestion, Scene, Thing, Verse } from './types.ts'
+import type { BundleSource, ImageVersion, LexiconEntry, OriginalVerse, QuizQuestion, Scene, Verse } from './types.ts'
 
 export const PUBLISH_SCHEMA_VERSION = 1
 
@@ -106,8 +106,13 @@ export type ChapterPack = {
   quiz: QuizQuestion[]
 }
 
-// 공용 설정집. 인용은 책이 붙은 모양("genesis 2:7")이다.
-export type CanonFile = { schemaVersion: number; places: Place[]; characters: Character[]; eras: Era[]; things: Thing[] }
+// 공용 설정집. 설정집 모양(파이프라인 schema.ts의 항목에서 status·design·refs를 뺀 것) 그대로 내고, 인용은 책이 붙은 모양("genesis 2:7")이다.
+// 앱은 3단계에서 이것으로 책마다 묶음용 설정집을 만든다(canonForBook). 묶음 모양(Place에는 firstAppearance가 없다)으로 내면 그 규칙에 쓸 첫 등장과 근거 절이 빠진다.
+export type CanonCharacter = { id: string; name: string; aliases: string[]; facts: { firstAppearance: string; gender: '남' | '여' | '불명'; years: { born: number | null; died: number | null }; relations: { type: string; to: string }[]; attire: { from: string; description: string }[]; notes: string; sources: string[] } }
+export type CanonPlace = { id: string; name: string; aliases: string[]; facts: { firstAppearance: string; description: string; sources: string[] }; location: { lat: number | null; lng: number | null; certainty: '확실' | '추정' | '불명' } }
+export type CanonEra = { id: string; name: string; range: { from: string; to: string }; years: { from: number | null; to: number | null }; facts: { description: string; present: string[]; absent: string[]; sources: string[] } }
+export type CanonThing = { id: string; name: string; aliases: string[]; facts: { description: string; details: string[]; sources: string[] } }
+export type CanonFile = { schemaVersion: number; characters: CanonCharacter[]; places: CanonPlace[]; eras: CanonEra[]; things: CanonThing[] }
 
 // 공용 사전. 스트롱 번호 → 항목
 export type LexiconFile = { schemaVersion: number; entries: Record<string, LexiconEntry> }
@@ -342,7 +347,7 @@ git commit -m "feat(pipeline): 장마다 공개 상태와 release 명령(공개,
 2. 공개된 장마다 공개 꾸러미를 만든다. 지금 꾸러미의 해시가 공개 상태 파일의 `hash`와 다르면 멈춘다(`${책} ${장}장이 공개한 뒤 바뀌었습니다. 관리 도구에서 다시 공개하거나 공개 취소하세요`). 공개 상태가 공개한 내용과 맞을 때만 그 내용을 낸다.
 3. 공용 설정집: 승인된 항목 가운데 처음 나오는 곳(인물·장소는 `firstAppearance`, 시대는 `range.from`, 물건은 가장 앞선 `sources`)이 공개된 장이거나 공개된 꾸러미의 장면이 가리키는(인물, 장소) 것. 인물의 관계는 넣은 인물만 가리킨다. 인용은 그대로(책이 붙은 모양).
 4. 공용 사전: 공개된 꾸러미의 원어 낱말에 나오는 번호만, 한국어 뜻은 승인된 것만, `count`는 공개된 꾸러미들에서 센다.
-5. `outDir`을 비우고 꾸러미·미디어·설정집·사전·`catalog.json`을 쓴다. 목록의 `sources`는 공개된 책마다의 개역한글판 출처와 원어·그림 참고 출처(`buildSources`를 책마다 불러 같은 id는 한 번만).
+5. `outDir`을 비우고 꾸러미·미디어·설정집·사전·`catalog.json`을 쓴다. 목록의 `sources`는 공개된 책마다의 개역한글판 출처와 원어·그림 참고 출처다. `buildSources`는 책마다 개역한글판 출처의 id를 같은 `krv`로 내므로(1단계 묶음은 책 하나라 그대로 둔다), 목록에서는 개역한글판 출처의 id를 `krv-<책 id>`로 바꿔 책마다 하나씩 두고, 나머지(원어, 그림 참고)는 id가 같으면 한 번만 둔다.
 6. 미리 보기: 장면 파일이 있는 미공개 장마다 미리 보기 꾸러미(모든 그림 버전)를 `preview/` 아래에 쓰고, 미리 보기 설정집·사전(공개 장 + 미리 보기 장 기준)과 `preview/catalog.json`(공개된 장은 뿌리의 파일을 가리키고, 미리 보기 장은 `preview: true`, `revision: 0`, 점검 결과)을 쓴다.
 7. 쓴 파일 수와 크기를 돌려준다.
 
