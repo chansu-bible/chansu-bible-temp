@@ -843,6 +843,18 @@ git commit -F <메시지 파일>   # feat(deploy): 맥미니 올리기(update.sh
     - 키클락 설정을 realm 파일로 다시 넣고 싶을 때: realm 파일은 처음 한 번만 읽힌다. 관리 화면에서 고친다.
 15. **도메인으로 옮기기:** 설계 문서 10절의 다섯 단계를 그대로 옮긴다.
 
+- [ ] **Step 2b: `deploy/README.md`에 꼭 넣을 주의 사항**(배포 Task 1~5 검토에서 나온 것)
+  - 리포는 공백이 없는 경로에 둔다(`~/chansu-bible`). `~/Documents`, `~/Desktop`, `~/Downloads` 안에 두지 않는다. macOS 개인 정보 보호 창이 Docker의 폴더 붙이기를 막을 수 있고, launchd 명령은 공백이 든 경로를 나눠 읽는다.
+  - 비밀번호는 `openssl rand -hex 24`로 만든다. base64는 `/`가 섞여 `DATABASE_URL`이 깨진다.
+  - `DB_PASSWORD`를 처음 띄운 뒤에 바꾸면 DB 볼륨 안의 비밀번호는 그대로다. 바꾸려면 `docker compose … exec db psql -U chansu -c "ALTER USER chansu PASSWORD '…'"`로 DB에서도 바꾼 뒤 다시 띄운다.
+  - 매일 백업 설치는 sed 구분자를 `|`로 쓴다: `sed "s|__REPO__|$PWD|g; s|__HOME__|$HOME|g" …`.
+  - 설치한 뒤 한 번 바로 돌려 본다: `launchctl kickstart gui/$(id -u)/com.chansubible.backup`. 그다음 `~/Library/Logs/chansu-backup.log`를 본다.
+    - "docker: command not found"가 보이면 launchd의 `bash -lc`가 Docker 경로를 모르는 것이다. `~/.bash_profile`에 Docker CLI 경로를 더한다(OrbStack은 `~/.orbstack/bin`, Docker Desktop은 `/usr/local/bin`).
+  - 백업은 15일째부터 지워진다(`find -mtime +14`). 백업 파일에는 키클락 계정 정보가 들어 있으므로 다른 사람이 읽지 못하게 둔다(스크립트가 `umask 077`로 만든다).
+  - 받아들인 위험을 짧게 적는다.
+    - 이메일을 확인하지 않으므로 남의 이메일로도 가입할 수 있다(서버는 이메일을 쓰지 않는다).
+    - 키클락의 기본 `admin-cli` 클라이언트로도 비밀번호 로그인이 되지만, 서버는 앱 클라이언트(`azp`)의 토큰만 받고 로그인 실패 막기가 걸린다.
+    - 계정 열 개가 하루 20번씩 쓰면 서버 전체 한도(200)가 그날 모두에게 닫힌다. 그러면 `ASK_GLOBAL_DAILY_LIMIT`를 올리거나 가입을 잠시 끈다(키클락 관리 화면 → Realm settings → Login → User registration).
 - [ ] **Step 3: `README.md`**: "네이티브 앱" 절 끝(로그인·동기화 설명 뒤)에 짧은 절을 더한다.
 
 ```markdown
