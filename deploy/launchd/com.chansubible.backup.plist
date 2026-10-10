@@ -7,7 +7,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>-lc</string>
+    <string>-l</string>
     <string>__REPO__/deploy/backup.sh</string>
   </array>
   <key>StartCalendarInterval</key>

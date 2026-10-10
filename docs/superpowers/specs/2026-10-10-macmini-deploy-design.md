@@ -45,8 +45,9 @@ Caddy는 HTTP로만 받는다. TLS는 Funnel이 맡는다(도메인으로 바꾼
 
 | 경로 | 보내는 곳 |
 |---|---|
-| `/auth/admin*`, `/auth/realms/master*` | 404(밖에서 막음. 관리 화면과 관리자 realm) |
-| `/auth/*` | 키클락(`KC_HTTP_RELATIVE_PATH=/auth`) |
+| `;`가 든 경로, 인코딩한 빗금(`%2F`)이 든 경로 | 404(허용 목록을 비껴가지 못하게 먼저 막음) |
+| `/auth/realms/chansu-bible`, `/auth/realms/chansu-bible/*`, `/auth/resources/*` | 키클락(`KC_HTTP_RELATIVE_PATH=/auth`). 앱의 realm과 화면 자원만 연다 |
+| 그 밖의 `/auth`, `/auth/*` | 404(밖에서 막음. 관리 화면, 관리자 realm, 첫 화면) |
 | 그 밖(`/sync`, `/ask`, `/ask/usage`, `/health`, 2단계부터 `/content/*`) | 서버 |
 
 - 키클락은 요청이 HTTPS로 왔는지를 `X-Forwarded-Proto`로 판단한다. 판단이 틀리면 밖에서 온 요청에 "HTTPS required"를 낸다. Funnel이 그 머리글을 보내는지에 기대지 않는다. Caddy가 공개 주소의 스킴(`PUBLIC_SCHEME`, 기본 `https`)으로 `X-Forwarded-Proto`를 정해서 보낸다. 호스트는 `KC_HOSTNAME`이 전체 주소로 정하므로 머리글에 기대지 않는다.
@@ -55,6 +56,9 @@ Caddy는 HTTP로만 받는다. TLS는 Funnel이 맡는다(도메인으로 바꾼
   - `KC_HOSTNAME_ADMIN=http://127.0.0.1:${KC_ADMIN_PORT}/auth`: 관리 화면은 SSH 포트 전달 주소로 연다.
   - `KC_PROXY_HEADERS=xforwarded`
   - `KC_HTTP_ENABLED=true`
+- 관리 화면의 로그인은 `KC_HOSTNAME_ADMIN`이 아니라 관리자 realm(master)의 프론트엔드 주소로 간다. 따로 정하지 않으면 그 주소는 공개 주소(`KC_HOSTNAME`)이고, 입구가 밖에서 막는다.
+  - `deploy/keycloak-admin.sh`가 처음 띄운 뒤 한 번 master의 프론트엔드 주소를 SSH 포트 전달 주소(`http://127.0.0.1:${KC_ADMIN_PORT}/auth`)로 바꾼다. master는 밖에 열리지 않으므로 `sslRequired=none`으로 두고, 로그인 실패 막기를 켠다.
+  - 이때 임시 관리자(bootstrap admin)가 있어야 한다. 영구 관리자를 만든 뒤에 다시 돌리려면 그 관리자로 들어가야 하므로, 처음 띄우자마자 돌리는 것이 가장 쉽다.
 - 토큰의 발급자는 `${PUBLIC_URL}/auth/realms/chansu-bible`이다.
   - 서버는 이 발급자만 받는다(`AUTH_ISSUERS`).
   - 서명 키는 Compose 안의 주소에서 받는다: `AUTH_JWKS_URL=http://keycloak:8080/auth/realms/chansu-bible/protocol/openid-connect/certs`.
