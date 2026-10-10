@@ -21,7 +21,10 @@ export function sceneTrack(chapter: Chapter, sceneIndex: number): SceneTrack | n
   const verses: TrackVerse[] = []
   let at = 0
   for (const verse of chapter.verses) {
-    if (verse.verse < scene.verseStart || verse.verse > scene.verseEnd || verse.audio === null) continue
+    if (verse.verse < scene.verseStart || verse.verse > scene.verseEnd) continue
+    // 절 낭독이 없는 절은 장면 낭독에 들어 있지 않다. 꾸러미의 절은 audio가 null이어도 audioMs를 남기니, audioMs가 있으면 든 절로 본다.
+    // 묶음은 절 낭독이 있을 때만 audioMs를 두므로 이 규칙으로도 결과가 같다.
+    if (verse.audio === null && verse.audioMs == null) continue
     const length = verse.audioMs ?? 0
     verses.push({ verse: verse.verse, startMs: at, endMs: at + length })
     at += length

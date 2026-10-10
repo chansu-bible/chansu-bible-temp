@@ -38,7 +38,8 @@ export type Catalog = {
   books: Partial<Record<BookId, Record<string, CatalogChapter>>>
 }
 
-// 장 꾸러미. 절 낭독(audio)은 null이고 장면의 그림·낭독은 콘텐츠 뿌리 기준 media/ 경로다.
+// 장 꾸러미. 장면의 그림·낭독은 콘텐츠 뿌리 기준 media/ 경로다.
+// 절의 audio는 null이다. 낭독은 장면 낭독(scene.audio)을 재생하고, 절 구간은 절마다 남긴 audioMs로 매긴다(narration.ts의 sceneTrack).
 export type ChapterPack = {
   schemaVersion: number
   bookId: BookId
@@ -123,9 +124,23 @@ function matches(pattern: RegExp, value: unknown): boolean {
 }
 
 // 네트워크에서 온 글자를 오류 글에 넣을 때 쓴다. 따옴표로 묶어 줄바꿈 같은 제어 문자를 드러내고, 40자가 넘으면 잘라 …를 붙인다.
+// 글자는 코드 포인트로 센다(이모지 같은 글자가 가운데서 잘리지 않는다). 아주 긴 글도 앞 41자만 훑는다.
 const SHOWN_MAX = 40
 function shown(text: string): string {
-  return text.length > SHOWN_MAX ? `${JSON.stringify(text.slice(0, SHOWN_MAX))}…` : JSON.stringify(text)
+  const head: string[] = []
+  for (const char of text) {
+    if (head.length === SHOWN_MAX) return `${JSON.stringify(head.join(''))}…`
+    head.push(char)
+  }
+  return JSON.stringify(text)
+}
+
+// 네트워크에서 온 값(형을 모르는 값)을 오류 글에 넣을 때 쓴다. 글자는 shown으로, 수·참거짓·null·undefined는 String으로 쓴다.
+// 객체 같은 나머지는 형 이름만 쓴다. 객체를 String()에 넘기면 toString이 함수가 아닐 때 영어 TypeError가 나기 때문이다.
+function shownValue(value: unknown): string {
+  if (typeof value === 'string') return shown(value)
+  if (typeof value === 'number' || typeof value === 'boolean' || value === null || value === undefined) return String(value)
+  return typeof value
 }
 
 // 12자리 소문자 16진수(contentHash)인지 본다. packPath, mediaPath, canonPath, lexiconPath가 모두 이 규칙을 쓴다.
@@ -186,13 +201,28 @@ export function catalogPath(preview = false): string {
   return `${previewDir(preview)}catalog.json`
 }
 
-// 미디어 파일의 종류. .mp3는 낭독('audio'), 그림 확장자는 그림('image')이다. 그 밖의 확장자이거나 확장자가 없으면 오류를 던진다.
-export function mediaKind(file: string): MediaKind {
+// 파일 이름 끝의 미디어 확장자(MEDIA_EXTENSIONS). 그 밖의 확장자이거나 확장자가 없으면 null이다.
+// 이름이 점으로 시작하면(.mp3) 확장자가 없는 것으로 본다. 목록 검사, 꾸러미 검사, mediaKind가 같은 규칙을 쓴다.
+function mediaExtOf(file: string): MediaExt | null {
   const name = file.slice(file.lastIndexOf('/') + 1)
   const dot = name.lastIndexOf('.')
   const ext = dot > 0 ? name.slice(dot + 1) : ''
-  if (!isMediaExt(ext)) throw new Error(`미디어 파일의 종류를 알 수 없습니다: ${shown(file)}`)
+  return isMediaExt(ext) ? ext : null
+}
+
+// 미디어 파일의 종류. .mp3는 낭독('audio'), 그림 확장자는 그림('image')이다. 그 밖의 확장자이거나 확장자가 없으면 오류를 던진다.
+// validateCatalog를 통과한 목록의 media 파일은 던지지 않는다.
+export function mediaKind(file: string): MediaKind {
+  const ext = mediaExtOf(file)
+  if (ext === null) throw new Error(`미디어 파일의 종류를 알 수 없습니다: ${shown(file)}`)
   return MEDIA_KINDS[ext]
+}
+
+// 콘텐츠 경로이면서 확장자가 kind(그림 또는 낭독)의 것인지 본다.
+function isMediaFileOf(kind: MediaKind, value: unknown): boolean {
+  if (!isContentPath(value)) return false
+  const ext = mediaExtOf(value)
+  return ext !== null && MEDIA_KINDS[ext] === kind
 }
 
 // 검사. bundle.ts의 validateBundle처럼 꼭 있어야 하는 키와 그 형만 가볍게 본다. 모르는 키는 무시한다.
@@ -233,7 +263,7 @@ function invalid(where: string, field: string): Error {
 
 function checkSchemaVersion(where: string, value: Record<string, unknown>): void {
   if (value.schemaVersion !== PUBLISH_SCHEMA_VERSION) {
-    throw new Error(`${where} 형식이 다릅니다 (schemaVersion ${String(value.schemaVersion)})`)
+    throw new Error(`${where} 형식이 다릅니다 (schemaVersion ${shownValue(value.schemaVersion)})`)
   }
 }
 
@@ -241,13 +271,14 @@ function checkCatalogChapter(where: string, value: unknown): void {
   if (!isObject(value)) throw new Error(`${where}의 정보가 비어 있습니다`)
   if (!isCount(value.revision)) throw invalid(where, 'revision')
   if (!isFileRef(value.pack)) throw invalid(where, 'pack')
-  if (!Array.isArray(value.media) || !value.media.every(isFileRef)) throw invalid(where, 'media')
+  if (!Array.isArray(value.media) || !value.media.every((ref) => isFileRef(ref) && mediaExtOf(ref.file) !== null)) throw invalid(where, 'media')
   if (value.preview !== undefined && value.preview !== true) throw invalid(where, 'preview')
   if (value.checks !== undefined && !isReleaseChecks(value.checks)) throw invalid(where, 'checks')
 }
 
 // 공개 목록이 이 앱이 읽을 수 있는 형식인지 본다. 아니면 오류를 던진다.
 // 책 키는 알려진 책, 장 키는 그 책에 있는 장이어야 한다. 파일이 실제로 있는지는 보지 않는다.
+// 장의 media 파일은 확장자가 미디어 확장자(MEDIA_EXTENSIONS)여야 한다. 앱이 목록의 media 전체에 mediaKind를 부르니, 던지게 될 목록은 여기서 거른다.
 // imageVersions와 sources는 배열인지만 보고 안의 항목은 보지 않는다.
 // defaultImageVersion도 글자나 null인지만 보고 imageVersions에 있는지는 보지 않는다.
 export function validateCatalog(value: unknown): Catalog {
@@ -277,14 +308,27 @@ export function validateCatalog(value: unknown): Catalog {
   return value as Catalog
 }
 
+// 절 하나의 낭독을 본다. 꾸러미의 절 낭독(audio)은 키가 있고 null이어야 한다. 앱은 장면 낭독을 재생하고, 절 낭독 경로는 내려받지 않는다.
+function checkPackVerse(verse: unknown, index: number): void {
+  if (!isObject(verse)) throw new Error(`꾸러미의 ${index + 1}번째 절이 비어 있습니다`)
+  if (verse.audio !== null) {
+    // 오류 글에는 절 번호를 넣고, 절 번호가 안전한 정수가 아니면 몇 번째 절인지를 넣는다.
+    const label = typeof verse.verse === 'number' && Number.isSafeInteger(verse.verse) ? verse.verse : index + 1
+    throw new Error(`꾸러미 ${label}절의 낭독은 null이어야 합니다`)
+  }
+}
+
 // 장면 하나의 그림·낭독 경로를 본다. 앱이 이 값으로 기기의 파일 경로와 내려받을 주소를 만드니, 목록의 파일 경로와 같은 규칙(isContentPath)을 따라야 한다.
+// 그림은 그림 확장자, 낭독은 .mp3여야 한다(앱이 확장자로 종류를 안다).
 function checkPackScene(scene: unknown, index: number): void {
   if (!isObject(scene)) throw new Error(`꾸러미의 ${index + 1}번째 장면이 비어 있습니다`)
   const { id, images, audio } = scene
   // 오류 글에는 장면 id를 넣고, id가 글자가 아니면 몇 번째 장면인지를 넣는다.
   const label = typeof id === 'string' ? `꾸러미 장면 ${shown(id)}` : `꾸러미의 ${index + 1}번째 장면`
-  if (!isObject(images) || !Object.values(images).every(isContentPath)) throw new Error(`${label}의 그림 경로가 올바르지 않습니다`)
-  if (audio !== null && !isContentPath(audio)) throw new Error(`${label}의 낭독 경로가 올바르지 않습니다`)
+  if (!isObject(images) || !Object.values(images).every((file) => isMediaFileOf('image', file))) {
+    throw new Error(`${label}의 그림 경로가 올바르지 않습니다`)
+  }
+  if (audio !== null && !isMediaFileOf('audio', audio)) throw new Error(`${label}의 낭독 경로가 올바르지 않습니다`)
 }
 
 function chapterLabel(book: BookId, chapter: number): string {
@@ -293,8 +337,9 @@ function chapterLabel(book: BookId, chapter: number): string {
 
 // 장 꾸러미가 이 앱이 읽을 수 있는 형식인지 본다. 아니면 오류를 던진다.
 // expected를 주면 꾸러미의 책·장이 목록이 가리킨 책·장과 같은지도 본다.
-// 절·퀴즈는 배열인지만 보고, 안의 항목은 보지 않는다.
-// 장면은 배열이고 각 항목이 객체이며 그림·낭독 경로가 콘텐츠 뿌리 아래의 상대 경로인지까지 본다. 장면의 나머지 키는 보지 않는다.
+// 퀴즈는 배열인지만 보고, 안의 항목은 보지 않는다.
+// 절은 배열이고 각 항목이 객체이며 낭독(audio)이 null인지까지 본다. 절의 나머지 키는 보지 않는다.
+// 장면은 배열이고 각 항목이 객체이며 그림·낭독 경로가 콘텐츠 뿌리 아래의 상대 경로(그림은 그림 확장자, 낭독은 .mp3)인지까지 본다. 장면의 나머지 키는 보지 않는다.
 export function validatePack(value: unknown, expected?: { book: BookId; chapter: number }): ChapterPack {
   const where = '꾸러미'
   if (!isObject(value)) throw new Error('꾸러미가 비어 있습니다')
@@ -302,7 +347,7 @@ export function validatePack(value: unknown, expected?: { book: BookId; chapter:
   const { bookId, chapter } = value
   if (typeof bookId !== 'string' || !isBookId(bookId)) throw new Error('꾸러미의 책을 알 수 없습니다')
   if (typeof chapter !== 'number' || !hasChapter(bookId, chapter)) {
-    throw new Error(`꾸러미의 장 번호가 올바르지 않습니다: ${getBook(bookId).name} ${String(chapter)}`)
+    throw new Error(`꾸러미의 장 번호가 올바르지 않습니다: ${getBook(bookId).name} ${shownValue(chapter)}`)
   }
   if (expected && (bookId !== expected.book || chapter !== expected.chapter)) {
     throw new Error(`꾸러미의 책·장(${chapterLabel(bookId, chapter)})이 목록(${chapterLabel(expected.book, expected.chapter)})과 다릅니다`)
@@ -311,6 +356,8 @@ export function validatePack(value: unknown, expected?: { book: BookId; chapter:
     if (!Array.isArray(value[key])) throw invalid(where, key)
   }
   if (value.original !== null && !Array.isArray(value.original)) throw invalid(where, 'original')
+  const verses = value.verses as unknown[]
+  verses.forEach(checkPackVerse)
   const scenes = value.scenes as unknown[]
   scenes.forEach(checkPackScene)
   return value as ChapterPack

@@ -106,6 +106,48 @@ describe('장면 낭독', () => {
   })
 })
 
+describe('꾸러미 모양의 장 낭독', () => {
+  // 꾸러미의 절은 audio가 null이고 길이(audioMs)만 남는다. 낭독은 장면 낭독(scene.audio) 하나다.
+  const asPack = (chapter: Chapter): Chapter => ({ ...chapter, verses: chapter.verses.map((item) => ({ ...item, audio: null })) })
+  const packs = chapters.map(asPack)
+
+  it('절 낭독이 null이어도 audioMs가 있으면 절 낭독이 있는 장과 같은 구간을 만든다', () => {
+    expect(packs.flatMap((item) => item.verses).every((item) => item.audio === null)).toBe(true)
+    expect(sceneTrack(packs[0]!, 0)).toEqual({
+      chapter: 1,
+      sceneIndex: 0,
+      sceneId: 'a',
+      audio: 'content/audio/scenes/a.mp3',
+      verses: [
+        { verse: 1, startMs: 0, endMs: 1000 },
+        { verse: 2, startMs: 1000, endMs: 3000 },
+      ],
+      durationMs: 3000,
+    })
+    for (const [at, item] of chapters.entries()) {
+      for (const sceneIndex of item.scenes.keys()) {
+        expect(sceneTrack(packs[at]!, sceneIndex), `${item.chapter}장 ${sceneIndex}번째 장면`).toEqual(sceneTrack(item, sceneIndex))
+      }
+    }
+  })
+
+  it('audio도 audioMs도 없는 절은 꾸러미 모양에서도 뺀다', () => {
+    // 3절은 audioMs가 null이다.
+    expect(sceneTrack(packs[0]!, 1)?.verses).toEqual([{ verse: 4, startMs: 0, endMs: 1500 }])
+    // 3절은 audioMs 키가 아예 없다.
+    const noKey = { ...packs[0]!, verses: packs[0]!.verses.map((item) => (item.verse === 3 ? { verse: 3, text: item.text, audio: null } : item)) }
+    expect(sceneTrack(noKey, 1)?.verses).toEqual([{ verse: 4, startMs: 0, endMs: 1500 }])
+  })
+
+  it('앞뒤 장면, 위치의 장면, 다음에 들을 것도 절 낭독이 있는 장과 같다', () => {
+    expect(adjacentTrack(packs, { chapter: 1, sceneIndex: 1 }, 1)).toEqual(adjacentTrack(chapters, { chapter: 1, sceneIndex: 1 }, 1))
+    expect(adjacentTrack(packs, { chapter: 2, sceneIndex: 0 }, -1)?.sceneId).toBe('b')
+    expect(trackAt(packs, { chapter: 1, verse: 2 })?.sceneId).toBe('a')
+    expect(trackAt(packs, { chapter: 1, verse: 5 })?.sceneId).toBe('d')
+    expect(upcomingTracks(packs, { chapter: 1, sceneIndex: 0 }).map((track) => track.sceneId)).toEqual(['b', 'd'])
+  })
+})
+
 describe('잠자기 타이머', () => {
   const track = sceneTrack(chapters[0]!, 0)!
 

@@ -32,7 +32,7 @@ const canonHash = 'a1b2c3d4e5f6'
 const lexiconHash = '0f1e2d3c4b5a'
 
 // 해시가 될 수 없는 글자들이다. 12자리 소문자 16진수가 아니다.
-const badHashes = ['','3f9c2a1b7d0', '3f9c2a1b7d0ee', '3F9C2A1B7D0E', '3f9c2a1b7d0g', '../3f9c2a1b7d', '3f9c2a1b7d0e\n', ' 3f9c2a1b7d0']
+const badHashes = ['', '3f9c2a1b7d0', '3f9c2a1b7d0ee', '3F9C2A1B7D0E', '3f9c2a1b7d0g', '../3f9c2a1b7d', '3f9c2a1b7d0e\n', ' 3f9c2a1b7d0']
 
 // 콘텐츠 뿌리 밖을 가리키거나 경로가 될 수 없는 이름들이다.
 const unsafePaths = [
@@ -252,6 +252,11 @@ function ref(file: string, size = 1000): FileRef {
   return { file, size }
 }
 
+// 목록의 모든 장에 든 media 파일 경로
+function mediaFiles(value: Catalog): string[] {
+  return Object.values(value.books).flatMap((chapters) => Object.values(chapters ?? {}).flatMap((item) => item.media.map((media) => media.file)))
+}
+
 // 공개된 장: 꾸러미 하나와 첫 장면의 그림, 낭독이 딸린다.
 function published(book: BookId, chapter: number): CatalogChapter {
   const scene = sceneIdOf(book, chapter, 1)
@@ -416,6 +421,21 @@ describe('validateCatalog', () => {
     expect(message).not.toContain('\n')
   })
 
+  it('오류 글에 넣는 키는 코드 포인트로 40자를 센다. 이모지가 가운데서 잘리지 않는다', () => {
+    const unknownBook = (key: string) => messageOf(() => validateCatalog({ ...catalog(), books: { [key]: {} } }))
+    const expected = (shown: string) => `공개 목록의 책을 알 수 없습니다: ${shown}`
+    // 이모지가 40번째 글자이고 뒤에 글자가 더 있다. 이모지는 온전히 남기고 그 뒤를 자른다.
+    const midway = unknownBook(`${'가'.repeat(39)}😀나`)
+    expect(midway).toBe(expected(`"${'가'.repeat(39)}😀"…`))
+    // 잘린 자리에 짝을 잃은 반쪽 글자(서로게이트)가 남지 않는다.
+    expect(midway).not.toContain('\\ud83d')
+    // 이모지가 마지막인 40번째 글자이면 자르지 않는다.
+    expect(unknownBook(`${'가'.repeat(39)}😀`)).toBe(expected(`"${'가'.repeat(39)}😀"`))
+    // 이모지만 40개는 그대로, 41개는 40개만 남긴다.
+    expect(unknownBook('😀'.repeat(40))).toBe(expected(`"${'😀'.repeat(40)}"`))
+    expect(unknownBook('😀'.repeat(41))).toBe(expected(`"${'😀'.repeat(40)}"…`))
+  })
+
   it('정수의 기본 표기가 아닌 장 키는 오류를 던진다', () => {
     const entry = published('genesis', 4)
     for (const key of ['04', '4.0', '+4', ' 4', '4 ', '1e0', '0x4', '-4', '', 'four', '٤']) {
@@ -472,6 +492,30 @@ describe('validateCatalog', () => {
     expect(validateCatalog(withChapter({ ...entry, media: [ref('media/a.jpg', Number.MAX_SAFE_INTEGER)] }))).toBeTruthy()
   })
 
+  it('media 파일의 확장자는 미디어 확장자여야 한다', () => {
+    const entry = published('genesis', 4)
+    const message = '공개 목록의 창세기 4장의 media 값이 올바르지 않습니다'
+    // 경로 규칙은 지키지만 확장자가 미디어 확장자가 아니거나 없다.
+    const noMedia = ['media/x.gif', 'media/x', 'mp3', 'media/x.json', 'media/x.JPG', 'media/x.mp3.json', packPath('genesis', 4, packHash)]
+    for (const file of noMedia) {
+      expect(isContentPath(file), file).toBe(true)
+      expect(() => validateCatalog(withChapter({ ...entry, media: [ref(file)] })), file).toThrow(message)
+      // 올바른 파일과 함께 있어도 같다.
+      expect(() => validateCatalog(withChapter({ ...entry, media: [...entry.media, ref(file)] })), file).toThrow(message)
+    }
+    // 이름이 점으로 시작하는 .mp3는 경로 규칙에서도 걸린다.
+    for (const file of ['.mp3', 'media/.mp3']) {
+      expect(isContentPath(file), file).toBe(false)
+      expect(() => validateCatalog(withChapter({ ...entry, media: [ref(file)] })), file).toThrow(message)
+    }
+    // 미디어 확장자는 모두 받고, 받은 목록의 media는 모두 종류를 알 수 있다.
+    for (const ext of MEDIA_EXTENSIONS) {
+      const files = mediaFiles(validateCatalog(withChapter({ ...entry, media: [ref(`media/x.${ext}`)] })))
+      expect(files.map(mediaKind), ext).toEqual([ext === 'mp3' ? 'audio' : 'image'])
+    }
+    expect(new Set(mediaFiles(validateCatalog(catalog())).map(mediaKind))).toEqual(new Set(['image', 'audio']))
+  })
+
   it('콘텐츠 뿌리 밖을 가리키거나 경로가 될 수 없는 파일 이름은 오류를 던진다', () => {
     const entry = published('genesis', 4)
     for (const file of unsafePaths) {
@@ -523,7 +567,7 @@ describe('경로 도우미와 validateCatalog', () => {
   // 꾸러미 경로에서 책, 장 번호, 해시를 되읽는다. 앞의 preview/는 있어도 없어도 된다.
   const packPattern = /^(?:preview\/)?packs\/([^/]+)\/([1-9][0-9]*)\.([0-9a-f]{12})\.json$/
 
-  it('66권의 모든 장의 꾸러미·그림 경로는 경로 규칙과 목록 검사를 통과한다', () => {
+  it('66권의 모든 장의 꾸러미·그림 경로는 경로 규칙과 목록 검사를 통과하고, 그림 파일은 종류를 알 수 있다', () => {
     expect(BOOKS).toHaveLength(66)
     for (const preview of [false, true]) {
       const books: Catalog['books'] = {}
@@ -553,6 +597,10 @@ describe('경로 도우미와 validateCatalog', () => {
       for (const book of BOOKS) {
         expect(catalogChapters(validated, book.id), book.id).toEqual(Array.from({ length: book.chapters }, (_, index) => index + 1))
       }
+      // 목록의 media 파일은 모두 종류를 알 수 있다. 앱이 목록 전체에 mediaKind를 부른다.
+      const files = mediaFiles(validated)
+      expect(files).toHaveLength(total)
+      expect(new Set(files.map(mediaKind))).toEqual(new Set(['image']))
     }
   })
 
@@ -598,6 +646,11 @@ function pack(): ChapterPack {
 function withScene(changes: Record<string, unknown>): unknown {
   const value = pack()
   return { ...value, scenes: [{ ...value.scenes[0], ...changes }] }
+}
+
+// 절만 바꾼 꾸러미. 절의 틀린 모양을 시험할 때 쓴다.
+function withVerses(verses: unknown[]): unknown {
+  return { ...pack(), verses }
 }
 
 describe('validatePack', () => {
@@ -657,6 +710,50 @@ describe('validatePack', () => {
     expect(validatePack({ ...pack(), verses: [], scenes: [], quiz: [] })).toBeTruthy()
   })
 
+  it('절의 낭독(audio)은 키가 있고 null이어야 한다', () => {
+    const text = '아담이 그 아내 하와와 동침하매'
+    const message = '꾸러미 1절의 낭독은 null이어야 합니다'
+    // 경로가 있으면 콘텐츠 뿌리 밖이든 묶음 모양의 안이든 받지 않는다.
+    expect(() => validatePack(withVerses([{ verse: 1, text, audio: '../../../x.mp3' }]))).toThrow(message)
+    expect(() => validatePack(withVerses([{ verse: 1, text, audio: 'content/audio/genesis-04-001.mp3' }]))).toThrow(message)
+    expect(() => validatePack(withVerses([{ verse: 1, text, audio: mediaPath('genesis-04-01', audioHash, 'mp3'), audioMs: 1200 }]))).toThrow(message)
+    // 키가 없거나 null이 아닌 값도 받지 않는다.
+    expect(() => validatePack(withVerses([{ verse: 1, text }]))).toThrow(message)
+    expect(() => validatePack(withVerses([{ verse: 1, text, audioMs: 1200 }]))).toThrow(message)
+    for (const audio of [undefined, '', 0, false, {}, []]) {
+      expect(() => validatePack(withVerses([{ verse: 1, text, audio }])), `audio=${String(audio)}`).toThrow(message)
+    }
+    // audio가 null이면 audioMs는 있어도 없어도 된다.
+    const valid = { verse: 1, text, audio: null, audioMs: 1200 }
+    expect(validatePack(withVerses([valid]))).toBeTruthy()
+    expect(validatePack(withVerses([{ verse: 1, text, audio: null }]))).toBeTruthy()
+    expect(validatePack(withVerses([valid, { verse: 2, text, audio: null, audioMs: null }]))).toBeTruthy()
+  })
+
+  it('절이 객체가 아니면 몇 번째 절인지 알린다', () => {
+    const valid = { verse: 1, text: '아담이 그 아내 하와와 동침하매', audio: null, audioMs: 1200 }
+    for (const bad of [null, undefined, [], 'verse', 4]) {
+      expect(() => validatePack(withVerses([bad])), String(bad)).toThrow('꾸러미의 1번째 절이 비어 있습니다')
+      expect(() => validatePack(withVerses([valid, bad])), String(bad)).toThrow('꾸러미의 2번째 절이 비어 있습니다')
+    }
+  })
+
+  it('절 낭독 오류에는 절 번호를 넣고, 절 번호가 안전한 정수가 아니면 몇 번째 절인지를 넣는다', () => {
+    const valid = { verse: 1, text: '아담이 그 아내 하와와 동침하매', audio: null, audioMs: 1200 }
+    const bad = { text: '가인이 그 아우 아벨에게', audio: 'content/audio/genesis-04-008.mp3' }
+    // 위치와 다른 절 번호는 절 번호로 쓴다.
+    expect(() => validatePack(withVerses([{ ...bad, verse: 8 }]))).toThrow('꾸러미 8절의 낭독은 null이어야 합니다')
+    expect(() => validatePack(withVerses([valid, { ...bad, verse: 8 }]))).toThrow('꾸러미 8절의 낭독은 null이어야 합니다')
+    // 절 번호가 없거나 안전한 정수가 아니면 위치(1부터)를 쓴다. 네트워크에서 온 값을 글에 넣지 않는다.
+    const notNumbers = [undefined, null, '8', 1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 2, {}, 'x'.repeat(5000)]
+    for (const verse of notNumbers) {
+      expect(messageOf(() => validatePack(withVerses([valid, { ...bad, verse }]))), String(verse).slice(0, 20)).toBe('꾸러미 2절의 낭독은 null이어야 합니다')
+    }
+    expect(messageOf(() => validatePack(withVerses([{ ...bad, verse: Number.MAX_SAFE_INTEGER }])))).toBe(
+      `꾸러미 ${Number.MAX_SAFE_INTEGER}절의 낭독은 null이어야 합니다`,
+    )
+  })
+
   it('장면의 그림 경로가 콘텐츠 뿌리 밖을 가리키면 오류를 던진다', () => {
     const message = '꾸러미 장면 "genesis-04-01"의 그림 경로가 올바르지 않습니다'
     expect(() => validatePack(withScene({ images: { v1: '../../SQLite/db' } }))).toThrow(message)
@@ -701,6 +798,34 @@ describe('validatePack', () => {
     }
     for (const audio of [undefined, '', 4, false, {}, ['media/a.mp3']]) {
       expect(() => validatePack(withScene({ audio })), `audio=${String(audio)}`).toThrow('낭독 경로가 올바르지 않습니다')
+    }
+  })
+
+  it('그림 경로는 그림 확장자, 낭독 경로는 .mp3여야 한다', () => {
+    const image = mediaPath('genesis-04-01', imageHash, 'jpg')
+    const audio = mediaPath('genesis-04-01', audioHash, 'mp3')
+    const imageMessage = '꾸러미 장면 "genesis-04-01"의 그림 경로가 올바르지 않습니다'
+    const audioMessage = '꾸러미 장면 "genesis-04-01"의 낭독 경로가 올바르지 않습니다'
+    // 그림 자리에 낭독 파일, 낭독 자리에 그림 파일
+    expect(() => validatePack(withScene({ images: { v1: audio } }))).toThrow(imageMessage)
+    expect(() => validatePack(withScene({ audio: image }))).toThrow(audioMessage)
+    // 그림 버전 가운데 하나만 틀려도 같다.
+    expect(() => validatePack(withScene({ images: { v1: image, v2: audio } }))).toThrow(imageMessage)
+    // 경로 규칙은 지키지만 확장자가 없거나 미디어 확장자가 아니다.
+    for (const file of ['media/x.gif', 'media/x', 'mp3', 'media/x.json', 'media/x.JPG']) {
+      expect(() => validatePack(withScene({ images: { v1: file } })), file).toThrow(imageMessage)
+      expect(() => validatePack(withScene({ audio: file })), file).toThrow(audioMessage)
+    }
+    // 그림 확장자는 모두 그림으로 받고, 낭독은 .mp3만 받는다.
+    for (const ext of MEDIA_EXTENSIONS) {
+      const file = mediaPath('genesis-04-01', imageHash, ext)
+      if (ext === 'mp3') {
+        expect(validatePack(withScene({ audio: file })), ext).toBeTruthy()
+        expect(() => validatePack(withScene({ images: { v1: file } })), ext).toThrow(imageMessage)
+      } else {
+        expect(validatePack(withScene({ images: { v1: file } })), ext).toBeTruthy()
+        expect(() => validatePack(withScene({ audio: file })), ext).toThrow(audioMessage)
+      }
     }
   })
 
@@ -858,6 +983,72 @@ describe('validateLexiconFile', () => {
   it('맨 위만 본다. 안의 항목과 모르는 키는 보지 않는다', () => {
     const value = { schemaVersion: 1, entries: { H120: 'man', H121: null }, futureKey: true }
     expect(validateLexiconFile(value)).toBe(value)
+  })
+})
+
+describe('네트워크에서 온 값을 오류 글에 넣는 방법', () => {
+  // 네 가지 파일이 모두 같은 schemaVersion 검사를 쓴다.
+  const validators: [string, (value: unknown) => unknown, () => object][] = [
+    ['공개 목록', validateCatalog, catalog],
+    ['꾸러미', validatePack, pack],
+    ['공용 설정집', validateCanonFile, canonFile],
+    ['공용 사전', validateLexiconFile, lexiconFile],
+  ]
+
+  it('toString이 글자인 객체를 schemaVersion에 넣어도 영어 TypeError 대신 형식 오류를 던진다', () => {
+    // String()에 넘기면 TypeError(Cannot convert object to primitive value)가 난다.
+    expect(() => String({ toString: 'x' })).toThrow(TypeError)
+    for (const [where, validate, make] of validators) {
+      const message = messageOf(() => validate({ ...make(), schemaVersion: { toString: 'x' } }))
+      expect(message, where).toBe(`${where} 형식이 다릅니다 (schemaVersion object)`)
+    }
+  })
+
+  it('schemaVersion은 글자면 따옴표로 묶고 40자까지만, 수·참거짓·null·undefined는 그대로, 나머지는 형 이름으로 쓴다', () => {
+    const cases: [unknown, string][] = [
+      [2, '2'],
+      [0, '0'],
+      [1.5, '1.5'],
+      [Number.NaN, 'NaN'],
+      [true, 'true'],
+      [null, 'null'],
+      [undefined, 'undefined'],
+      ['1', '"1"'],
+      ['a\nb', '"a\\nb"'],
+      ['x'.repeat(5000), `"${'x'.repeat(40)}"…`],
+      [{}, 'object'],
+      [[], 'object'],
+      [{ toString: 'x' }, 'object'],
+      [Object.create(null), 'object'],
+      [() => 1, 'function'],
+      [10n, 'bigint'],
+      [Symbol('s'), 'symbol'],
+    ]
+    for (const [bad, text] of cases) {
+      for (const [where, validate, make] of validators) {
+        const message = messageOf(() => validate({ ...make(), schemaVersion: bad }))
+        expect(message, `${where} ${typeof bad}`).toBe(`${where} 형식이 다릅니다 (schemaVersion ${text})`)
+      }
+    }
+  })
+
+  it('꾸러미의 장 번호도 같은 방법으로 알린다', () => {
+    const cases: [unknown, string][] = [
+      [51, '51'],
+      [0, '0'],
+      [4.5, '4.5'],
+      ['4', '"4"'],
+      [null, 'null'],
+      [undefined, 'undefined'],
+      [true, 'true'],
+      ['x'.repeat(5000), `"${'x'.repeat(40)}"…`],
+      [{ toString: 'x' }, 'object'],
+      [[4], 'object'],
+    ]
+    for (const [bad, text] of cases) {
+      const message = messageOf(() => validatePack({ ...pack(), chapter: bad }))
+      expect(message, `chapter ${typeof bad}`).toBe(`꾸러미의 장 번호가 올바르지 않습니다: 창세기 ${text}`)
+    }
   })
 })
 
