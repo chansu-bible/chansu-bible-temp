@@ -1,9 +1,9 @@
+import { existsSync } from 'node:fs'
+import { readdir } from 'node:fs/promises'
 import { Hono } from 'hono'
 import {
   canonItemSchemas,
   CanonKindSchema,
-  listSceneChapters,
-  listSourceBooks,
   paths,
   readCanon,
   writeCanonKind,
@@ -12,7 +12,7 @@ import {
   type ReviewState,
   type Scene,
 } from 'pipeline'
-import type { BookId } from 'reader-core'
+import { bookOrder, parseChapterStem, type BookId } from 'reader-core'
 import type { AppContext } from '../context.ts'
 import { readSceneFile } from '../content.ts'
 import { errorMessage, HttpError } from '../errors.ts'
@@ -34,17 +34,21 @@ function referencedIds(kind: CanonKind, scene: Scene): string[] {
   }
 }
 
-// 본문이 있는 모든 책의 장면(성경 순서). 장은 장면 파일 목록(listSceneChapters)으로 찾고 본문은 읽지 않는다.
+// 장면 폴더의 모든 장면(성경 순서, 장 순서). 폴더는 한 번만 읽고 본문은 읽지 않는다.
+// 이름이 장 파일(genesis-04.json, reader-core의 parseChapterStem)이 아닌 파일은 건너뛰고, 본문이 없는 책의 장면 파일도 읽는다.
 async function readAllScenes(ctx: AppContext): Promise<{ book: BookId; chapter: number; scene: Scene }[]> {
   const scenesDir = ctx.scenesDir ?? paths.scenesDir
-  const perBook = await Promise.all(
-    (await listSourceBooks(ctx.sourceDir)).map(async (book) => {
-      const chapters = await listSceneChapters(book, scenesDir)
-      const files = await Promise.all(chapters.map((chapter) => readSceneFile(book, chapter, scenesDir)))
-      return files.flatMap((file) => (file ? file.scenes.map((scene) => ({ book, chapter: file.chapter, scene })) : []))
-    }),
+  if (!existsSync(scenesDir)) return []
+  const stems = (await readdir(scenesDir))
+    .flatMap((name) => {
+      const stem = name.endsWith('.json') ? parseChapterStem(name.slice(0, -'.json'.length)) : null
+      return stem ? [stem] : []
+    })
+    .sort((a, b) => bookOrder(a.book) - bookOrder(b.book) || a.chapter - b.chapter)
+  const files = await Promise.all(stems.map(({ book, chapter }) => readSceneFile(book, chapter, scenesDir)))
+  return files.flatMap((file, index) =>
+    file ? file.scenes.map((scene) => ({ book: stems[index]!.book, chapter: file.chapter, scene })) : [],
   )
-  return perBook.flat()
 }
 
 export function parseKind(value: string): CanonKind {
@@ -138,9 +142,10 @@ export function canonRoutes(ctx: AppContext): Hono {
 
   // 종류의 항목마다 쓰는 장면 수 { 항목 id: 장면 수 }. 목록 화면이 종류마다 한 번 받는다.
   // 모든 장면 파일을 한 번만 읽는다. 장면이 가리키지 않는 항목은 없다(0으로 본다).
+  // id가 constructor 같은 이름이어도 물려받은 속성을 읽지 않게 프로토타입 없는 객체에 센다.
   app.get('/:kind/usage', async (c) => {
     const kind = parseKind(c.req.param('kind'))
-    const counts: Record<string, number> = {}
+    const counts: Record<string, number> = Object.create(null)
     if (kind === 'things') return c.json(counts)
     for (const { scene } of await readAllScenes(ctx)) {
       for (const id of new Set(referencedIds(kind, scene))) counts[id] = (counts[id] ?? 0) + 1
@@ -148,7 +153,7 @@ export function canonRoutes(ctx: AppContext): Hono {
     return c.json(counts)
   })
 
-  // 이 항목을 쓰는 장면. 본문이 있는 모든 책의 장면에서 찾는다(성경 순서).
+  // 이 항목을 쓰는 장면. 장면 폴더의 모든 장면 파일에서 찾는다(성경 순서, 본문이 없는 책도).
   app.get('/:kind/:id/usage', async (c) => {
     const kind = parseKind(c.req.param('kind'))
     const id = c.req.param('id')

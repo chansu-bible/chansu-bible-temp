@@ -62,12 +62,13 @@ export function currentSourceLabel(book: BookSummary | undefined): string {
 }
 
 // source가 장 범위(range)를 받으면 지금 본문(current)에서 없어질 장. 본문 파일은 받은 장으로 바뀐다.
-// 범위가 지금 본문의 장을 다 덮거나, 범위나 본문이 없으면 null이다. 예: 지금 1~10장, 범위 3-7 → "1~2장, 8~10장"
+// 범위가 지금 본문의 장을 다 덮거나, 범위나 본문이 없거나, 범위가 거꾸로면(7-3, 받기 전에 따로 막는다) null이다.
+// 예: 지금 1~10장, 범위 3-7 → "1~2장, 8~10장"
 export function droppedChapters(
   range: { from: number; to: number } | null,
   current: { from: number; to: number } | null,
 ): string | null {
-  if (!range || !current) return null
+  if (!range || !current || range.from > range.to) return null
   const dropped: string[] = []
   if (current.from < range.from) dropped.push(spanLabel(current.from, Math.min(current.to, range.from - 1)))
   if (current.to > range.to) dropped.push(spanLabel(Math.max(current.from, range.to + 1), current.to))

@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { bookOptionLabel, chooseBook, readableBooks, readStoredBook, storeBook } from './bookChoice.ts'
-import { checkForm, emptyEntry, entryToForm, fieldHint, fieldsOf, firstCitation, formToEntry } from './canonForm.ts'
+import { bookOptionLabel, chooseBook, readableBooks, readStoredBook, skippedBooksNote, storeBook } from './bookChoice.ts'
+import {
+  checkForm,
+  emptyEntry,
+  entryToForm,
+  fieldHint,
+  fieldsOf,
+  firstCitation,
+  formToEntry,
+  usageCountOf,
+} from './canonForm.ts'
 import { citationLabel } from './citations.ts'
 import { splitIds } from './ids.ts'
 import {
@@ -173,6 +182,15 @@ describe('canonForm', () => {
     expect(citationLabel(firstCitation('characters', adam))).toBe('창세기 1:26')
   })
 
+  it('목록의 장면 수는 받은 수의 제 속성만 읽는다(constructor 같은 id도 0)', () => {
+    const counts = JSON.parse('{"adam": 2, "constructor": 3}') as Record<string, number>
+    expect(usageCountOf(counts, 'adam')).toBe(2)
+    expect(usageCountOf(counts, 'constructor')).toBe(3)
+    expect(usageCountOf(counts, 'eve')).toBe(0)
+    const empty = JSON.parse('{}') as Record<string, number>
+    for (const id of ['constructor', 'toString', 'hasOwnProperty']) expect(usageCountOf(empty, id)).toBe(0)
+  })
+
   it('절 인용 칸의 안내에는 고른 책으로 든 예가 붙는다', () => {
     const field = (path: string) => fieldsOf('characters').find((f) => f.path === path)!
     expect(fieldHint(field('facts.firstAppearance'), 'exodus')).toBe('예: 2:7(출애굽기), 출애굽기 2:7, exodus 2:7')
@@ -338,6 +356,9 @@ describe('jobForm', () => {
     expect(droppedChapters(readChapterRange(''), current)).toBeNull()
     expect(droppedChapters(readChapterRange('1~10'), current)).toBeNull()
     expect(droppedChapters(readChapterRange('3-7'), null)).toBeNull()
+    // 거꾸로 된 범위는 경고 대신 실행에서 막는다
+    expect(droppedChapters(readChapterRange('7-3'), current)).toBeNull()
+    expect(droppedChapters(readChapterRange('20-11'), current)).toBeNull()
   })
 
   it('책 칸의 값: 고른 책, 이 단계에 없으면 머리에서 고른 책, 그것도 없으면 첫 책', () => {
@@ -493,6 +514,13 @@ describe('bookChoice', () => {
     // 기억한 책을 읽지 못하면 읽을 수 있는 첫 책을 고른다
     expect(chooseBook(readableBooks([exodus, genesis]).map((b) => b.id), 'exodus')).toBe('genesis')
     expect(chooseBook(readableBooks([exodus]).map((b) => b.id), 'exodus')).toBeNull()
+  })
+
+  it('책마다 모으는 화면은 빠진 책이나 책 목록 오류를 한 줄로 알린다', () => {
+    expect(skippedBooksNote([], null, '이 목록')).toBeNull()
+    expect(skippedBooksNote(['출애굽기'], null, '이 목록')).toBe('출애굽기 본문을 읽지 못해 이 목록에서 빠졌어요')
+    expect(skippedBooksNote(['출애굽기', '레위기'], null, '그림 수')).toBe('출애굽기, 레위기 본문을 읽지 못해 그림 수에서 빠졌어요')
+    expect(skippedBooksNote([], '연결 거부', '그림 수')).toBe('책 목록을 읽지 못해 그림 수에서 모든 책이 빠졌어요: 연결 거부')
   })
 })
 

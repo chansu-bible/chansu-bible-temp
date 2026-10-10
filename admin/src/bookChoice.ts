@@ -11,6 +11,14 @@ export function bookOptionLabel(book: BookSummary): string {
   return book.error ? `${book.name} · 읽지 못함` : `${book.name} · ${book.sourceChapters}/${book.chapters}장`
 }
 
+// 책마다 모으는 화면(검수 대기열, 그림) 위에 보일 한 줄. where는 빠지는 곳("이 목록", "그림 수")이다.
+// 책 목록을 받지 못했으면 그 오류를, 본문을 읽지 못한 책(unreadable, 책 이름)이 있으면 그 책들을 알린다. 없으면 null
+export function skippedBooksNote(unreadable: readonly string[], listError: string | null, where: string): string | null {
+  if (listError) return `책 목록을 읽지 못해 ${where}에서 모든 책이 빠졌어요: ${listError}`
+  if (unreadable.length === 0) return null
+  return `${unreadable.join(', ')} 본문을 읽지 못해 ${where}에서 빠졌어요`
+}
+
 const STORAGE_KEY = 'admin.book'
 
 // 기억해 둔 책 id. 저장소를 쓸 수 없으면(막힌 브라우저 등) null이다.

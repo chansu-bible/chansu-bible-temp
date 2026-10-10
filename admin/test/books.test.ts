@@ -146,10 +146,32 @@ describe('설정집 항목마다 쓰는 장면 수', () => {
     await writeScenes('exodus-03', 3, [withCharacters('exodus-03-01', 3, ['moses'])])
     expect(await read(await app.request('/api/canon/characters/usage'))).toEqual({ moses: 1 })
   })
+
+  it('본문이 없는 책의 장면 파일도 세고, 장 파일 이름이 아닌 파일은 건너뛴다', async () => {
+    // 레위기에는 본문 파일이 없다.
+    await writeScenes('leviticus-01', 1, [withCharacters('leviticus-01-01', 1, ['moses', 'aaron'])])
+    await writeScenes('genesis-02', 2, [withCharacters('genesis-02-01', 2, ['moses'])])
+    // 자리수가 틀린 이름, 다른 파일, 쓰다 남은 임시 파일
+    await writeFile(path.join(dirs.scenesDir, 'genesis-3.json'), '{ 읽으면 깨진다')
+    await writeFile(path.join(dirs.scenesDir, 'notes.json'), '{}')
+    await writeFile(path.join(dirs.scenesDir, 'genesis-04.json.tmp'), '{')
+    expect(await read(await app.request('/api/canon/characters/usage'))).toEqual({ moses: 2, aaron: 1 })
+  })
+
+  it('항목 id가 constructor 같은 물려받은 속성 이름이어도 그 수만 센다', async () => {
+    const empty = await read(await app.request('/api/canon/characters/usage'))
+    expect(Object.hasOwn(empty, 'constructor')).toBe(false)
+
+    await writeScenes('genesis-02', 2, [
+      withCharacters('genesis-02-01', 2, ['constructor', 'adam']),
+      withCharacters('genesis-02-02', 2, ['constructor']),
+    ])
+    expect(await read(await app.request('/api/canon/characters/usage'))).toEqual({ constructor: 2, adam: 1 })
+  })
 })
 
 describe('설정집 항목을 쓰는 장면', () => {
-  it('본문이 있는 모든 책의 장면에서 찾고 책을 함께 돌려준다', async () => {
+  it('장면 폴더의 모든 책의 장면에서 찾고 책을 함께 돌려준다', async () => {
     await addExodus()
     const moses: Character = {
       id: 'moses',
@@ -179,12 +201,19 @@ describe('설정집 항목을 쓰는 장면', () => {
       JSON.stringify({ chapter: 1, scenes: [scene('exodus-01-01', 1), uses('exodus-01-02', 1)] }),
     )
 
+    // 본문이 없는 책(레위기)의 장면 파일도 성경 순서로 함께 찾는다.
+    await writeFile(
+      path.join(dirs.scenesDir, 'leviticus-08.json'),
+      JSON.stringify({ chapter: 8, scenes: [uses('leviticus-08-01', 8)] }),
+    )
+
     const res = await app.request('/api/canon/characters/moses/usage')
     expect(res.status).toBe(200)
     expect(await read(res)).toEqual({
       scenes: [
         { book: 'genesis', chapter: 2, id: 'genesis-02-01', title: 'genesis-02-01 제목' },
         { book: 'exodus', chapter: 1, id: 'exodus-01-02', title: 'exodus-01-02 제목' },
+        { book: 'leviticus', chapter: 8, id: 'leviticus-08-01', title: 'leviticus-08-01 제목' },
       ],
     })
   })

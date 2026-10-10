@@ -1,4 +1,5 @@
 import { api } from '../api.ts'
+import { skippedBooksNote } from '../bookChoice.ts'
 import { Empty, ErrorBox, Loading } from '../components/Notice.tsx'
 import StatusBadge from '../components/StatusBadge.tsx'
 import { bookName, formatTime, KIND_LABEL } from '../labels.ts'
@@ -59,9 +60,19 @@ async function loadQuizPending(books: BookId[]): Promise<QuizPending[]> {
   return perBook.flat().filter((c) => c.reviewed + c.flagged > 0)
 }
 
-// 검수 대기열. 장면과 퀴즈는 본문이 있는 모든 책에서 모은다.
-export default function Queue({ books }: { books: BookSummary[] }) {
+// 검수 대기열. 장면과 퀴즈는 본문을 읽을 수 있는 모든 책(books)에서 모은다.
+// 본문을 읽지 못한 책(unreadable)이나 책 목록 오류(listError)가 있으면 이 목록에서 빠졌다고 알린다.
+export default function Queue({
+  books,
+  unreadable,
+  listError,
+}: {
+  books: BookSummary[]
+  unreadable: string[]
+  listError: string | null
+}) {
   const ids = books.map((b) => b.id)
+  const skipped = skippedBooksNote(unreadable, listError, '이 목록')
   const flagged = useLoad(() => loadFlagged(ids), `flagged/${ids.join(',')}`)
   const drafts = useLoad(loadDrafts, 'drafts')
   const proposals = useLoad(loadOpenProposals, 'proposals')
@@ -85,6 +96,8 @@ export default function Queue({ books }: { books: BookSummary[] }) {
           새로 고침
         </button>
       </header>
+
+      {skipped && <p className="notice">{skipped}</p>}
 
       <section className="card">
         <h2>확인 필요 장면 {flagged.data && <span className="count">{flagged.data.length}</span>}</h2>

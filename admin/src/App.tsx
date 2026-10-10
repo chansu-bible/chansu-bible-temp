@@ -221,6 +221,8 @@ function Page({
     }
   }
   const readable = readableBooks(books)
+  // 책마다 모으는 화면(그림, 검수 대기열)에 빠진 책을 알리는 데 쓴다.
+  const unreadable = books.filter((b) => b.error).map((b) => b.name)
   switch (route.page) {
     case 'dashboard':
       return <Dashboard key={route.book} book={route.book} />
@@ -229,7 +231,7 @@ function Page({
     case 'scenes':
       return <Scenes key={route.book} book={route.book} chapter={route.chapter} sceneId={route.sceneId} />
     case 'images':
-      return <Images books={readable} />
+      return <Images books={readable} unreadable={unreadable} listError={listError} />
     case 'lexicon':
       return <Lexicon filter={route.filter} />
     case 'quiz':
@@ -237,7 +239,7 @@ function Page({
     case 'jobs':
       return <Jobs book={book} books={books} listError={listError} onJobEnd={onJobEnd} />
     case 'queue':
-      return <Queue books={readable} />
+      return <Queue books={readable} unreadable={unreadable} listError={listError} />
     case 'repo':
       return <Repo />
   }

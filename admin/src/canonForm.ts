@@ -433,6 +433,12 @@ export function checkForm(kind: CanonKind, form: FormState, book: BookId | null)
   return problems
 }
 
+// 목록의 "장면" 칸: 한 번에 받은 쓰임 수(GET /api/canon/:kind/usage)에서 항목의 수. 수가 없으면(가리키는 장면이 없으면) 0이다.
+// 받은 객체가 물려받은 속성(constructor 등)은 보지 않는다.
+export function usageCountOf(counts: Record<string, number>, id: string): number {
+  return Object.hasOwn(counts, id) ? counts[id] : 0
+}
+
 // 목록의 "첫 등장" 칸(저장 모양). 화면에는 citationLabel로 보인다.
 export function firstCitation(kind: CanonKind, entry: object): string {
   switch (kind) {

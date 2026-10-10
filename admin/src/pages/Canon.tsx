@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { api } from '../api.ts'
-import { emptyEntry, firstCitation } from '../canonForm.ts'
+import { emptyEntry, firstCitation, usageCountOf } from '../canonForm.ts'
 import { citationLabel } from '../citations.ts'
 import CanonEditor from '../components/CanonEditor.tsx'
 import DataTable, { type Column } from '../components/DataTable.tsx'
@@ -107,8 +107,7 @@ export default function Canon({ kind, selectedId, book }: { kind: CanonKind; sel
           )
         }
         if (!usage.data) return <span className="muted">…</span>
-        // 장면이 가리키지 않는 항목은 수가 없다.
-        return usage.data[e.id] ?? 0
+        return usageCountOf(usage.data, e.id)
       },
     },
     {
