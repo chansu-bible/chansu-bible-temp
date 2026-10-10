@@ -40,9 +40,9 @@
 | `pipeline/src/release/status.ts` (새) | 책의 장마다 공개 상태(공개됨·바뀐 것·점검 미통과·장면 전·본문 전)를 만든다(관리 도구와 CLI가 쓴다) |
 | `pipeline/src/cli.ts`, `index.ts`, `paths.ts` | `release`, `publish` 명령, `releasesFile`, `publishDir` |
 | `.gitignore` | `publish/` |
-| `server/src/content.ts` (새), `server/src/app.ts`, `server/src/config.ts` | `/content/*` 정적 파일, 캐시 머리글, 미리 보기 |
+| `server/src/content.ts` (새), `server/src/app.ts`, `server/src/config.ts`, `.env.example` | `/content/*` 정적 파일, 캐시 머리글, 미리 보기 |
 | `server/src/ask/*`, `server/src/index.ts` | 질문하기 대목을 공개 목록의 꾸러미와 공용 설정집에서 만들고, 목록 판이 바뀌면 다시 읽는다 |
-| `admin/server/routes/releases.ts` (새), `admin/server/stages.ts`, `admin/server/jobs.ts` | 공개 상태 API, `publish` 작업, 공개 중 저장 막기 |
+| `admin/server/routes/releases.ts` (새), `admin/server/routes/books.ts`, `admin/server/stages.ts`, `admin/src/types.ts`·`labels.ts`·`jobForm.ts` | 공개 상태 API(책 하위 라우트), `publish` 작업, 작업 중에는 공개 막기 |
 | `admin/src/pages/Releases.tsx` (새), `admin/src/route.ts`, `admin/src/api.ts` | 공개 화면 |
 | `docs/content-publish.md` (새), `README.md`, 설계 문서 | 형식과 명령, 진행 |
 
@@ -154,8 +154,13 @@ git commit -m "feat(core): 공개 목록과 장 꾸러미 형식(publish.ts)"
 **Files:**
 - Modify: `pipeline/src/build/buildBundle.ts`, `pipeline/test/buildBundle.test.ts`
 
-- [ ] **Step 1:** `buildBundle` 안에서 장 하나를 만드는 부분(절과 절 낭독, 장면 또는 대체 장면, 장면 검사, 장면 낭독, 원어, 승인된 퀴즈)을 `buildChapter(book, sourceChapter, sceneFile | null, ctx)`로 떼어 낸다. `ctx`에는 그림 목록, 낭독 길이, 승인된 장소·인물 id, 원어 파일이 든다. `buildBundle`은 장마다 `buildChapter`를 부른다.
-- [ ] **Step 2:** 결과가 그대로인지 본다. 이 작업 전후로 `npm run pipeline -- build`를 돌려 `app/public/content` 365개 파일의 해시가 같아야 한다(바뀌기 전 해시를 시스템 임시 폴더에 남겨 비교한다).
+- [ ] **Step 1:** `buildBundle` 안에서 장 하나를 만드는 부분을 `buildChapter(book, sourceChapter, sceneFile | null, ctx)`로 떼어 낸다. 장 하나를 만드는 부분은 절과 절 낭독, 장면 또는 대체 장면, 장면 검사, 장면 낭독, 원어, 승인된 퀴즈다.
+  - `ctx`에는 그림 목록, 낭독 길이, 장소·인물 id, 원어 파일, 퀴즈 파일이 든다.
+  - 장소·인물 id는 승인된 전체가 아니라 그 책의 묶음에 들어가는 것이다. `buildBundle.ts`에서 `canonForBook`으로 책에 맞춰 거른 집합이다.
+  - `buildBundle`은 장마다 `buildChapter`를 부른다.
+- [ ] **Step 2:** 결과가 그대로인지 본다.
+  - 이 작업 전후로 `npm run pipeline -- build`를 돌려 `app/public/content` 365개 파일의 해시가 같아야 한다. 바뀌기 전 해시는 시스템 임시 폴더에 남겨 비교한다.
+  - 1단계 마지막에 더한 `pipeline/test/writeBundles.test.ts`가 두 책 묶음 쓰기를 고정값 폴더로 시험한다. 이 시험도 그대로 통과해야 한다.
 
 Run: `npm test -w pipeline && npm run typecheck -w pipeline`
 
@@ -321,6 +326,8 @@ export async function bookReleaseStatus(inputs: ReleaseInputs, releases: Release
 - [ ] **Step 2: CLI**
 - `release --book <id> --chapter N`: 점검을 통과하지 않으면 무엇이 빠졌는지 적고 멈춘다. 공개된 장이 바뀌지 않았으면 "바뀐 것이 없어 그대로 둡니다". 아니면 공개 상태 파일을 고치고 `${책 이름} ${장}장 공개(판 n). npm run pipeline -- publish로 꾸러미를 만드세요.`를 찍는다.
 - `release --book <id> --chapter N --withdraw`: 공개 취소.
+  - `cli.ts`의 `Flags` 형과 `parseArgs`의 `options`에 `withdraw: { type: 'boolean', default: false }`를 더한다.
+  - `parseArgs`는 엄격하므로 더하지 않으면 모르는 인자로 거절한다.
 - `release --book <id>`(장 없이): 장마다 상태를 표로 찍는다(공개됨·판, 바뀐 것, 점검, 장면 전, 본문 전).
 
 - [ ] **Step 3: 시험** — 상태 여섯 가지가 고정값에서 각각 나온다, 바뀐 부분 목록, CLI 인자 검사(`--withdraw`에 장 번호가 없으면 오류).
@@ -351,6 +358,8 @@ git commit -m "feat(pipeline): 장마다 공개 상태와 release 명령(공개,
 6. 미리 보기: 장면 파일이 있는 미공개 장마다 미리 보기 꾸러미(모든 그림 버전)를 `preview/` 아래에 쓰고, 미리 보기 설정집·사전(공개 장 + 미리 보기 장 기준)과 `preview/catalog.json`(공개된 장은 뿌리의 파일을 가리키고, 미리 보기 장은 `preview: true`, `revision: 0`, 점검 결과)을 쓴다.
 7. 쓴 파일 수와 크기를 돌려준다.
 
+`runPublish`는 `readReleaseInputs`와 같은 폴더 옵션을 받는다. `releasesFile`과 `outDir`도 받는다. CLI는 리포의 `content/`와 `publish/`에 고정이다. 3단계 Task 10은 콘텐츠의 임시 사본으로 공개 흐름을 확인하는데, 그때 작은 스크립트가 이 옵션으로 `runPublish`를 부른다.
+
 CLI `publish`(책을 받지 않는다). `.gitignore`에 `/publish/`.
 
 - [ ] **Step 2: 시험(임시 폴더)** — 공개된 장 둘과 미리 보기 장 하나인 고정값으로: 목록에는 공개된 장만, 경로의 해시가 파일 내용과 맞다, 같은 내용으로 다시 돌리면 파일 이름이 모두 같다, 장면 해설 하나를 바꾸고 다시 공개하면 그 꾸러미 파일 이름만 바뀌고 그림·낭독·다른 장은 그대로다, 공개 뒤 바뀐 장은 멈춘다, 공개 취소한 장은 목록과 파일에서 빠진다, 미리 보기 목록에는 미리 보기 장이 `preview: true`로 있고 뿌리 목록에는 없다, 설정집에는 공개된 장에서 나오는 항목만, 사전 `count`.
@@ -375,6 +384,8 @@ git commit -m "feat(pipeline): publish 단계(꾸러미, 공용 설정집·사�
 - Modify: `server/src/app.ts`, `server/src/config.ts`, `server/src/index.ts`
 
 - [ ] **Step 1:** 설정 `contentDir`(`CONTENT_DIR`, 기본 리포 루트의 `publish`)와 `contentPreview`(`CONTENT_PREVIEW=1`).
+  - 리포 루트 `.env.example`의 서버 설정 옆에 둘을 짧은 주석과 함께 적는다.
+  - 이 Task에서 `.env.example`도 고치므로 커밋에 넣는다.
 - [ ] **Step 2:** `GET /content/*`:
 - 폴더 밖을 가리키는 경로(`..`, 절대 경로, 역슬래시)는 404.
 - `catalog.json`, `preview/catalog.json`: `Cache-Control: no-cache`, 내용 해시로 만든 `ETag`, `If-None-Match`가 같으면 304.
@@ -389,7 +400,7 @@ Run: `npm test -w server && npm run typecheck -w server`
 - [ ] **Step 4: 커밋**
 
 ```bash
-git add server
+git add server .env.example
 git commit -m "feat(server): 공개 콘텐츠를 /content로 낸다(목록은 매번 확인, 해시 파일은 오래 캐시)"
 ```
 
@@ -400,10 +411,19 @@ git commit -m "feat(server): 공개 콘텐츠를 /content로 낸다(목록은 �
 **Files:**
 - Modify: `server/src/ask/passages.ts`, `server/src/index.ts`, `server/src/app.ts`, `server/test/ask.test.ts`
 
-- [ ] **Step 1:** 대목을 공개 목록에서 만든다. `readPublished(contentDir)`: `catalog.json`을 읽고(없으면 질문하기를 끈다), 목록의 꾸러미와 공용 설정집을 읽어 책마다 `AskBundle` 모양(1단계 Task 9에서 정한 것)으로 모은다. 설정집 인용은 책이 붙은 모양이므로 `parseRef`가 책과 장을 그대로 읽는다. 장면은 꾸러미에 든 것(공개된 장은 모두 사람 승인)만 쓴다.
+- [ ] **Step 1:** 대목을 공개 목록에서 만든다. `readPublished(contentDir)`가 `catalog.json`을 읽는다. 없으면 질문하기를 끈다.
+  - 목록의 꾸러미와 공용 설정집을 읽어 책마다 `AskBundle` 모양(1단계 Task 9에서 정한 것)으로 모은다.
+  - 장면은 꾸러미에 든 것만 쓴다(공개된 장은 모두 사람이 승인했다).
+  - 설정집 인용은 책이 붙은 모양(`genesis 2:7`)이라 1단계의 설정집 대목 만들기를 그대로 쓰면 틀린다. 지금 `passages.ts`(`canonEntries`)는 두 가지를 한다.
+    - 인용의 책이 그 묶음의 책일 때만 장을 남긴다. 대목의 책도 그 항목이 든 묶음의 책으로 정한다.
+    - 책 묶음이 하나면 인용을 원문 그대로 대목 글에 넣는다. 그러면 모델이 "처음 나오는 곳 genesis 2:7"을 본다.
+  - 공용 설정집에서는 대목의 책과 장을 인용(`ref.book`, `ref.chapter`)으로 정한다. 대목 글의 인용은 늘 `formatRef(ref, 'name')`(`창세기 2:7`)로 쓴다.
 - [ ] **Step 2:** 다시 읽기: `/ask` 요청마다 `catalog.json`의 수정 시각을 보고 바뀌었으면 다시 읽는다(목록 판을 로그에 남긴다). 다시 읽는 동안 지금 색인으로 답하고, 새 색인은 다 만든 뒤 바꾼다(요청을 막지 않는다).
 - [ ] **Step 2b: 성경 전체 크기** — 1단계 Task 9 검토에서 66권 가정으로 잰 값: 색인 만들기 0.7초, 색인 메모리 140~170 MB(대목마다 바이그램 Map), 질문마다 검색 45 ms(동기화 서버의 이벤트 루프에서 동기). 바이그램 → (대목, 횟수) 묶음의 역색인으로 바꾸고, 꾸러미에서 질문하기가 쓰는 필드만 남겨(원어·사전·퀴즈는 버린다) 메모리를 줄인다. 공용 설정집 항목의 책은 그 항목이 실린 꾸러미가 아니라 인용(`ref.book`)으로 정하고, `index.books`는 절·장면 대목의 책으로만 센다.
-- [ ] **Step 3:** 1단계의 묶음 읽기(`BUNDLE_DIR`)는 지운다. 공개된 장이 없으면 질문하기는 503(지금과 같은 글). 미리 보기가 켜져 있으면(`CONTENT_PREVIEW=1`, 개발용) `preview/catalog.json`을 읽어 미리 보기 장도 근거로 쓴다(지금은 공개된 장이 없으므로 개발 중 질문하기는 미리 보기로 확인한다).
+- [ ] **Step 3:** 1단계의 묶음 읽기(`BUNDLE_DIR`)는 지운다.
+  - 지울 것: `server/src/config.ts`의 `bundleDir`, 리포 루트 `.env.example`의 `BUNDLE_DIR`와 그 주석, `ask/bundles.ts`의 `readBundles`·`loadAskIndex`와 그 시험(링크 시험 포함).
+  - 새 읽기는 목록이 가리키는 파일만 읽으므로 폴더를 훑지 않는다. 그래서 링크를 따로 다룰 일이 없다.
+  - 1단계에서 지킨 규칙은 그대로다. 목록이나 꾸러미 하나라도 읽지 못하면 질문하기만 끄고, 경고에 파일 이름을 밝히고, 서버는 뜬다. 공개된 장이 없으면 질문하기는 503(지금과 같은 글). 미리 보기가 켜져 있으면(`CONTENT_PREVIEW=1`, 개발용) `preview/catalog.json`을 읽어 미리 보기 장도 근거로 쓴다(지금은 공개된 장이 없으므로 개발 중 질문하기는 미리 보기로 확인한다).
 - [ ] **Step 4: 시험** — 임시 콘텐츠 폴더(목록, 꾸러미 둘, 설정집)로: 공개된 장의 대목만 있다, 미리 보기 장은 없다, 목록을 바꾸면 다음 요청에서 다시 읽는다, 목록이 없으면 503.
 
 Run: `npm test -w server && npm run typecheck -w server`
@@ -411,7 +431,7 @@ Run: `npm test -w server && npm run typecheck -w server`
 - [ ] **Step 5: 커밋**
 
 ```bash
-git add server
+git add server .env.example
 git commit -m "feat(server): 질문하기가 공개 목록의 꾸러미와 공용 설정집만 근거로 쓴다"
 ```
 
@@ -421,14 +441,25 @@ git commit -m "feat(server): 질문하기가 공개 목록의 꾸러미와 공�
 
 **Files:**
 - Create: `admin/server/routes/releases.ts`, `admin/test/releases.test.ts`
-- Modify: `admin/server/app.ts`, `admin/server/stages.ts`, `admin/server/jobs.ts`, `admin/server/context.ts`
+- Modify:
+  - `admin/server/routes/books.ts`: 책 하위 라우트에 `releases`를 단다.
+  - `admin/server/stages.ts`
+  - 관리 화면의 단계 목록: `admin/src/types.ts`, `admin/src/labels.ts`, `admin/src/jobForm.ts`
+  - 필요하면 `admin/server/jobs.ts`, `admin/server/context.ts`
 
 - [ ] **Step 1:** 작업 단계에 `publish`(책을 받지 않는다)를 더한다.
-- [ ] **Step 2:** API(책은 1단계 Task 8의 `/api/books/:book/…` 규칙):
+  - 서버의 `STAGE_SPECS`(`stages.ts`)와 화면의 단계 목록을 함께 고친다. 화면 쪽은 `admin/src/types.ts`의 단계 형, `labels.ts`의 이름("공개 꾸러미 만들기"), `jobForm.ts`의 단계별 입력이다.
+  - `publish`의 입력은 `build`처럼 없다(`[]`).
+- [ ] **Step 2:** API(책은 1단계 Task 8의 `/api/books/:book/…` 규칙).
+  - 책 하위 라우트는 `admin/server/routes/books.ts`에 있다. 여기서 `parseBook`으로 `c.var.book`을 정하고(`BookEnv`) 상태·장면·퀴즈를 단다.
+  - 여기에 `app.route('/releases', releaseRoutes(ctx))`를 더한다. 처리기는 `c.var.book`과 `routes/params.ts`의 `parseChapter`를 쓴다. `admin/server/app.ts`는 고치지 않는다.
 - `GET /api/books/:book/releases` → `bookReleaseStatus` 결과와 목록 판.
 - `POST /api/books/:book/releases/:chapter` → 공개(또는 다시 공개). 점검 미통과면 400(빠진 것), 바뀐 것이 없으면 200 `{ changed: false }`. 공개 상태 파일을 고친 뒤 `publish` 작업을 넣고 `{ changed: true, jobId }`를 202로 돌려준다.
 - `DELETE /api/books/:book/releases/:chapter` → 공개 취소 뒤 `publish` 작업, 202.
-- 공개 상태 파일을 고치는 동안 `publish` 작업이 실행 중이거나 다른 작업이 실행 중이면(작업 큐는 하나씩) 409(지금 원어 뜻·퀴즈 저장과 같은 방식).
+- 작업 큐에 실행 중인 작업이 있으면 409다. 어떤 작업이든(`ctx.queue.active()`) 공개 상태 파일을 쓰기 전에 확인한다.
+  - 원어 뜻·퀴즈 저장은 부딪히는 작업만 막지만, 공개는 모든 작업을 막아야 한다.
+  - `JobQueue.enqueue`는 실행 중인 작업이 있으면 `JobBusyError`를 던진다. 파일을 먼저 쓰고 작업을 넣다 실패하면 공개 상태만 바뀌고 `publish`는 돌지 않는다.
+  - 확인, 파일 쓰기, 작업 넣기는 `createSerial()`(`admin/server/files.ts`) 하나 안에서 이어서 한다.
 - [ ] **Step 3: 시험** — 임시 콘텐츠로: 상태 목록, 점검 미통과 400, 공개 뒤 공개 상태 파일과 작업, 같은 내용 다시 공개는 바뀐 것 없음, 공개 취소, 실행 중 409, 알 수 없는 책 404.
 
 Run: `npm test -w admin && npm run typecheck -w admin && npm run lint -w admin`
@@ -465,7 +496,13 @@ git commit -m "feat(admin): 공개 화면(장마다 점검과 공개 상태, 공
 ### Task 12: 문서와 전체 확인
 
 - [ ] **Step 1:** `docs/content-publish.md`(새): 공개 상태 파일, 공개 목록, 꾸러미, 공용 설정집·사전, 미디어 이름, 미리 보기, 서버의 캐시 규칙.
-- [ ] **Step 2:** `README.md`: `release`, `publish` 명령, 관리 도구 공개 화면, `CONTENT_DIR`/`CONTENT_PREVIEW`.
+- [ ] **Step 2:** `README.md`
+  - `release`, `publish` 명령, 관리 도구 공개 화면, `CONTENT_DIR`/`CONTENT_PREVIEW`를 적는다.
+  - "질문하기는 로그인한 사람만 쓴다"로 시작하는 문단을 새로 쓴다. 지금 문단은 1단계의 `BUNDLE_DIR` 묶음 읽기를 설명한다. 바뀐 것은 이렇다.
+    - 공개 목록의 꾸러미와 공용 설정집을 읽는다.
+    - 공개된 장이 없으면 꺼진다.
+    - 미리 보기는 `CONTENT_PREVIEW=1`.
+    - 목록이 바뀌면 다음 질문에서 다시 읽는다.
 - [ ] **Step 3:** 설계 문서 3절 표 아래에 2단계 진행(완료일, 만들면서 정한 것: 부분 해시, 미리 보기 꾸러미의 그림 버전, 공용 설정집 범위).
 - [ ] **Step 4:** 전체 확인
 
