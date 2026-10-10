@@ -171,7 +171,7 @@ export type ChapterStatus = {
   audio: { have: number; total: number }
 }
 
-// 설정집을 읽지 못하면(설정집이나 어느 책의 본문이 깨졌을 때) canon과 proposalsOpen은 null이고 canonError에 까닭이 있다.
+// 설정집을 읽지 못하면(설정집이 깨졌거나, 설정집이 인용한 책의 본문을 읽지 못할 때) canon과 proposalsOpen은 null이고 canonError에 까닭이 있다.
 export type StatusResponse = {
   chapters: ChapterStatus[]
   canon: Record<CanonKind, StateCounts> | null
