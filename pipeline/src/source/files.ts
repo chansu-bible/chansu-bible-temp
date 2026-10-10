@@ -35,28 +35,38 @@ export async function listSourceBooks(dir: string = defaultSourceDir): Promise<B
   return listBookFiles(dir)
 }
 
+// 읽지 못한 본문 파일. unreadable은 읽지 못한 까닭이다.
+export type UnreadableSource = { unreadable: string }
+
 // 본문 파일(절대 경로)마다 센 절 수와 그때의 수정 시각·크기
 const verseCountCache = new Map<string, { mtimeMs: number; size: number; counts: number[] }>()
 
 // 책마다 장별 절 수를 센다(설정집 인용 검증용). 장 번호 n의 절 수는 counts[n - 1]이고, 받지 않은 장은 0이다.
+// 본문 파일 하나를 읽지 못해도 던지지 않고 그 책의 값을 절 수 대신 { unreadable: 까닭 }으로 둔다. 다른 책은 그대로 센다.
 // 설정집을 읽고 쓸 때마다 부르므로, 수정 시각이나 크기가 바뀐 본문 파일만 다시 읽는다.
-export async function readVerseCounts(dir: string = defaultSourceDir): Promise<Map<BookId, number[]>> {
-  const counts = new Map<BookId, number[]>()
+export async function readVerseCounts(dir: string = defaultSourceDir): Promise<Map<BookId, number[] | UnreadableSource>> {
+  const counts = new Map<BookId, number[] | UnreadableSource>()
   const files = new Set<string>()
   for (const book of await listSourceBooks(dir)) {
     const file = path.resolve(sourceFilePath(book, dir))
     files.add(file)
-    const { mtimeMs, size } = await stat(file)
-    let cached = verseCountCache.get(file)
-    if (!cached || cached.mtimeMs !== mtimeMs || cached.size !== size) {
-      const source = await readSource(book, dir)
-      const list: number[] = []
-      for (const chapter of source.chapters) list[chapter.chapter - 1] = chapter.verses.length
-      cached = { mtimeMs, size, counts: Array.from(list, (count) => count ?? 0) }
-      verseCountCache.set(file, cached)
+    try {
+      const { mtimeMs, size } = await stat(file)
+      let cached = verseCountCache.get(file)
+      if (!cached || cached.mtimeMs !== mtimeMs || cached.size !== size) {
+        const source = await readSource(book, dir)
+        const list: number[] = []
+        for (const chapter of source.chapters) list[chapter.chapter - 1] = chapter.verses.length
+        cached = { mtimeMs, size, counts: Array.from(list, (count) => count ?? 0) }
+        verseCountCache.set(file, cached)
+      }
+      // 받은 쪽이 고쳐도 기억해 둔 값은 그대로이게 복사해 준다.
+      counts.set(book, [...cached.counts])
+    } catch (error) {
+      // 읽지 못한 파일은 기억하지 않는다. 고친 파일이 옛 수정 시각·크기와 같아도 다시 읽게 한다.
+      verseCountCache.delete(file)
+      counts.set(book, { unreadable: error instanceof Error ? error.message : String(error) })
     }
-    // 받은 쪽이 고쳐도 기억해 둔 값은 그대로이게 복사해 준다.
-    counts.set(book, [...cached.counts])
   }
   // 이 폴더에서 사라진 파일은 잊는다.
   const folder = path.resolve(dir)

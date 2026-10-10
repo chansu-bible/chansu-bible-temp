@@ -3,7 +3,7 @@ import path from 'node:path'
 import type { Character, Scene } from 'pipeline'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from '../server/app.ts'
-import { makeTempContent, scene, sourceWith, type TempContent } from './fixtures.ts'
+import { eden, makeTempContent, scene, sourceWith, type TempContent } from './fixtures.ts'
 
 let dirs: TempContent
 let app: ReturnType<typeof createApp>
@@ -96,18 +96,28 @@ describe('책의 상태', () => {
     expect((await read(res)).chapters).toEqual([])
   })
 
-  it('다른 책의 본문이 깨져도 이 책의 진행은 보이고, 설정집을 읽지 못한 까닭은 따로 알린다', async () => {
+  it('다른 책의 본문이 깨져도 이 책의 진행은 보이고, 설정집은 그 책을 인용할 때만 읽지 못하며 까닭은 따로 알린다', async () => {
     const ok = await read(await app.request('/api/books/genesis/status'))
     expect(ok.canonError).toBeNull()
 
+    // 설정집이 출애굽기를 가리키지 않으면 그 본문이 깨져도 설정집은 읽힌다.
     await breakExodus()
     const res = await app.request('/api/books/genesis/status')
     expect(res.status).toBe(200)
     const body = await read(res)
     expect(body.chapters.map((item: { chapter: number }) => item.chapter)).toEqual([1, 2])
-    expect(body.canon).toBeNull()
-    expect(body.proposalsOpen).toBeNull()
-    expect(body.canonError).toContain('exodus.json')
+    expect(body.canon).not.toBeNull()
+    expect(body.proposalsOpen).toBe(0)
+    expect(body.canonError).toBeNull()
+
+    // 출애굽기를 가리키는 인용이 있으면 설정집을 확인할 수 없다. 이때도 이 책의 진행은 보인다.
+    const horeb = { ...eden, id: 'horeb', facts: { ...eden.facts, firstAppearance: 'exodus 2:1', sources: ['exodus 2:1'] } }
+    await writeFile(path.join(dirs.storyBibleDir, 'places.json'), JSON.stringify([horeb]))
+    const cited = await read(await app.request('/api/books/genesis/status'))
+    expect(cited.chapters.map((item: { chapter: number }) => item.chapter)).toEqual([1, 2])
+    expect(cited.canon).toBeNull()
+    expect(cited.proposalsOpen).toBeNull()
+    expect(cited.canonError).toContain('출애굽기 본문을 읽지 못해')
 
     // 깨진 책 자신의 상태는 파일 이름을 대며 실패한다.
     const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})

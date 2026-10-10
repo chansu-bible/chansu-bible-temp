@@ -1,9 +1,11 @@
 import { compareRefs, getBook, parseRef, type BookId, type VerseRef } from 'reader-core'
 import type { Canon, CanonKind } from '../schema.ts'
+import type { UnreadableSource } from '../source/files.ts'
 import { itemCitations } from './citations.ts'
 
 // 책마다 장별 절 수. 장 n의 절 수는 counts[n - 1]이고, 본문에 없는 장은 0이다(source/files.ts의 readVerseCounts).
-export type VerseCounts = ReadonlyMap<BookId, readonly number[]>
+// 본문 파일을 읽지 못한 책은 절 수 대신 { unreadable: 까닭 }이다. 본문 파일이 없는 책은 맵에 없다.
+export type VerseCounts = ReadonlyMap<BookId, readonly number[] | UnreadableSource>
 
 function inRange(ref: VerseRef, counts: readonly number[]): boolean {
   const count = counts[ref.chapter - 1] ?? 0
@@ -13,6 +15,7 @@ function inRange(ref: VerseRef, counts: readonly number[]): boolean {
 // 설정집 전체를 교차 검증해 문제를 사람이 읽을 문장 목록으로 돌려준다. 문제가 없으면 [].
 // 스키마 검증은 따로 한다. 여기서는 스키마만으로 알 수 없는 것을 본다.
 // 절 인용은 "책 장:절"이어야 하고, verseCounts에 본문이 있는 책의 절이어야 한다.
+// 본문을 읽지 못한 책을 가리키는 인용만 확인할 수 없다고 알리고, 다른 책의 인용은 그대로 본다.
 export function validateCanon(canon: Canon, verseCounts: VerseCounts): string[] {
   const problems: string[] = []
 
@@ -37,6 +40,11 @@ export function validateCanon(canon: Canon, verseCounts: VerseCounts): string[] 
       const counts = verseCounts.get(ref.book)
       if (!counts) {
         problems.push(`${label}: ${getBook(ref.book).name} 본문이 없어 절 인용을 확인할 수 없습니다(${citation})`)
+        continue
+      }
+      // 읽지 못한 까닭은 관리 도구의 책 목록에 보이므로 적지 않는다. readonly 배열은 Array.isArray로 잘 좁혀지지 않아 in으로 가른다.
+      if ('unreadable' in counts) {
+        problems.push(`${label}: ${getBook(ref.book).name} 본문을 읽지 못해 절 인용을 확인할 수 없습니다(${citation})`)
         continue
       }
       if (!inRange(ref, counts)) problems.push(`${label}: 절 인용 ${citation}이 범위를 벗어납니다`)

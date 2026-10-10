@@ -143,6 +143,26 @@ describe('runCanon', () => {
     expect(result.warnings.join('\n')).toContain('genesis 2:9이 범위를 벗어납니다')
   })
 
+  it('다른 책의 본문이 깨져도 이 책의 설정집은 저장하고, 그 책을 가리키는 항목만 경고와 함께 버린다', async () => {
+    await writeFile(path.join(dir, 'exodus.json'), '{ 깨진 파일', 'utf8')
+    const adam = output.characters[0]!
+    const moses = {
+      ...adam,
+      id: 'moses',
+      name: '모세',
+      aliases: [],
+      facts: { ...adam.facts, firstAppearance: 'exodus 3:1', sources: ['exodus 3:1'] },
+    }
+    const both = { ...output, characters: [adam, moses] }
+    const result = await runCanon('genesis', 2, { llm: fakeLlm([], both), storyBibleDir: bible, sourceDir: dir }, log)
+    expect(result.added).toEqual([{ kind: 'characters', id: 'adam' }])
+    expect(result.warnings.join('\n')).toContain(
+      'characters/moses: 출애굽기 본문을 읽지 못해 절 인용을 확인할 수 없습니다(exodus 3:1)',
+    )
+    const saved = JSON.parse(await readFile(path.join(bible, 'characters.json'), 'utf8'))
+    expect(saved.map((item: { id: string }) => item.id)).toEqual(['adam'])
+  })
+
   it('없는 장이면 오류를 낸다', async () => {
     await expect(runCanon('genesis', 9, { dryRun: true, storyBibleDir: bible, sourceDir: dir }, log)).rejects.toThrow('9장')
   })

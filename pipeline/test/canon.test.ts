@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { readCanon, writeCanon, writeCanonKind } from '../src/canon/files.ts'
 import { validateCanon } from '../src/canon/validate.ts'
 import type { Canon, Character, Era, Place, Proposal, Source } from '../src/schema.ts'
+import type { UnreadableSource } from '../src/source/files.ts'
 
 // 창세기 1~10장의 절 수
 const GENESIS_COUNTS = [31, 25, 24, 26, 32, 22, 24, 22, 29, 32]
@@ -143,6 +144,25 @@ describe('validateCanon', () => {
     expect(validateCanon(canon({ places: [exodus] }), withExodus)).toEqual([])
   })
 
+  it('본문을 읽지 못한 책의 인용은 읽지 못해 확인할 수 없다고 알리고, 다른 책의 인용은 그대로 범위를 본다', () => {
+    const counts = new Map<BookId, number[] | UnreadableSource>([...verseCounts, ['exodus', { unreadable: '깨진 JSON' }]])
+    const mixed = { ...eden, facts: { ...eden.facts, sources: ['genesis 2:8', 'exodus 3:2', 'genesis 11:1', 'exodus 3:2-4'] } }
+    // 읽지 못한 까닭은 문장에 싣지 않는다. 항목 앞머리는 그대로 <종류>/<id>:이다.
+    expect(validateCanon(canon({ places: [mixed], proposals: [{ ...proposal, sources: ['exodus 1:1'] }] }), counts)).toEqual([
+      'places/eden: 출애굽기 본문을 읽지 못해 절 인용을 확인할 수 없습니다(exodus 3:2)',
+      'places/eden: 절 인용 genesis 11:1이 범위를 벗어납니다',
+      'places/eden: 출애굽기 본문을 읽지 못해 절 인용을 확인할 수 없습니다(exodus 3:2-4)',
+      'proposals/p1: 출애굽기 본문을 읽지 못해 절 인용을 확인할 수 없습니다(exodus 1:1)',
+    ])
+    // 그 책을 가리키는 인용이 없으면 문제가 없다
+    expect(validateCanon(canon({ places: [eden], eras: [era({})], proposals: [proposal] }), counts)).toEqual([])
+    // 본문이 없는 책의 인용은 읽지 못한 것과 다른 문장이다
+    const leviticus = { ...eden, facts: { ...eden.facts, sources: ['leviticus 1:1'] } }
+    expect(validateCanon(canon({ places: [leviticus] }), counts)).toEqual([
+      'places/eden: 레위기 본문이 없어 절 인용을 확인할 수 없습니다(leviticus 1:1)',
+    ])
+  })
+
   it('시대의 시작이 끝보다 뒤면 알린다', () => {
     expect(validateCanon(canon({ eras: [era({ range: { from: 'genesis 8:22', to: 'genesis 6:9' } })] }), verseCounts)).toEqual([
       'eras/flood: 시작(genesis 8:22)이 끝(genesis 6:9)보다 뒤입니다',
@@ -227,6 +247,26 @@ describe('설정집 파일', () => {
     const empty = path.join(root, 'empty')
     await mkdir(empty)
     await expect(readCanon(dir, { sourceDir: empty })).rejects.toThrow('창세기 본문이 없어 절 인용을 확인할 수 없습니다')
+  })
+
+  it('다른 책의 본문이 깨져도 그 책을 가리키는 인용이 없으면 설정집을 읽고 쓴다', async () => {
+    await writeFile(path.join(sourceDir, 'exodus.json'), '{ 깨진 파일', 'utf8')
+    await writeCanonKind('places', [eden], dir, { sourceDir })
+    expect(await readCanon(dir, { sourceDir })).toEqual(canon({ places: [eden] }))
+  })
+
+  it('본문이 깨진 책을 가리키는 인용이 있으면 그 책 본문을 읽지 못했다고 알린다', async () => {
+    const horeb: Place = { ...eden, id: 'horeb', facts: { ...eden.facts, firstAppearance: 'exodus 3:1', sources: ['exodus 3:1'] } }
+    await writeFile(path.join(dir, 'places.json'), JSON.stringify([eden, horeb]), 'utf8')
+    await writeFile(path.join(sourceDir, 'exodus.json'), '{ 깨진 파일', 'utf8')
+    await expect(readCanon(dir, { sourceDir })).rejects.toThrow(
+      'places.json: places/horeb: 출애굽기 본문을 읽지 못해 절 인용을 확인할 수 없습니다(exodus 3:1)',
+    )
+    // 쓸 때도 같다. 저장하지 않는다.
+    await expect(writeCanonKind('places', [horeb], dir, { sourceDir })).rejects.toThrow(
+      '출애굽기 본문을 읽지 못해 절 인용을 확인할 수 없습니다',
+    )
+    expect(JSON.parse(await readText('places'))).toHaveLength(2)
   })
 
   it('writeCanon은 다섯 파일을 한 번에 쓴다', async () => {

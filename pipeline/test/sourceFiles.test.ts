@@ -68,6 +68,46 @@ describe('readVerseCounts', () => {
     await utimes(file, time, time)
     expect(await readVerseCounts(dir)).toEqual(before)
   })
+
+  it('본문 하나가 깨져도 던지지 않고 그 책만 읽지 못했다고 하며, 다른 책은 그대로 센다', async () => {
+    // 먼저 세어 기억하게 한 뒤 크기가 다른 깨진 글로 바꾼다.
+    await readVerseCounts(dir)
+    await writeFile(path.join(dir, 'exodus.json'), '{ 깨진 파일')
+    const counts = await readVerseCounts(dir)
+    expect([...counts.keys()]).toEqual(['genesis', 'exodus'])
+    expect(counts.get('genesis')).toEqual([3, 2])
+    expect(counts.get('exodus')).toEqual({ unreadable: expect.stringContaining('exodus.json') })
+  })
+
+  it('파일의 책 이름이 그 책이 아니면 그 책은 읽지 못한 것으로 둔다', async () => {
+    await writeFile(
+      path.join(dir, 'genesis.json'),
+      JSON.stringify({ book: '출애굽기', translation: '개역한글', chapters: [chapter(1, 3)] }),
+    )
+    const counts = await readVerseCounts(dir)
+    expect(counts.get('genesis')).toEqual({ unreadable: expect.stringContaining('책 이름(출애굽기)이 창세기가 아닙니다') })
+    expect(counts.get('exodus')).toEqual([0, 4])
+  })
+
+  it('읽지 못하던 본문 파일을 고치면 다시 센다. 읽지 못한 파일은 기억하지 않는다', async () => {
+    // 고친 글을 처음과 같은 크기·수정 시각으로 둔다. 읽지 못했을 때 옛 값을 지우지 않았다면 그 옛 값이 나온다.
+    const file = path.join(dir, 'exodus.json')
+    const time = new Date('2026-01-01T00:00:00.000Z')
+    const write = async (text: string) => {
+      await writeFile(file, text)
+      await utimes(file, time, time)
+    }
+    // 장 번호의 자릿수가 같아 크기가 같다.
+    const exodus = (chapterNumber: number) =>
+      JSON.stringify({ book: '출애굽기', translation: '개역한글', chapters: [chapter(chapterNumber, 4)] })
+
+    await write(exodus(2))
+    expect((await readVerseCounts(dir)).get('exodus')).toEqual([0, 4])
+    await write('{ 깨진 파일')
+    expect((await readVerseCounts(dir)).get('exodus')).toEqual({ unreadable: expect.stringContaining('exodus.json') })
+    await write(exodus(3))
+    expect((await readVerseCounts(dir)).get('exodus')).toEqual([0, 0, 4])
+  })
 })
 
 describe('readSource', () => {
