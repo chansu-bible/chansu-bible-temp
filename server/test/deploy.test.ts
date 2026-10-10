@@ -36,3 +36,11 @@ describe('운영용 키클락 realm', () => {
     expect(realm.passwordPolicy).toContain('length(8)')
   })
 })
+
+describe('서버 이미지', () => {
+  it('빌드 맥락에서 .env와 node_modules를 뺀다', () => {
+    const ignore = read('.dockerignore').split('\n').map((line) => line.trim())
+    expect(ignore).toContain('**/.env')
+    expect(ignore).toContain('**/node_modules')
+  })
+})
