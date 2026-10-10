@@ -1,5 +1,6 @@
 import * as AuthSession from 'expo-auth-session'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { AppState } from 'react-native'
 import { authConfig } from './config'
 import { readClaims } from './jwt'
 import { webRedirect } from './redirect'
@@ -43,8 +44,38 @@ function sameUser(a: AuthUser, b: AuthUser): boolean {
   return a.sub === b.sub && a.name === b.name && a.username === b.username && a.email === b.email
 }
 
+// 로그인 서버(키클락)의 발견 문서를 받는다. AuthSession.useAutoDiscovery는 실패를 잡지 않아서
+// 서버가 꺼져 있으면 처리되지 않은 오류가 나므로 직접 받는다.
+// 못 받으면 discovery는 null로 남고 onFailed를 부른다(바뀌지 않는 함수를 줘야 한다).
+// retry를 부르면 다시 받고, 앞서 보낸 요청의 답은 버린다(매달린 요청이 다시 받기를 막지 않게). 이미 받았으면 부르지 않는다.
+function useDiscovery(issuer: string, onFailed: () => void) {
+  const [discovery, setDiscovery] = useState<AuthSession.DiscoveryDocument | null>(null)
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    let alive = true
+    void AuthSession.fetchDiscoveryAsync(issuer).then(
+      (found) => {
+        if (alive) setDiscovery(found)
+      },
+      () => {
+        if (alive) onFailed()
+      },
+    )
+    return () => {
+      alive = false
+    }
+  }, [issuer, onFailed, attempt])
+  const retry = useCallback(() => setAttempt((count) => count + 1), [])
+  return { discovery, retry }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const discovery = AuthSession.useAutoDiscovery(authConfig.issuer)
+  const [state, setState] = useState<AuthState>({ status: 'loading' })
+  // 로그인 서버에 닿지 못했다. 아직 확인 중이면 그 자리에 머물지 않고 로그아웃 상태로 둔다.
+  const markUnreachable = useCallback(() => {
+    setState((current) => (current.status === 'loading' ? { status: 'signedOut', message: unreachable } : current))
+  }, [])
+  const { discovery, retry: retryDiscovery } = useDiscovery(authConfig.issuer, markUnreachable)
   const redirectUri = AuthSession.makeRedirectUri({ scheme: 'chansubible', path: 'auth' })
   const [request, , promptAsync] = AuthSession.useAuthRequest(
     {
@@ -57,7 +88,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     discovery,
   )
-  const [state, setState] = useState<AuthState>({ status: 'loading' })
   const tokens = useRef<Tokens | null>(null)
   const restored = useRef(false)
 
@@ -135,14 +165,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [discovery, exchange, refresh])
 
   // 키클락에 닿지 않으면 확인 중에 머물지 않고 로그아웃 상태로 둔다.
+  // 발견 문서를 받다 실패하면 바로 그렇게 하고(useDiscovery), 연결이 매달려 아무 답이 없을 때를 위해 8초 뒤에도 한다.
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setState((current) => (current.status === 'loading' ? { status: 'signedOut', message: unreachable } : current))
-    }, 8000)
+    const timer = setTimeout(markUnreachable, 8000)
     return () => clearTimeout(timer)
-  }, [])
+  }, [markUnreachable])
+
+  // 앱이 앞으로 돌아왔는데 발견 문서를 아직 못 받았으면 다시 받는다. 받으면 위의 '앱을 열 때'가 저장된 로그인을 이어 준다.
+  useEffect(() => {
+    if (discovery) return
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next === 'active') retryDiscovery()
+    })
+    return () => subscription.remove()
+  }, [discovery, retryDiscovery])
 
   const signIn = useCallback(async () => {
+    // 발견 문서를 못 받았으면 다시 받아 본다. 이번에는 닿지 못했다고 알리고, 받고 난 뒤 다시 누르면 된다.
+    if (!discovery) retryDiscovery()
     if (!request || !discovery) {
       setState({ status: 'signedOut', message: unreachable })
       return
@@ -164,7 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       setState({ status: 'signedOut', message: failed })
     }
-  }, [request, discovery, promptAsync, redirectUri, exchange])
+  }, [request, discovery, retryDiscovery, promptAsync, redirectUri, exchange])
 
   const signOut = useCallback(async () => {
     const current = tokens.current
