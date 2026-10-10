@@ -252,7 +252,8 @@ export function chapterChecks(inputs: ReleaseInputs, book: BookId, chapter: numb
 ```
 - `scenesApproved`: 장면 파일이 있고 장면이 하나 이상이며 모두 `review.status === 'approved'`.
 - `imagesComplete`: 기본 그림 버전(그림 버전 목록의 마지막)에 장면마다 그림이 있다(파일 이름의 확장자를 뗀 것이 장면 id).
-- `audioComplete`: 그 장의 모든 절에 낭독 파일(`verseAudioName`)이 있다.
+- `audioComplete`: 그 장의 모든 절에 낭독 파일(`verseAudioName`)이 있고, 그 파일의 길이를 잴 수 있다(`mp3DurationMs`가 null이 아님).
+  - 꾸러미의 절 `audio`는 늘 null이다. 앱은 절의 `audioMs`로 그 절이 장면 낭독에 들었는지를 가린다(`reader-core` `narration.ts`의 `sceneTrack`). 그래서 길이를 잴 수 없는 절이 공개되면 그 절은 낭독에서 빠진다.
 - 선택: `quizApproved`(승인된 문제 수), `glossesTotal`(그 장 원어의 서로 다른 스트롱 번호 수), `glossesApproved`(그 가운데 한국어 뜻이 승인된 수).
 
 - [ ] **Step 3: 시험** — 고정값 폴더(임시 폴더에 본문 2장, 장면 파일, 그림 버전 둘, 낭독 몇 개)로: 모두 갖춘 장, 장면 하나가 `reviewed`, 장면 파일 없음, 기본 버전에 그림 하나 빠짐(앞 버전에는 있음), 절 낭독 하나 빠짐, 퀴즈·뜻 개수.
