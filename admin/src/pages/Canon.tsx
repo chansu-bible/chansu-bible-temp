@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { api } from '../api.ts'
 import { citationLabel, emptyEntry, firstCitation } from '../canonForm.ts'
 import CanonEditor from '../components/CanonEditor.tsx'
@@ -10,15 +10,14 @@ import { navigate } from '../route.ts'
 import { CANON_KINDS, type BookId, type CanonEntry, type CanonKind, type Proposal } from '../types.ts'
 import { useLoad } from '../useLoad.ts'
 
-type UsageCount = number | 'error'
-
 // 설정집은 모든 책이 함께 쓴다. book(머리에서 고른 책)은 책 없이 넣은 절 인용에 붙인다.
 export default function Canon({ kind, selectedId, book }: { kind: CanonKind; selectedId: string | null; book: BookId | null }) {
   const entries = useLoad<CanonEntry[]>(() => api.canonList(kind), kind)
   const proposals = useLoad(api.proposals, 'proposals')
   const [creating, setCreating] = useState<CanonEntry | null>(null)
   const [query, setQuery] = useState('')
-  const usage = useUsageCounts(kind, entries.data)
+  // 항목마다 쓰는 장면 수. 종류(탭)마다 한 번에 받는다.
+  const usage = useLoad(() => api.canonUsageCounts(kind), `usage/${kind}`)
   const dirtyRef = useRef(false)
   const onDirtyChange = useCallback((dirty: boolean) => {
     dirtyRef.current = dirty
@@ -57,6 +56,8 @@ export default function Canon({ kind, selectedId, book }: { kind: CanonKind; sel
     if (creating) {
       setCreating(null)
       go(saved.id)
+      // 새 항목을 이미 가리키던 장면이 있을 수 있어 다시 센다.
+      usage.reload()
     }
   }
 
@@ -97,10 +98,16 @@ export default function Canon({ kind, selectedId, book }: { kind: CanonKind; sel
       header: '장면',
       numeric: true,
       cell: (e) => {
-        const n = usage[e.id]
-        if (n === undefined) return <span className="muted">…</span>
-        if (n === 'error') return <span className="muted" title="쓰는 장면을 읽지 못했어요">?</span>
-        return n
+        if (usage.error) {
+          return (
+            <span className="muted" title={`쓰는 장면을 읽지 못했어요: ${usage.error}`}>
+              ?
+            </span>
+          )
+        }
+        if (!usage.data) return <span className="muted">…</span>
+        // 장면이 가리키지 않는 항목은 수가 없다.
+        return usage.data[e.id] ?? 0
       },
     },
     {
@@ -196,30 +203,4 @@ export default function Canon({ kind, selectedId, book }: { kind: CanonKind; sel
       </div>
     </div>
   )
-}
-
-// 항목마다 쓰는 장면 수를 읽는다. 목록이 바뀌면 다시 센다.
-function useUsageCounts(kind: CanonKind, entries: CanonEntry[] | null): Record<string, UsageCount> {
-  const [counts, setCounts] = useState<Record<string, UsageCount>>({})
-  const ids = (entries ?? []).map((e) => e.id).join('\n')
-
-  useEffect(() => {
-    if (!ids) return
-    let cancelled = false
-    for (const id of ids.split('\n')) {
-      api.canonUsage(kind, id).then(
-        (res) => {
-          if (!cancelled) setCounts((c) => ({ ...c, [id]: res.scenes.length }))
-        },
-        () => {
-          if (!cancelled) setCounts((c) => ({ ...c, [id]: 'error' }))
-        },
-      )
-    }
-    return () => {
-      cancelled = true
-    }
-  }, [kind, ids])
-
-  return counts
 }

@@ -87,6 +87,8 @@ export const api = {
     send<CanonEntryMap[K]>('POST', `/api/canon/${kind}/${encodeURIComponent(id)}/${action}`),
   canonUsage: (kind: CanonKind, id: string) =>
     request<UsageResponse>(`/api/canon/${kind}/${encodeURIComponent(id)}/usage`),
+  // 종류의 항목마다 쓰는 장면 수 { 항목 id: 장면 수 }. 장면이 가리키지 않는 항목은 없다.
+  canonUsageCounts: (kind: CanonKind) => request<Record<string, number>>(`/api/canon/${kind}/usage`),
 
   proposals: () => request<Proposal[]>('/api/proposals'),
   proposalAction: (id: string, action: 'apply' | 'dismiss') =>

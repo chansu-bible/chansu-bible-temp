@@ -1,6 +1,6 @@
 import { rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import type { Character } from 'pipeline'
+import type { Character, Scene } from 'pipeline'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createApp } from '../server/app.ts'
 import { makeTempContent, scene, sourceWith, type TempContent } from './fixtures.ts'
@@ -25,6 +25,13 @@ const read = (res: Response): Promise<any> => res.json()
 
 // 출애굽기 1장(3절)과 2장(2절) 본문을 더한다.
 const addExodus = () => writeFile(path.join(dirs.sourceDir, 'exodus.json'), JSON.stringify(sourceWith('출애굽기', { 1: 3, 2: 2 })))
+// 읽을 수 없는 출애굽기 본문 파일
+const breakExodus = () => writeFile(path.join(dirs.sourceDir, 'exodus.json'), '{ 깨진 파일')
+const writeScenes = (stem: string, chapter: number, scenes: Scene[]) =>
+  writeFile(path.join(dirs.scenesDir, `${stem}.json`), JSON.stringify({ chapter, scenes }))
+// 인물 ids를 쓰는 장면
+const withCharacters = (id: string, chapter: number, ids: string[], overrides: Partial<Scene> = {}) =>
+  scene(id, chapter, { visual: { description: '', characters: ids }, ...overrides })
 
 describe('책을 가리는 주소', () => {
   it('모르는 책은 상태·장면·퀴즈 모두 404', async () => {
@@ -87,6 +94,34 @@ describe('책의 상태', () => {
     const res = await app.request('/api/books/leviticus/status')
     expect(res.status).toBe(200)
     expect((await read(res)).chapters).toEqual([])
+  })
+
+})
+
+describe('설정집 항목마다 쓰는 장면 수', () => {
+  it('종류마다 한 번에, 두 책의 장면 파일을 모두 세어 돌려준다', async () => {
+    await addExodus()
+    await writeScenes('genesis-02', 2, [withCharacters('genesis-02-01', 2, ['moses'], { placeId: 'sinai' })])
+    await writeScenes('exodus-01', 1, [
+      // 한 장면에 같은 인물이 두 번 적혀도 한 장면으로 센다.
+      withCharacters('exodus-01-01', 1, ['moses', 'aaron', 'moses']),
+      withCharacters('exodus-01-02', 1, ['aaron'], { placeId: 'sinai', eraId: 'exodus-era' }),
+    ])
+
+    const characters = await app.request('/api/canon/characters/usage')
+    expect(characters.status).toBe(200)
+    expect(await read(characters)).toEqual({ moses: 2, aaron: 2 })
+    expect(await read(await app.request('/api/canon/places/usage'))).toEqual({ sinai: 2 })
+    expect(await read(await app.request('/api/canon/eras/usage'))).toEqual({ 'exodus-era': 1 })
+    // 물건은 아직 장면에서 가리키지 않는다.
+    expect(await read(await app.request('/api/canon/things/usage'))).toEqual({})
+    expect((await app.request('/api/canon/animals/usage')).status).toBe(404)
+  })
+
+  it('본문은 읽지 않고 장면 파일 목록으로 장을 찾는다(본문이 깨져도 센다)', async () => {
+    await breakExodus()
+    await writeScenes('exodus-03', 3, [withCharacters('exodus-03-01', 3, ['moses'])])
+    expect(await read(await app.request('/api/canon/characters/usage'))).toEqual({ moses: 1 })
   })
 })
 
