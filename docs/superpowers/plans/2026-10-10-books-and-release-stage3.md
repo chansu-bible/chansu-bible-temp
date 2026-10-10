@@ -212,3 +212,4 @@ npm test && npm run typecheck -w mobile && npm run typecheck -w server && npm ru
 ```
 
 - [ ] **Step 5: 커밋과 합치기** — `docs: 여러 책과 장 공개 3단계(앱) 완료`. 세 단계가 끝났으므로 `docs/git-convention.md`대로 main에 `--no-ff`로 합친다(`merge: 여러 책과 장 공개 (feature/books-and-release)`). 푸시는 사용자가 정한다.
+  - 합치기 전에 리눅스 컨테이너(도커 `node:22-bookworm-slim`, `npm ci`)에서 `npm test -w server`를 한 번 돌린다. `server/test/bundles.test.ts`의 링크 시험은 이 PC의 Windows 계정에서 링크를 만들 수 없어 건너뛰는데, Pages 배포는 main에 푸시할 때 Ubuntu에서 `npm test`를 돌리기 때문이다.
