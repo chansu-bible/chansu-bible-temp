@@ -1,22 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getBook, isBookId } from 'reader-core'
 import { api, openJobEvents } from '../api.ts'
+import { readableBooks } from '../bookChoice.ts'
 import DataTable, { type Column } from '../components/DataTable.tsx'
 import { CheckboxField, NumberField, SelectField, TextField } from '../components/Fields.tsx'
 import { Empty, ErrorBox, Loading } from '../components/Notice.tsx'
 import StatusBadge from '../components/StatusBadge.tsx'
 import {
+  bookChoiceProblem,
   bookChoices,
   bookRequired,
   buildJobOptions,
+  currentSourceLabel,
   describeOptions,
+  droppedChapters,
   EMPTY_JOB_FORM,
   jobBookLabel,
   pickBookChoice,
+  readChapterRange,
   STAGE_OPTIONS,
   type JobForm,
 } from '../jobForm.ts'
-import { FORCE_HINT, formatTime, STAGE_LABEL } from '../labels.ts'
+import { bookName, FORCE_HINT, formatTime, STAGE_LABEL } from '../labels.ts'
 import { STAGES, type BookId, type BookSummary, type Job, type JobStatus, type RunsResponse, type Stage } from '../types.ts'
 import { errorMessage, useLoad } from '../useLoad.ts'
 
@@ -24,15 +29,32 @@ type Live = { id: string; lines: string[]; status: JobStatus; error: string | nu
 
 const isActive = (s: JobStatus) => s === 'queued' || s === 'running'
 
-// 작업 화면. book은 머리에서 고른 책(책 칸의 기본값), books는 본문이 있는 책이다.
-// 작업이 끝나면 onJobEnd를 부른다(source가 새 책의 본문을 받았을 수 있다).
-export default function Jobs({ book, books, onJobEnd }: { book: BookId | null; books: BookSummary[]; onJobEnd: () => void }) {
+// 작업 화면. book은 머리에서 고른 책(책 칸의 기본값), books는 받은 책 목록(본문을 읽지 못한 책도 든다),
+// listError는 책 목록을 받지 못한 까닭이다. 작업이 끝나면 onJobEnd를 부른다(source가 새 책의 본문을 받았을 수 있다).
+export default function Jobs({
+  book,
+  books,
+  listError,
+  onJobEnd,
+}: {
+  book: BookId | null
+  books: BookSummary[]
+  listError: string | null
+  onJobEnd: () => void
+}) {
   const jobs = useLoad(api.jobs, 'jobs')
   const runs = useLoad(() => api.runs(7), 'runs')
   const [stage, setStage] = useState<Stage>('build')
   const [form, setForm] = useState<JobForm>(EMPTY_JOB_FORM)
-  // 책 칸에서 직접 고른 책. 고르기 전에는 머리에서 고른 책을 따른다.
+  // 책 칸에서 직접 고른 책. 고르기 전과 머리에서 책을 바꾼 뒤에는 머리에서 고른 책을 따른다.
   const [pickedBook, setPickedBook] = useState<string | null>(null)
+  const [prevBook, setPrevBook] = useState(book)
+  if (book !== prevBook) {
+    setPrevBook(book)
+    setPickedBook(null)
+  }
+  // 없어질 장을 알고 받겠다고 확인한 것("책:없어질 장"). 책이나 범위가 바뀌어 없어질 장이 달라지면 다시 확인한다.
+  const [confirmedDrop, setConfirmedDrop] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
   const [live, setLive] = useState<Live | null>(null)
@@ -89,15 +111,33 @@ export default function Jobs({ book, books, onJobEnd }: { book: BookId | null; b
   const otherRunning = jobs.data?.some((j) => isActive(j.status) && j.id !== live?.id) ?? false
   const busy = starting || (live !== null && isActive(live.status)) || otherRunning
 
-  // 단계마다 고를 수 있는 책과 지금 책 칸의 값
-  const choices = bookChoices(stage, books.map((b) => b.id))
+  const keys = STAGE_OPTIONS[stage]
+  // 단계마다 고를 수 있는 책(source 말고는 본문을 읽을 수 있는 책)과 지금 책 칸의 값
+  const choices = bookChoices(stage, readableBooks(books).map((b) => b.id))
+  const bookProblem = bookChoiceProblem(stage, choices)
   const bookValue = pickBookChoice(choices, pickedBook, book)
   const chapterMax = isBookId(bookValue) ? getBook(bookValue).chapters : undefined
+  // source: 고른 책의 지금 본문과, 장 범위로 받으면 본문 파일에서 없어질 장
+  const sourceBook = books.find((b) => b.id === bookValue)
+  const dropped =
+    keys.includes('chapters') && sourceBook && !sourceBook.error
+      ? droppedChapters(readChapterRange(form.chapters), sourceBook.sourceRange)
+      : null
+  const dropKey = dropped ? `${bookValue}:${dropped}` : null
+  const dropConfirmed = dropKey !== null && confirmedDrop === dropKey
 
   async function start() {
+    if (bookProblem) {
+      setStartError(bookProblem)
+      return
+    }
     const built = buildJobOptions(stage, { ...form, book: bookValue })
     if (!built.ok) {
       setStartError(built.error)
+      return
+    }
+    if (dropped && !dropConfirmed) {
+      setStartError(`지금 본문의 ${bookName(bookValue)} ${dropped}이 없어져요. 받으려면 확인 칸을 고르세요`)
       return
     }
     setStarting(true)
@@ -113,12 +153,15 @@ export default function Jobs({ book, books, onJobEnd }: { book: BookId | null; b
     }
   }
 
-  const keys = STAGE_OPTIONS[stage]
-  const set = <K extends keyof JobForm>(key: K, value: JobForm[K]) => setForm((f) => ({ ...f, [key]: value }))
+  // 폼을 고치면 지난 실행 오류는 지운다.
+  const set = <K extends keyof JobForm>(key: K, value: JobForm[K]) => {
+    setForm((f) => ({ ...f, [key]: value }))
+    setStartError(null)
+  }
 
   const columns: Column<Job>[] = [
     { key: 'stage', header: '단계', cell: (j) => <code>{j.stage}</code> },
-    { key: 'book', header: '책', cell: (j) => jobBookLabel(j.stage, j.options) },
+    { key: 'book', header: '책', cell: (j) => jobBookLabel(j.options) },
     { key: 'options', header: '옵션', cell: (j) => describeOptions(j.options) },
     { key: 'status', header: '상태', cell: (j) => <StatusBadge status={j.status} /> },
     { key: 'created', header: '시작', cell: (j) => formatTime(j.startedAt ?? j.createdAt) },
@@ -146,16 +189,36 @@ export default function Jobs({ book, books, onJobEnd }: { book: BookId | null; b
                 <SelectField
                   label="단계"
                   value={stage}
-                  onChange={(v) => setStage(v as Stage)}
+                  onChange={(v) => {
+                    setStage(v as Stage)
+                    setStartError(null)
+                  }}
                   options={STAGES.map((s) => ({ value: s, label: STAGE_LABEL[s] }))}
                 />
-                {choices.length > 0 && (
-                  <SelectField
-                    label={bookRequired(stage) ? '책 *' : '책'}
-                    value={bookValue}
-                    onChange={setPickedBook}
-                    options={choices}
-                  />
+                {keys.includes('book') &&
+                  (bookProblem ? (
+                    <SelectField
+                      label="책"
+                      value=""
+                      onChange={() => {}}
+                      options={[{ value: '', label: '고를 책이 없어요' }]}
+                      disabled
+                    />
+                  ) : (
+                    <SelectField
+                      label={bookRequired(stage) ? '책 *' : '책'}
+                      value={bookValue}
+                      onChange={(v) => {
+                        setPickedBook(v)
+                        setStartError(null)
+                      }}
+                      options={choices}
+                    />
+                  ))}
+                {bookProblem && (
+                  <p className="form-note span-2" role="status">
+                    {listError ? `책 목록을 읽지 못했어요: ${listError}` : bookProblem}
+                  </p>
                 )}
                 {keys.includes('chapters') && (
                   <TextField
@@ -163,8 +226,23 @@ export default function Jobs({ book, books, onJobEnd }: { book: BookId | null; b
                     value={form.chapters}
                     onChange={(v) => set('chapters', v)}
                     placeholder="1-10"
-                    hint="예: 1-10, 3. 비우면 책 전체를 받아요(있던 본문은 받은 장으로 바뀌어요)"
+                    hint={`지금 본문: ${listError ? '모름(책 목록을 읽지 못했어요)' : currentSourceLabel(sourceBook)}. 예: 1-10, 3. 비우면 책 전체를 받아요`}
                   />
+                )}
+                {dropped && (
+                  <div className="drop-warning span-2">
+                    <p>
+                      이 범위로 받으면 본문 파일이 받은 장으로 바뀌어 지금 본문의 {bookName(bookValue)} {dropped}이 없어져요.
+                    </p>
+                    <CheckboxField
+                      label={`${bookName(bookValue)} ${dropped}이 없어지는 것을 알고 받아요`}
+                      checked={dropConfirmed}
+                      onChange={(v) => {
+                        setConfirmedDrop(v ? dropKey : null)
+                        setStartError(null)
+                      }}
+                    />
+                  </div>
                 )}
                 {keys.includes('chapter') && (
                   <NumberField
@@ -222,7 +300,7 @@ export default function Jobs({ book, books, onJobEnd }: { book: BookId | null; b
                 {keys.length === 0 && <p className="muted">이 단계는 옵션이 없어요.</p>}
               </div>
               <div className="button-row">
-                <button type="submit" className="btn btn-primary" disabled={busy}>
+                <button type="submit" className="btn btn-primary" disabled={busy || bookProblem !== null}>
                   {busy ? '실행 중' : '실행'}
                 </button>
                 {busy && (

@@ -1,18 +1,21 @@
-import { SECTIONS, type FieldDesc, type FormState, type FormValue, type Row } from '../canonForm.ts'
-import type { CanonKind } from '../types.ts'
+import { fieldHint, SECTIONS, type FieldDesc, type FormState, type FormValue, type Row } from '../canonForm.ts'
+import type { BookId, CanonKind } from '../types.ts'
 import ArrayEditor from './ArrayEditor.tsx'
 import { NumberField, SelectField, TextAreaField, TextField } from './Fields.tsx'
 
 // 필드 설명대로 설정집 편집 폼을 그린다. 사실(facts)과 설계(design)를 다른 상자에 둔다.
+// book(머리에서 고른 책)은 절 인용 칸의 안내에 쓴다.
 export default function CanonFormView({
   kind,
   form,
+  book,
   onChange,
   idLocked,
   disabled,
 }: {
   kind: CanonKind
   form: FormState
+  book: BookId | null
   onChange: (path: string, value: FormValue) => void
   idLocked: boolean
   disabled?: boolean
@@ -31,6 +34,7 @@ export default function CanonFormView({
               <FieldView
                 key={f.path}
                 field={f}
+                hint={fieldHint(f, book)}
                 value={form[f.path]}
                 onChange={(v) => onChange(f.path, v)}
                 disabled={disabled || (f.path === 'id' && idLocked)}
@@ -45,11 +49,13 @@ export default function CanonFormView({
 
 function FieldView({
   field,
+  hint,
   value,
   onChange,
   disabled,
 }: {
   field: FieldDesc
+  hint: string | undefined
   value: FormValue | undefined
   onChange: (value: FormValue) => void
   disabled?: boolean
@@ -62,14 +68,14 @@ function FieldView({
           label={field.required ? `${field.label} *` : field.label}
           value={text}
           onChange={onChange}
-          hint={field.hint}
+          hint={hint}
           disabled={disabled}
         />
       )
     case 'textarea':
       return (
         <div className="span-2">
-          <TextAreaField label={field.label} value={text} onChange={onChange} hint={field.hint} disabled={disabled} />
+          <TextAreaField label={field.label} value={text} onChange={onChange} hint={hint} disabled={disabled} />
         </div>
       )
     case 'lines':
@@ -79,7 +85,7 @@ function FieldView({
             label={field.min ? `${field.label} *` : field.label}
             value={text}
             onChange={onChange}
-            hint={field.hint}
+            hint={hint}
             disabled={disabled}
           />
         </div>
@@ -90,7 +96,7 @@ function FieldView({
           label={field.label}
           value={text}
           onChange={onChange}
-          hint={field.hint}
+          hint={hint}
           step={field.integer ? '1' : 'any'}
           min={field.min}
           max={field.max}

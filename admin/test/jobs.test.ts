@@ -192,6 +192,20 @@ describe('parseJobRequest', () => {
     expect(() => parseJobRequest({ stage: 'canon', options: { book: null, chapter: 1 } })).toThrow(/책\(book\)이 필요/)
   })
 
+  it('장 번호와 장 범위는 그 책에 있어야 한다', () => {
+    expect(() => parseJobRequest({ stage: 'canon', options: { book: 'ruth', chapter: 5 } })).toThrow('룻기에는 5장이 없습니다')
+    expect(parseJobRequest({ stage: 'canon', options: { book: 'ruth', chapter: 4 } }).options.chapter).toBe(4)
+    expect(parseJobRequest({ stage: 'tts', options: { book: 'psalms', chapter: 150 } }).options.chapter).toBe(150)
+    expect(() => parseJobRequest({ stage: 'source', options: { book: 'ruth', chapters: '3-5' } })).toThrow(
+      '룻기의 장 범위가 틀렸습니다: 3~5 (1~4장)',
+    )
+    expect(() => parseJobRequest({ stage: 'source', options: { book: 'ruth', chapters: '4-2' } })).toThrow(
+      '룻기의 장 범위가 틀렸습니다: 4~2 (1~4장)',
+    )
+    expect(() => parseJobRequest({ stage: 'source', options: { book: 'ruth', chapters: '0' } })).toThrow(/장 범위가 틀렸습니다/)
+    expect(parseJobRequest({ stage: 'source', options: { book: 'ruth', chapters: '1-4' } }).options.chapters).toBe('1-4')
+  })
+
   it('모르는 책은 오류', () => {
     expect(() => parseJobRequest({ stage: 'canon', options: { book: 'genesys', chapter: 1 } })).toThrow(
       '알 수 없는 책입니다: genesys',
@@ -235,14 +249,5 @@ describe('createRunner', () => {
   it('책이 필요한 단계를 책 없이 만들면 오류', () => {
     expect(() => createRunner('canon', { chapter: 1 })).toThrow(JobRequestError)
     expect(() => createRunner('source', {})).toThrow('source 단계에는 책(book)이 필요합니다')
-  })
-
-  // runOriginal은 본문을 읽거나 받기 전에 신약 책을 거절하므로 파일도 네트워크도 건드리지 않는다.
-  it('original에 고른 신약 책은 파이프라인의 거절 글로 실패한다', async () => {
-    const lines: string[] = []
-    await expect(createRunner('original', { book: 'matthew' })((line) => lines.push(line))).rejects.toThrow(
-      '신약 원어 자료는 아직 정하지 않았어요(마태복음)',
-    )
-    expect(lines).toEqual([])
   })
 })

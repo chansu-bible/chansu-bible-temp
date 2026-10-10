@@ -4,7 +4,14 @@ import DataTable, { type Column } from '../components/DataTable.tsx'
 import { Empty, ErrorBox, Loading } from '../components/Notice.tsx'
 import { bookName, KIND_LABEL } from '../labels.ts'
 import { routeHref } from '../route.ts'
-import { CANON_KINDS, type BookId, type CanonKind, type ChapterStatus, type StatusResponse } from '../types.ts'
+import {
+  CANON_KINDS,
+  type BookId,
+  type CanonKind,
+  type ChapterStatus,
+  type StateCounts,
+  type StatusResponse,
+} from '../types.ts'
 import { useLoad } from '../useLoad.ts'
 
 const REFRESH_MS = 30_000
@@ -107,11 +114,17 @@ function StatusView({ book, data }: { book: BookId; data: StatusResponse }) {
       <div className="grid-2">
         <section className="card">
           <h2>설정집</h2>
-          <CanonSummary canon={data.canon} />
+          {data.canon ? (
+            <CanonSummary canon={data.canon} />
+          ) : (
+            <ErrorBox message={`설정집을 읽지 못했어요: ${data.canonError ?? '까닭을 모릅니다'}`} />
+          )}
         </section>
         <section className="card">
           <h2>변경 제안</h2>
-          {data.proposalsOpen > 0 ? (
+          {data.proposalsOpen === null ? (
+            <p className="muted">설정집을 읽지 못해 제안을 세지 못했어요</p>
+          ) : data.proposalsOpen > 0 ? (
             <p>
               열린 제안 <strong>{data.proposalsOpen}</strong>개 · <a href="#/queue">검수 대기열에서 보기</a>
             </p>
@@ -137,9 +150,9 @@ function StatusView({ book, data }: { book: BookId; data: StatusResponse }) {
   )
 }
 
-function CanonSummary({ canon }: { canon: StatusResponse['canon'] }) {
+function CanonSummary({ canon }: { canon: Record<CanonKind, StateCounts> }) {
   const rows = CANON_KINDS.map((kind) => ({ kind, counts: canon[kind] ?? { draft: 0, approved: 0, rejected: 0 } }))
-  const columns: Column<{ kind: CanonKind; counts: StatusResponse['canon'][CanonKind] }>[] = [
+  const columns: Column<{ kind: CanonKind; counts: StateCounts }>[] = [
     { key: 'kind', header: '종류', cell: (r) => <a href={`#/canon/${r.kind}`}>{KIND_LABEL[r.kind]}</a> },
     { key: 'draft', header: '초안', numeric: true, cell: (r) => count(r.counts.draft) },
     { key: 'approved', header: '승인', numeric: true, cell: (r) => count(r.counts.approved) },

@@ -5,8 +5,7 @@ import type { AppContext } from '../context.ts'
 import { readSource } from '../content.ts'
 import { errorMessage, HttpError, readJsonBody } from '../errors.ts'
 import { createSerial } from '../files.ts'
-import { parseBook } from './books.ts'
-import { parseChapter, sourceChapterOf } from './scenes.ts'
+import { parseChapter, sourceChapterOf, type BookEnv } from './params.ts'
 
 export type QuizStatus = QuizQuestion['status']
 
@@ -33,14 +32,14 @@ function refuseDuringQuizJob(ctx: AppContext, book: BookId, chapter: number): vo
 }
 
 // /api/books/:book/quiz
-export function quizRoutes(ctx: AppContext): Hono {
-  const app = new Hono()
+export function quizRoutes(ctx: AppContext): Hono<BookEnv> {
+  const app = new Hono<BookEnv>()
   const quizDir = ctx.quizDir ?? paths.quizDir
   const serial = createSerial()
 
   // 본문에 있는 장마다 문제 수와 상태별 수. 퀴즈 파일이 없는 장은 hasFile이 false이고 수는 모두 0이다.
   app.get('/', async (c) => {
-    const book = parseBook(c.req.param('book'))
+    const book = c.var.book
     const source = await readSource(book, ctx.sourceDir)
     const summary = await Promise.all(
       source.chapters.map(async ({ chapter }): Promise<QuizChapterSummary> => {
@@ -55,7 +54,7 @@ export function quizRoutes(ctx: AppContext): Hono {
 
   // 장 본문과 문제. 퀴즈 파일이 없으면 questions는 []이다.
   app.get('/:chapter', async (c) => {
-    const book = parseBook(c.req.param('book'))
+    const book = c.var.book
     const chapter = parseChapter(c.req.param('chapter'))
     const sourceChapter = await sourceChapterOf(book, chapter, ctx.sourceDir)
     const quizFile = await readQuizFile(book, chapter, quizDir)
@@ -66,7 +65,7 @@ export function quizRoutes(ctx: AppContext): Hono {
   // 버리는(rejected) 문제는 이 검사를 하지 않는다(망가진 문제도 버릴 수 있게).
   // 파일을 쓸 때 검사(문제 id가 그 책·그 장의 id인지)에 걸려도 400이다.
   app.put('/:chapter/:id', async (c) => {
-    const book = parseBook(c.req.param('book'))
+    const book = c.var.book
     const chapter = parseChapter(c.req.param('chapter'))
     const id = c.req.param('id')
     const parsed = QuizEditSchema.safeParse(await readJsonBody(c.req.raw))

@@ -149,8 +149,16 @@ export type Style = {
 
 // 관리 서버 응답
 
-// GET /api/books: 본문 파일이 있는 책(성경 순서). chapters는 책의 장 수, sourceChapters는 본문에 든 장 수
-export type BookSummary = { id: BookId; name: string; chapters: number; sourceChapters: number }
+// GET /api/books: 본문 파일이 있는 책(성경 순서). chapters는 책의 장 수, sourceChapters는 본문에 든 장 수,
+// sourceRange는 본문의 첫 장·끝 장(장이 없거나 읽지 못하면 null). 본문 파일을 읽지 못한 책은 error에 까닭(파일 이름)이 있다.
+export type BookSummary = {
+  id: BookId
+  name: string
+  chapters: number
+  sourceChapters: number
+  sourceRange: { from: number; to: number } | null
+  error?: string
+}
 
 export type StateCounts = { draft: number; approved: number; rejected: number }
 
@@ -163,10 +171,12 @@ export type ChapterStatus = {
   audio: { have: number; total: number }
 }
 
+// 설정집을 읽지 못하면(설정집이나 어느 책의 본문이 깨졌을 때) canon과 proposalsOpen은 null이고 canonError에 까닭이 있다.
 export type StatusResponse = {
   chapters: ChapterStatus[]
-  canon: Record<CanonKind, StateCounts>
-  proposalsOpen: number
+  canon: Record<CanonKind, StateCounts> | null
+  proposalsOpen: number | null
+  canonError: string | null
   imageVersions: ImageVersion[]
 }
 

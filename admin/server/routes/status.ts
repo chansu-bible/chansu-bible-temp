@@ -1,11 +1,11 @@
 import { Hono } from 'hono'
 import type { AppContext } from '../context.ts'
 import { readStatus } from '../status.ts'
-import { parseBook } from './books.ts'
+import type { BookEnv } from './params.ts'
 
 // /api/books/:book/status
-export function statusRoutes(ctx: AppContext): Hono {
-  const app = new Hono()
-  app.get('/', async (c) => c.json(await readStatus(parseBook(c.req.param('book')), ctx)))
+export function statusRoutes(ctx: AppContext): Hono<BookEnv> {
+  const app = new Hono<BookEnv>()
+  app.get('/', async (c) => c.json(await readStatus(c.var.book, ctx)))
   return app
 }

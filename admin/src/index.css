@@ -184,6 +184,37 @@ code {
   line-height: 1.45;
 }
 
+.book-picker .book-note {
+  margin: 0;
+}
+
+.book-note p {
+  margin: 0 0 6px;
+}
+
+.book-note-error {
+  background: rgb(176 58 46 / 0.35);
+  word-break: break-word;
+}
+
+/* 사이드바의 밝은 글자색을 물려받지 않게 한다 */
+.book-note .btn {
+  color: var(--ink);
+}
+
+/* 본문 파일을 읽지 못한 책과 그 까닭 */
+.sidebar .book-errors {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #f4c7c1;
+  word-break: break-word;
+}
+
+.book-errors li + li {
+  margin-top: 4px;
+}
+
 .sidebar ul {
   list-style: none;
   margin: 0;
@@ -619,6 +650,25 @@ textarea:focus-visible {
   flex-wrap: wrap;
   gap: 6px 18px;
   margin: 10px 0;
+}
+
+/* 폼 칸 아래의 안내(고를 책이 없을 때 등) */
+.form-note {
+  margin: 0;
+  color: var(--st-flagged);
+  font-size: 13px;
+}
+
+/* source 장 범위로 본문의 장이 없어질 때의 경고와 확인 칸 */
+.drop-warning {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--st-flagged-soft);
+  color: var(--st-flagged);
+}
+
+.drop-warning p {
+  margin: 0 0 6px;
 }
 
 /* 설정집 편집 */

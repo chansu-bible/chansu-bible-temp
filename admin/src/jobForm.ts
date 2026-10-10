@@ -1,7 +1,7 @@
 // 작업 실행 폼 → JobOptions. 단계마다 쓰는 옵션만 보낸다(계획 문서의 "공통 계약").
 import { BOOKS, findBook, getBook, isBookId, josa } from 'reader-core'
 import { splitIds } from './ids.ts'
-import type { BookId, JobOptions, Stage } from './types.ts'
+import type { BookId, BookSummary, JobOptions, Stage } from './types.ts'
 
 export type OptionKey = keyof JobOptions
 
@@ -31,13 +31,47 @@ export function chapterRequired(stage: Stage): boolean {
 
 export type BookChoice = { value: string; label: string }
 
-// 단계마다 고를 수 있는 책. source는 본문을 새로 받을 수 있게 66권 모두, 다른 단계는 본문이 있는 책(sourceBooks)이다.
-// original은 맨 앞에 "모든 책"(값 '')이 있다. 책을 받지 않는 단계는 빈 목록이다.
+// 단계마다 고를 수 있는 책. source는 본문을 새로 받을 수 있게 66권 모두, 다른 단계는 본문을 읽을 수 있는 책(sourceBooks)이다.
+// original은 맨 앞에 "모든 책"(값 '')이 있다. 책을 받지 않는 단계와, 본문이 있어야 하는데 그런 책이 없는 단계는 빈 목록이다.
 export function bookChoices(stage: Stage, sourceBooks: readonly BookId[]): BookChoice[] {
   if (!STAGE_OPTIONS[stage].includes('book')) return []
   if (stage === 'source') return BOOKS.map((book) => ({ value: book.id, label: book.name }))
+  if (sourceBooks.length === 0) return []
   const withSource = sourceBooks.map((id) => ({ value: id, label: getBook(id).name }))
   return stage === 'original' ? [{ value: '', label: '모든 책' }, ...withSource] : withSource
+}
+
+export const NO_SOURCE_BOOKS = '본문이 있는 책이 없어요. 먼저 source를 실행하세요.'
+
+// 책 칸을 채울 수 없는 까닭: 책을 쓰는 단계인데 고를 책이 없으면(본문이 있는 책이 없으면) 안내 글, 아니면 null
+export function bookChoiceProblem(stage: Stage, choices: readonly BookChoice[]): string | null {
+  return STAGE_OPTIONS[stage].includes('book') && choices.length === 0 ? NO_SOURCE_BOOKS : null
+}
+
+// 범위를 "3장", "1~10장"으로 쓴다.
+function spanLabel(from: number, to: number): string {
+  return from === to ? `${from}장` : `${from}~${to}장`
+}
+
+// source 폼에 보이는 책의 지금 본문: "1~10장 (10장)". 본문이 없으면 "없음", 본문 파일을 읽지 못하면 "읽지 못함"
+export function currentSourceLabel(book: BookSummary | undefined): string {
+  if (!book) return '없음'
+  if (book.error) return '읽지 못함'
+  if (!book.sourceRange) return '장 없음'
+  return `${spanLabel(book.sourceRange.from, book.sourceRange.to)} (${book.sourceChapters}장)`
+}
+
+// source가 장 범위(range)를 받으면 지금 본문(current)에서 없어질 장. 본문 파일은 받은 장으로 바뀐다.
+// 범위가 지금 본문의 장을 다 덮거나, 범위나 본문이 없으면 null이다. 예: 지금 1~10장, 범위 3-7 → "1~2장, 8~10장"
+export function droppedChapters(
+  range: { from: number; to: number } | null,
+  current: { from: number; to: number } | null,
+): string | null {
+  if (!range || !current) return null
+  const dropped: string[] = []
+  if (current.from < range.from) dropped.push(spanLabel(current.from, Math.min(current.to, range.from - 1)))
+  if (current.to > range.to) dropped.push(spanLabel(Math.max(current.from, range.to + 1), current.to))
+  return dropped.length > 0 ? dropped.join(', ') : null
 }
 
 // 책 칸의 값. 고른 값(picked)이 이 단계의 목록에 없으면 기본 책(머리에서 고른 책), 그것도 없으면 목록의 첫 값이다.
@@ -72,9 +106,9 @@ export const EMPTY_JOB_FORM: JobForm = {
 
 export type BuildResult = { ok: true; options: JobOptions } | { ok: false; error: string }
 
-// 장 범위 "3-7"이나 "3"을 읽는다. 서버(pipeline의 parseChapterRange)와 같은 모양만 받는다. 읽을 수 없으면 null
-function readChapterRange(text: string): { from: number; to: number } | null {
-  const match = /^(\d+)(?:-(\d+))?$/.exec(text)
+// 장 범위 "3-7"이나 "3"을 읽는다(앞뒤 공백은 뗀다). 서버(pipeline의 parseChapterRange)와 같은 모양만 받는다. 읽을 수 없으면 null
+export function readChapterRange(text: string): { from: number; to: number } | null {
+  const match = /^(\d+)(?:-(\d+))?$/.exec(text.trim())
   if (!match) return null
   const from = Number(match[1])
   return { from, to: match[2] === undefined ? from : Number(match[2]) }
@@ -138,8 +172,8 @@ export function describeOptions(options: JobOptions): string {
   return parts.join(' · ') || '—'
 }
 
-// 작업 목록의 책 칸. 책을 고른 작업은 책 이름, 책 없이 모든 책을 다루는 작업(original, build)은 "모든 책"이다.
-export function jobBookLabel(stage: Stage, options: JobOptions): string {
-  if (options.book) return findBook(options.book)?.name ?? options.book
-  return stage === 'original' || stage === 'build' ? '모든 책' : '—'
+// 작업 목록의 책 칸. 책을 고른 작업은 책 이름이고, 책 없는 작업(original의 "모든 책", build, original-gloss)은
+// 모든 책을 함께 다루므로 "모든 책"이다.
+export function jobBookLabel(options: JobOptions): string {
+  return options.book ? (findBook(options.book)?.name ?? options.book) : '모든 책'
 }

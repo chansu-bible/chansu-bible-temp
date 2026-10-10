@@ -1,5 +1,15 @@
 // 머리에서 고른 책. 브라우저에 기억해 두고, 기억한 책의 본문이 없어졌으면 첫 책을 쓴다.
-import type { BookId } from './types.ts'
+import type { BookId, BookSummary } from './types.ts'
+
+// 고를 수 있는 책: 본문을 읽은 책. 본문 파일이 깨진 책(error)은 목록에는 보이되 고르지 못한다.
+export function readableBooks(books: readonly BookSummary[]): BookSummary[] {
+  return books.filter((book) => !book.error)
+}
+
+// 머리의 책 고르기에 보이는 이름: "창세기 · 10/50장", 본문을 읽지 못한 책은 "출애굽기 · 읽지 못함"
+export function bookOptionLabel(book: BookSummary): string {
+  return book.error ? `${book.name} · 읽지 못함` : `${book.name} · ${book.sourceChapters}/${book.chapters}장`
+}
 
 const STORAGE_KEY = 'admin.book'
 

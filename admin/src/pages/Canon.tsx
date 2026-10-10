@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { api } from '../api.ts'
-import { citationLabel, emptyEntry, firstCitation } from '../canonForm.ts'
+import { emptyEntry, firstCitation } from '../canonForm.ts'
+import { citationLabel } from '../citations.ts'
 import CanonEditor from '../components/CanonEditor.tsx'
 import DataTable, { type Column } from '../components/DataTable.tsx'
 import { Empty, ErrorBox, Loading } from '../components/Notice.tsx'

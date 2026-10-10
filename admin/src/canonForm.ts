@@ -1,6 +1,7 @@
 // 설정집 항목 ↔ 편집 폼 변환. 화면은 필드 설명(SECTIONS)만 보고 폼을 그린다.
-// 절 인용은 폼에서 책 이름으로 보이고("창세기 2:7"), 저장할 때 책 id 모양("genesis 2:7")으로 바꾼다.
-import { bookByName, formatRef, parseRef, qualifyRef } from 'reader-core'
+// 절 인용은 폼에서 책 이름으로 보이고("창세기 2:7"), 저장할 때 책 id 모양("genesis 2:7")으로 바꾼다(citations.ts).
+import { getBook } from 'reader-core'
+import { citationLabel, toStoredCitation } from './citations.ts'
 import type { BookId, CanonEntryMap, CanonKind } from './types.ts'
 
 export type Row = Record<string, string>
@@ -28,7 +29,7 @@ export type FieldDesc =
 export type SectionTone = 'basic' | 'facts' | 'design'
 export type Section = { title: string; tone: SectionTone; fields: FieldDesc[] }
 
-const CITATION_HINT = '예: 2:7(고른 책), 창세기 2:7, genesis 2:7'
+// 절 인용 칸의 안내는 고른 책에 따라 fieldHint가 붙인다.
 const LINES_HINT = '한 줄에 하나'
 const YEAR_HINT = '창조 원년 기준. 비우면 모름'
 
@@ -48,7 +49,7 @@ const sourcesField: FieldDesc = {
   label: '근거 절',
   citation: true,
   min: 1,
-  hint: `${LINES_HINT}. ${CITATION_HINT}`,
+  hint: LINES_HINT,
 }
 const firstAppearanceField: FieldDesc = {
   type: 'text',
@@ -56,7 +57,6 @@ const firstAppearanceField: FieldDesc = {
   label: '첫 등장',
   required: true,
   citation: true,
-  hint: CITATION_HINT,
 }
 
 export const SECTIONS: { [K in CanonKind]: Section[] } = {
@@ -141,8 +141,8 @@ export const SECTIONS: { [K in CanonKind]: Section[] } = {
       title: '사실',
       tone: 'facts',
       fields: [
-        { type: 'text', path: 'range.from', label: '시작 절', required: true, citation: true, hint: CITATION_HINT },
-        { type: 'text', path: 'range.to', label: '끝 절', required: true, citation: true, hint: CITATION_HINT },
+        { type: 'text', path: 'range.from', label: '시작 절', required: true, citation: true },
+        { type: 'text', path: 'range.to', label: '끝 절', required: true, citation: true },
         { type: 'number', path: 'years.from', label: '시작 해', integer: true, hint: YEAR_HINT },
         { type: 'number', path: 'years.to', label: '끝 해', integer: true, hint: YEAR_HINT },
         { type: 'textarea', path: 'facts.description', label: '설명' },
@@ -170,6 +170,40 @@ export const SECTIONS: { [K in CanonKind]: Section[] } = {
 
 export function fieldsOf(kind: CanonKind): FieldDesc[] {
   return SECTIONS[kind].flatMap((s) => s.fields)
+}
+
+// 절 인용이 든 자리(점 경로, 배열의 칸은 *). SECTIONS의 citation 필드에서 만든다. 제안 값의 인용을 보일 때 쓴다(citationValueLabel).
+export function citationPaths(kind: CanonKind): string[] {
+  return fieldsOf(kind).flatMap((f) => {
+    switch (f.type) {
+      case 'text':
+      case 'textarea':
+        return f.citation ? [f.path] : []
+      case 'lines':
+        return f.citation ? [`${f.path}.*`] : []
+      case 'table':
+        return f.columns.filter((c) => c.citation).map((c) => `${f.path}.*.${c.key}`)
+      default:
+        return []
+    }
+  })
+}
+
+// 절 인용 칸의 안내. 책 없는 인용("2:7")은 고른 책의 절이다. 고른 책이 없으면 책 없는 인용을 받지 않는다.
+export function citationHint(book: BookId | null): string {
+  if (book === null) return '예: 창세기 2:7, genesis 2:7'
+  const { name, chapters } = getBook(book)
+  // 장이 하나뿐인 책(오바댜 등)은 1:1을 예로 든다.
+  const ref = chapters >= 2 ? '2:7' : '1:1'
+  return `예: ${ref}(${name}), ${name} ${ref}, ${book} ${ref}`
+}
+
+// 칸 아래 안내. 절 인용 칸에는 고른 책으로 든 인용 예를 붙인다.
+export function fieldHint(f: FieldDesc, book: BookId | null): string | undefined {
+  if ((f.type === 'text' || f.type === 'textarea' || f.type === 'lines') && f.citation) {
+    return f.hint ? `${f.hint}. ${citationHint(book)}` : citationHint(book)
+  }
+  return 'hint' in f ? f.hint : undefined
 }
 
 // 점 경로 읽기·쓰기
@@ -241,25 +275,6 @@ export function emptyEntry<K extends CanonKind>(kind: K): CanonEntryMap[K] {
     },
   }
   return entries[kind]
-}
-
-// 저장된 절 인용을 화면에 보이는 모양으로 바꾼다: "genesis 2:7" → "창세기 2:7". 읽을 수 없는 글은 그대로 둔다.
-export function citationLabel(text: string): string {
-  const ref = parseRef(text)
-  return ref ? formatRef(ref, 'name') : text
-}
-
-// 입력한 절 인용을 저장 모양(책 id가 붙은 "genesis 2:7")으로 바꾼다.
-// "genesis 2:7", 책 이름이 붙은 "창세기 2:7", 책 없는 "2:7"을 받고, 책 없는 인용에는 book(고른 책)을 붙인다.
-// "02:07"과 "2:7-7"은 "2:7"로 쓴다. 읽을 수 없거나, 붙일 책이 없거나, 그 책에 없는 장이면 null이다.
-export function toStoredCitation(text: string, book: BookId | null): string | null {
-  const words = text.trim().split(/\s+/)
-  // 책 이름(공백이 없다)이나 책 id 뒤에 장:절. 책 이름은 id로 바꾸고 사이를 한 칸으로 맞춘다.
-  const input = words.length === 2 ? `${bookByName(words[0]!)?.id ?? words[0]} ${words[1]}` : words.join(' ')
-  const ref = parseRef(input)
-  if (!ref) return null
-  if (ref.book !== null) return formatRef(ref)
-  return book === null ? null : qualifyRef(input, book)
 }
 
 export function entryToForm(kind: CanonKind, entry: object): FormState {
@@ -416,29 +431,6 @@ export function checkForm(kind: CanonKind, form: FormState, book: BookId | null)
     }
   }
   return problems
-}
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-
-// 제안의 값(또는 항목의 그 필드 값)에 든 절 인용을 화면 모양("창세기 2:7")으로 바꾼다.
-// 인용이 드는 필드(첫 등장, 근거 절, 옷차림, 시대 범위)만 보고, 모양이 다르거나 다른 필드면 그대로 둔다.
-export function citationValueLabel(field: string, value: unknown): unknown {
-  const label = (item: unknown) => (typeof item === 'string' ? citationLabel(item) : item)
-  switch (field) {
-    case 'facts.firstAppearance':
-    case 'range.from':
-    case 'range.to':
-      return label(value)
-    case 'facts.sources':
-      return Array.isArray(value) ? value.map(label) : value
-    case 'facts.attire':
-      return Array.isArray(value) ? value.map((item) => (isRecord(item) ? { ...item, from: label(item.from) } : item)) : value
-    case 'range':
-      return isRecord(value) ? { ...value, from: label(value.from), to: label(value.to) } : value
-    default:
-      return value
-  }
 }
 
 // 목록의 "첫 등장" 칸(저장 모양). 화면에는 citationLabel로 보인다.

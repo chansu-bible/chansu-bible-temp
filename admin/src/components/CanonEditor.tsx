@@ -154,6 +154,7 @@ export default function CanonEditor({
 
       {!isNew && (
         <ProposalList
+          kind={kind}
           proposals={proposals}
           entry={entry}
           disabledReason={reviewBlocked}
@@ -167,7 +168,7 @@ export default function CanonEditor({
           save()
         }}
       >
-        <CanonFormView kind={kind} form={form} onChange={change} idLocked={!isNew} disabled={busy} />
+        <CanonFormView kind={kind} form={form} book={book} onChange={change} idLocked={!isNew} disabled={busy} />
       </form>
 
       {!isNew && <UsageList kind={kind} id={entry.id} />}

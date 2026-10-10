@@ -1,7 +1,7 @@
 import { rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { Character, Scene } from 'pipeline'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from '../server/app.ts'
 import { makeTempContent, scene, sourceWith, type TempContent } from './fixtures.ts'
 
@@ -96,6 +96,29 @@ describe('책의 상태', () => {
     expect((await read(res)).chapters).toEqual([])
   })
 
+  it('다른 책의 본문이 깨져도 이 책의 진행은 보이고, 설정집을 읽지 못한 까닭은 따로 알린다', async () => {
+    const ok = await read(await app.request('/api/books/genesis/status'))
+    expect(ok.canonError).toBeNull()
+
+    await breakExodus()
+    const res = await app.request('/api/books/genesis/status')
+    expect(res.status).toBe(200)
+    const body = await read(res)
+    expect(body.chapters.map((item: { chapter: number }) => item.chapter)).toEqual([1, 2])
+    expect(body.canon).toBeNull()
+    expect(body.proposalsOpen).toBeNull()
+    expect(body.canonError).toContain('exodus.json')
+
+    // 깨진 책 자신의 상태는 파일 이름을 대며 실패한다.
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const broken = await app.request('/api/books/exodus/status')
+      expect(broken.status).toBe(500)
+      expect((await read(broken)).error).toContain('exodus.json')
+    } finally {
+      quiet.mockRestore()
+    }
+  })
 })
 
 describe('설정집 항목마다 쓰는 장면 수', () => {

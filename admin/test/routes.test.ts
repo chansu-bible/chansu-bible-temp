@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { Proposal } from 'pipeline'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from '../server/app.ts'
 import { setAtPath } from '../server/dotPath.ts'
 import { JobQueue, type JobOptions, type Stage } from '../server/jobs.ts'
@@ -72,15 +72,25 @@ const fileOf = async (name: string) => JSON.parse(await readFile(path.join(dir, 
 const startJob = (body: unknown) => app.request('/api/jobs', { method: 'POST', ...json(body) })
 
 describe('책 목록 API', () => {
-  it('본문 파일이 있는 책을 성경 순서로, 책의 장 수와 본문의 장 수를 함께 돌려준다', async () => {
-    await writeFile(path.join(sourceDir, 'exodus.json'), JSON.stringify(sourceWith('출애굽기', { 1: 2 })))
+  it('본문 파일이 있는 책을 성경 순서로, 책의 장 수와 본문의 장 수·첫 장·끝 장을 함께 돌려준다', async () => {
+    await writeFile(path.join(sourceDir, 'exodus.json'), JSON.stringify(sourceWith('출애굽기', { 3: 2 })))
     await writeFile(path.join(sourceDir, 'notes.json'), '{}')
     const res = await app.request('/api/books')
     expect(res.status).toBe(200)
     expect(await read(res)).toEqual([
-      { id: 'genesis', name: '창세기', chapters: 50, sourceChapters: 3 },
-      { id: 'exodus', name: '출애굽기', chapters: 40, sourceChapters: 1 },
+      { id: 'genesis', name: '창세기', chapters: 50, sourceChapters: 3, sourceRange: { from: 2, to: 8 } },
+      { id: 'exodus', name: '출애굽기', chapters: 40, sourceChapters: 1, sourceRange: { from: 3, to: 3 } },
     ])
+  })
+
+  it('본문 하나가 깨져도 그 책은 오류와 함께 넣고 다른 책은 그대로 돌려준다', async () => {
+    await writeFile(path.join(sourceDir, 'exodus.json'), '{ 깨진 파일')
+    const res = await app.request('/api/books')
+    expect(res.status).toBe(200)
+    const [genesisBook, exodusBook] = await read(res)
+    expect(genesisBook).toEqual({ id: 'genesis', name: '창세기', chapters: 50, sourceChapters: 3, sourceRange: { from: 2, to: 8 } })
+    expect(exodusBook).toMatchObject({ id: 'exodus', name: '출애굽기', chapters: 40, sourceChapters: 0, sourceRange: null })
+    expect(exodusBook.error).toContain('exodus.json')
   })
 
   it('본문이 하나도 없으면 빈 목록', async () => {
@@ -245,6 +255,25 @@ describe('작업 API', () => {
     expect(runnerCalls).toEqual([])
   })
 
+  it('장 범위나 장 번호가 그 책에 없으면 400', async () => {
+    for (const [chapters, range] of [
+      ['45-55', '45~55'],
+      ['7-3', '7~3'],
+      ['0', '0~0'],
+    ]) {
+      const res = await startJob({ stage: 'source', options: { book: 'genesis', chapters } })
+      expect(res.status).toBe(400)
+      expect((await read(res)).error).toBe(`창세기의 장 범위가 틀렸습니다: ${range} (1~50장)`)
+    }
+    const chapter = await startJob({ stage: 'quiz', options: { book: 'ruth', chapter: 5 } })
+    expect(chapter.status).toBe(400)
+    expect((await read(chapter)).error).toBe('룻기에는 5장이 없습니다')
+    const last = await startJob({ stage: 'quiz', options: { book: 'ruth', chapter: 4 } })
+    expect(last.status).toBe(202)
+    expect(runnerCalls).toEqual([{ stage: 'quiz', options: { book: 'ruth', chapter: 4 } }])
+    await queue.wait((await read(last)).id)
+  })
+
   it('source의 책과 장 범위를 작업에 넘기고, 작업 목록에 책이 남는다', async () => {
     const res = await startJob({ stage: 'source', options: { book: 'exodus', chapters: '3-7', chapter: 2 } })
     expect(res.status).toBe(202)
@@ -267,17 +296,25 @@ describe('작업 API', () => {
   })
 
   // 신약 책은 400으로 막지 않고, 작업이 파이프라인의 거절 글로 실패한다(본문을 읽거나 받기 전에 멈춘다).
+  // 진짜 작업 본체를 쓰므로, 거절이 늦어져도 네트워크에 나가지 않게 fetch를 막아 둔다.
   it('original에 신약 책을 고르면 작업이 파이프라인의 거절 글로 실패한다', async () => {
-    const realQueue = new JobQueue()
-    const real = createApp({ storyBibleDir: dir, sourceDir, queue: realQueue })
-    const res = await real.request('/api/jobs', { method: 'POST', ...json({ stage: 'original', options: { book: 'matthew' } }) })
-    expect(res.status).toBe(202)
-    const { id } = await read(res)
-    await realQueue.wait(id)
-    const job = await read(await real.request(`/api/jobs/${id}`))
-    expect(job.status).toBe('failed')
-    expect(job.options).toEqual({ book: 'matthew' })
-    expect(job.error).toBe('신약 원어 자료는 아직 정하지 않았어요(마태복음)')
+    vi.stubGlobal('fetch', async () => {
+      throw new Error('시험에서는 받지 않습니다')
+    })
+    try {
+      const realQueue = new JobQueue()
+      const real = createApp({ storyBibleDir: dir, sourceDir, queue: realQueue })
+      const res = await real.request('/api/jobs', { method: 'POST', ...json({ stage: 'original', options: { book: 'matthew' } }) })
+      expect(res.status).toBe(202)
+      const { id } = await read(res)
+      await realQueue.wait(id)
+      const job = await read(await real.request(`/api/jobs/${id}`))
+      expect(job.status).toBe('failed')
+      expect(job.options).toEqual({ book: 'matthew' })
+      expect(job.error).toBe('신약 원어 자료는 아직 정하지 않았어요(마태복음)')
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('SSE로 줄과 끝을 보낸다', async () => {

@@ -1,29 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { chooseBook, readStoredBook, storeBook } from './bookChoice.ts'
-import {
-  checkForm,
-  citationLabel,
-  citationValueLabel,
-  emptyEntry,
-  entryToForm,
-  firstCitation,
-  formToEntry,
-  toStoredCitation,
-} from './canonForm.ts'
+import { bookOptionLabel, chooseBook, readableBooks, readStoredBook, storeBook } from './bookChoice.ts'
+import { checkForm, emptyEntry, entryToForm, fieldHint, fieldsOf, firstCitation, formToEntry } from './canonForm.ts'
+import { citationLabel } from './citations.ts'
 import { splitIds } from './ids.ts'
 import {
+  bookChoiceProblem,
   bookChoices,
   buildJobOptions,
+  currentSourceLabel,
   describeOptions,
+  droppedChapters,
   EMPTY_JOB_FORM,
   jobBookLabel,
+  NO_SOURCE_BOOKS,
   pickBookChoice,
+  readChapterRange,
   type JobForm,
 } from './jobForm.ts'
 import { countByFilter, matchesFilter, matchesQuery, searchKey } from './lexiconFilter.ts'
 import { countStatuses, formToEdit, questionToForm, revertStatus, toEdit } from './quizForm.ts'
 import { parseRoute, redirectHref, routeHref, switchBook } from './route.ts'
-import type { BookId, Character, Era, LexiconEntry, Place, QuizQuestion, Thing } from './types.ts'
+import type { BookId, BookSummary, Character, Era, LexiconEntry, Place, QuizQuestion, Thing } from './types.ts'
 
 // 저장된 항목. 절 인용에 책이 붙어 있다.
 const adam: Character = {
@@ -130,57 +127,6 @@ describe('canonForm', () => {
     expect(formToEntry('eras', era, flood, 'genesis').range).toEqual({ from: 'genesis 6:9', to: 'genesis 8:22' })
   })
 
-  it('toStoredCitation은 저장 모양을 만들고, 바꿀 수 없으면 null', () => {
-    expect(toStoredCitation('genesis 2:7', null)).toBe('genesis 2:7')
-    expect(toStoredCitation('창세기 2:7-8', null)).toBe('genesis 2:7-8')
-    expect(toStoredCitation('  창세기   2:7 ', 'exodus')).toBe('genesis 2:7')
-    expect(toStoredCitation('2:7', 'genesis')).toBe('genesis 2:7')
-    expect(toStoredCitation('2:7', 'exodus')).toBe('exodus 2:7')
-    // 서버가 받는 표준 모양으로 쓴다
-    expect(toStoredCitation('02:07', 'genesis')).toBe('genesis 2:7')
-    expect(toStoredCitation('2:7-7', 'genesis')).toBe('genesis 2:7')
-    // 세 자리 장(시편 119편)과 숫자로 시작하는 책 id
-    expect(toStoredCitation('psalms 119:105', null)).toBe('psalms 119:105')
-    expect(toStoredCitation('시편 119:105', null)).toBe('psalms 119:105')
-    expect(toStoredCitation('119:105', 'psalms')).toBe('psalms 119:105')
-    expect(toStoredCitation('3-john 1:4', null)).toBe('3-john 1:4')
-    expect(toStoredCitation('요한삼서 1:4', null)).toBe('3-john 1:4')
-    // 붙일 책이 없거나, 그 책에 없는 장이거나, 인용이 아니면 null
-    expect(toStoredCitation('2:7', null)).toBeNull()
-    expect(toStoredCitation('51:1', 'genesis')).toBeNull()
-    expect(toStoredCitation('출애굽기 41:1', null)).toBeNull()
-    expect(toStoredCitation('genesys 2:7', 'genesis')).toBeNull()
-    expect(toStoredCitation('2:8-7', 'genesis')).toBeNull()
-    expect(toStoredCitation('3장', 'genesis')).toBeNull()
-    expect(toStoredCitation('', 'genesis')).toBeNull()
-  })
-
-  it('citationLabel은 저장된 인용을 책 이름으로 보이고, 읽을 수 없는 글은 그대로 둔다', () => {
-    expect(citationLabel('genesis 2:7')).toBe('창세기 2:7')
-    expect(citationLabel('1-samuel 3:4-5')).toBe('사무엘상 3:4-5')
-    expect(citationLabel('psalms 119:105')).toBe('시편 119:105')
-    expect(citationLabel('2:7')).toBe('2:7')
-    expect(citationLabel('3장')).toBe('3장')
-    expect(citationLabel('')).toBe('')
-  })
-
-  it('제안 값에 든 인용도 책 이름으로 보인다', () => {
-    expect(citationValueLabel('facts.sources', ['genesis 2:10', 'genesis 2:11'])).toEqual(['창세기 2:10', '창세기 2:11'])
-    expect(citationValueLabel('facts.firstAppearance', 'genesis 1:26')).toBe('창세기 1:26')
-    expect(citationValueLabel('range', { from: 'genesis 6:9', to: 'genesis 8:22' })).toEqual({
-      from: '창세기 6:9',
-      to: '창세기 8:22',
-    })
-    expect(citationValueLabel('range.to', 'genesis 8:22')).toBe('창세기 8:22')
-    expect(citationValueLabel('facts.attire', [{ from: 'genesis 3:21', description: '가죽옷' }])).toEqual([
-      { from: '창세기 3:21', description: '가죽옷' },
-    ])
-    // 인용이 없는 필드와 모양이 다른 값은 그대로
-    expect(citationValueLabel('design.landscape', 'genesis 2:7')).toBe('genesis 2:7')
-    expect(citationValueLabel('facts.sources', 'genesis 2:7')).toBe('genesis 2:7')
-    expect(citationValueLabel('facts.sources', undefined)).toBeUndefined()
-  })
-
   it('새 항목 초기값은 초안이고 비어 있다', () => {
     for (const kind of ['characters', 'places', 'eras', 'things'] as const) {
       const e = emptyEntry(kind)
@@ -225,6 +171,15 @@ describe('canonForm', () => {
     expect(firstCitation('eras', flood)).toBe('genesis 6:9')
     expect(firstCitation('things', ark)).toBe('genesis 6:14-16')
     expect(citationLabel(firstCitation('characters', adam))).toBe('창세기 1:26')
+  })
+
+  it('절 인용 칸의 안내에는 고른 책으로 든 예가 붙는다', () => {
+    const field = (path: string) => fieldsOf('characters').find((f) => f.path === path)!
+    expect(fieldHint(field('facts.firstAppearance'), 'exodus')).toBe('예: 2:7(출애굽기), 출애굽기 2:7, exodus 2:7')
+    expect(fieldHint(field('facts.sources'), 'genesis')).toBe('한 줄에 하나. 예: 2:7(창세기), 창세기 2:7, genesis 2:7')
+    expect(fieldHint(field('facts.sources'), null)).toBe('한 줄에 하나. 예: 창세기 2:7, genesis 2:7')
+    expect(fieldHint(field('id'), 'genesis')).toBe('영문 소문자, 숫자, -')
+    expect(fieldHint(field('facts.gender'), 'genesis')).toBeUndefined()
   })
 })
 
@@ -345,6 +300,46 @@ describe('jobForm', () => {
     expect(bookChoices('original-gloss', withSource)).toEqual([])
   })
 
+  it('본문이 있는 책이 없으면 장 단계와 original은 고를 책이 없고 안내를 보인다', () => {
+    for (const stage of ['canon', 'scenario', 'review-text', 'images', 'tts', 'quiz', 'original'] as const) {
+      expect(bookChoices(stage, [])).toEqual([])
+      expect(bookChoiceProblem(stage, bookChoices(stage, []))).toBe(NO_SOURCE_BOOKS)
+    }
+    expect(NO_SOURCE_BOOKS).toBe('본문이 있는 책이 없어요. 먼저 source를 실행하세요.')
+    // source는 언제나 고를 수 있고, 책을 받지 않는 단계는 안내가 없다
+    expect(bookChoiceProblem('source', bookChoices('source', []))).toBeNull()
+    expect(bookChoiceProblem('build', bookChoices('build', []))).toBeNull()
+    expect(bookChoiceProblem('original-gloss', bookChoices('original-gloss', []))).toBeNull()
+    expect(bookChoiceProblem('canon', bookChoices('canon', ['genesis']))).toBeNull()
+  })
+
+  it('source 폼의 지금 본문과, 장 범위로 받으면 없어질 장', () => {
+    const book = (overrides: Partial<BookSummary> = {}): BookSummary => ({
+      id: 'genesis',
+      name: '창세기',
+      chapters: 50,
+      sourceChapters: 10,
+      sourceRange: { from: 1, to: 10 },
+      ...overrides,
+    })
+    expect(currentSourceLabel(book())).toBe('1~10장 (10장)')
+    expect(currentSourceLabel(book({ sourceChapters: 1, sourceRange: { from: 3, to: 3 } }))).toBe('3장 (1장)')
+    expect(currentSourceLabel(undefined)).toBe('없음')
+    expect(currentSourceLabel(book({ sourceChapters: 0, sourceRange: null, error: '깨짐' }))).toBe('읽지 못함')
+
+    const current = { from: 1, to: 10 }
+    expect(droppedChapters(readChapterRange('11-20'), current)).toBe('1~10장')
+    expect(droppedChapters(readChapterRange('3-7'), current)).toBe('1~2장, 8~10장')
+    expect(droppedChapters(readChapterRange('10'), current)).toBe('1~9장')
+    expect(droppedChapters(readChapterRange('2-12'), current)).toBe('1장')
+    // 지금 본문을 다 덮거나, 범위·본문이 없으면 없어질 장이 없다
+    expect(droppedChapters(readChapterRange('1-10'), current)).toBeNull()
+    expect(droppedChapters(readChapterRange(' 1-50 '), current)).toBeNull()
+    expect(droppedChapters(readChapterRange(''), current)).toBeNull()
+    expect(droppedChapters(readChapterRange('1~10'), current)).toBeNull()
+    expect(droppedChapters(readChapterRange('3-7'), null)).toBeNull()
+  })
+
   it('책 칸의 값: 고른 책, 이 단계에 없으면 머리에서 고른 책, 그것도 없으면 첫 책', () => {
     const original = bookChoices('original', ['genesis', 'exodus'])
     expect(pickBookChoice(original, null, 'exodus')).toBe('exodus')
@@ -361,10 +356,10 @@ describe('jobForm', () => {
     expect(describeOptions({})).toBe('—')
     expect(describeOptions({ book: 'genesis', chapter: 1, dryRun: true })).toBe('1장 · 미리 보기')
     expect(describeOptions({ book: 'genesis', chapters: '1-10' })).toBe('1~10장')
-    expect(jobBookLabel('canon', { book: 'exodus', chapter: 1 })).toBe('출애굽기')
-    expect(jobBookLabel('original', {})).toBe('모든 책')
-    expect(jobBookLabel('build', {})).toBe('모든 책')
-    expect(jobBookLabel('original-gloss', {})).toBe('—')
+    expect(jobBookLabel({ book: 'exodus', chapter: 1 })).toBe('출애굽기')
+    // 책 없는 작업(original의 모든 책, build, original-gloss)은 모든 책을 함께 다룬다
+    expect(jobBookLabel({})).toBe('모든 책')
+    expect(jobBookLabel({ limit: 3 })).toBe('모든 책')
   })
 })
 
@@ -480,6 +475,24 @@ describe('bookChoice', () => {
     // 시험은 브라우저 밖에서 돌아 window가 없다.
     expect(readStoredBook()).toBeNull()
     expect(() => storeBook('genesis')).not.toThrow()
+  })
+
+  it('본문을 읽지 못한 책은 목록에 표시만 하고 고를 책에서 뺀다', () => {
+    const genesis: BookSummary = { id: 'genesis', name: '창세기', chapters: 50, sourceChapters: 10, sourceRange: { from: 1, to: 10 } }
+    const exodus: BookSummary = {
+      id: 'exodus',
+      name: '출애굽기',
+      chapters: 40,
+      sourceChapters: 0,
+      sourceRange: null,
+      error: 'content/source/exodus.json: Unexpected token',
+    }
+    expect(readableBooks([genesis, exodus])).toEqual([genesis])
+    expect(bookOptionLabel(genesis)).toBe('창세기 · 10/50장')
+    expect(bookOptionLabel(exodus)).toBe('출애굽기 · 읽지 못함')
+    // 기억한 책을 읽지 못하면 읽을 수 있는 첫 책을 고른다
+    expect(chooseBook(readableBooks([exodus, genesis]).map((b) => b.id), 'exodus')).toBe('genesis')
+    expect(chooseBook(readableBooks([exodus]).map((b) => b.id), 'exodus')).toBeNull()
   })
 })
 

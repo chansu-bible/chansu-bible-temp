@@ -12,22 +12,9 @@ import {
 } from 'pipeline'
 import { getBook, type BookId } from 'reader-core'
 import type { AppContext } from '../context.ts'
-import { readSceneFile, readSource } from '../content.ts'
+import { readSceneFile } from '../content.ts'
 import { errorMessage, HttpError, readJsonBody } from '../errors.ts'
-import { parseBook } from './books.ts'
-
-export function parseChapter(raw: string): number {
-  const chapter = Number(raw)
-  if (!Number.isInteger(chapter) || chapter < 1) throw new HttpError(400, `장 번호가 잘못되었습니다: ${raw}`)
-  return chapter
-}
-
-// 본문의 한 장. 본문에 없는 장이면 404.
-export async function sourceChapterOf(book: BookId, chapter: number, sourceDir: string | undefined) {
-  const found = (await readSource(book, sourceDir)).chapters.find((item) => item.chapter === chapter)
-  if (!found) throw new HttpError(404, `${getBook(book).name} 본문에 ${chapter}장이 없습니다`)
-  return found
-}
+import { parseChapter, sourceChapterOf, type BookEnv } from './params.ts'
 
 // 장면 id → 버전 id → 그림 파일 이름. 확장자를 뗀 이름이 장면 id인 파일만 본다. 그림이 없는 버전은 키가 없다.
 export function sceneImages(scenes: Scene[], catalog: ImageCatalog): Record<string, Record<string, string>> {
@@ -44,8 +31,8 @@ export function sceneImages(scenes: Scene[], catalog: ImageCatalog): Record<stri
 }
 
 // /api/books/:book/scenes
-export function sceneRoutes(ctx: AppContext): Hono {
-  const app = new Hono()
+export function sceneRoutes(ctx: AppContext): Hono<BookEnv> {
+  const app = new Hono<BookEnv>()
   const scenesDir = ctx.scenesDir ?? paths.scenesDir
 
   const findScene = async (book: BookId, chapter: number, id: string) => {
@@ -58,7 +45,7 @@ export function sceneRoutes(ctx: AppContext): Hono {
 
   // 장 본문과 장면, 그림 버전, 장면별 버전 그림. 장면 파일이 없으면 scenes는 null이다.
   app.get('/:chapter', async (c) => {
-    const book = parseBook(c.req.param('book'))
+    const book = c.var.book
     const chapter = parseChapter(c.req.param('chapter'))
     const sourceChapter = await sourceChapterOf(book, chapter, ctx.sourceDir)
     const [sceneFile, catalog] = await Promise.all([
@@ -76,9 +63,8 @@ export function sceneRoutes(ctx: AppContext): Hono {
 
   // images 단계가 모델에 보낼 최종 프롬프트와 함께 보낼 참고 이미지 파일 이름
   app.get('/:chapter/:id/prompt', async (c) => {
-    const book = parseBook(c.req.param('book'))
     const chapter = parseChapter(c.req.param('chapter'))
-    const { sceneFile, index } = await findScene(book, chapter, c.req.param('id'))
+    const { sceneFile, index } = await findScene(c.var.book, chapter, c.req.param('id'))
     const style = await readStyle(ctx.styleFile, { refsDir: ctx.refsDir, requireFiles: false })
     return c.json({
       prompt: buildImagePrompt(style, sceneFile.scenes[index]!),
@@ -88,7 +74,7 @@ export function sceneRoutes(ctx: AppContext): Hono {
 
   // 장면 하나를 전체 검증한 뒤 그 장면만 바꿔 파일을 다시 쓴다.
   app.put('/:chapter/:id', async (c) => {
-    const book = parseBook(c.req.param('book'))
+    const book = c.var.book
     const chapter = parseChapter(c.req.param('chapter'))
     const id = c.req.param('id')
     const parsed = SceneSchema.safeParse(await readJsonBody(c.req.raw))

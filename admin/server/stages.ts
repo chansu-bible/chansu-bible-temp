@@ -16,7 +16,7 @@ import {
   runScenario,
   writeBundles,
 } from 'pipeline'
-import { getBook, isBookId, type BookId } from 'reader-core'
+import { getBook, hasChapter, isBookId, type BookId } from 'reader-core'
 import { STAGES, type JobOptions, type Runner, type Stage } from './jobs.ts'
 
 export class JobRequestError extends Error {
@@ -26,29 +26,28 @@ export class JobRequestError extends Error {
   }
 }
 
-// 단계마다 쓰는 옵션. 나머지는 버린다.
-const stageOptions: Record<Stage, readonly (keyof JobOptions)[]> = {
-  source: ['book', 'chapters'],
-  canon: ['book', 'chapter', 'dryRun'],
-  scenario: ['book', 'chapter', 'force', 'dryRun'],
-  'review-text': ['book', 'chapter', 'scenes', 'dryRun'],
-  images: ['book', 'chapter', 'scenes', 'force', 'allowDraft', 'dryRun', 'limit'],
-  tts: ['book', 'chapter', 'force', 'limit', 'dryRun'],
-  original: ['book'],
-  'original-gloss': ['limit', 'force', 'dryRun'],
-  quiz: ['book', 'chapter', 'force', 'dryRun'],
-  build: [],
+// 단계마다 쓰는 옵션(나머지는 버린다)과 책을 다루는 방식. 옵션에 chapter가 있으면 장 번호가 꼭 있어야 한다.
+// book: 'required'는 책이 꼭 있어야 하고, 'optional'은 없으면 본문이 있는 모든 책을 돌린다.
+// { refuse }는 모든 책을 함께 다뤄 책을 받지 않는다. 책이 오면 그 글(CLI와 같은 글)로 거절한다.
+type StageSpec = {
+  options: readonly (keyof JobOptions)[]
+  book: 'required' | 'optional' | { refuse: string }
 }
 
-// 책이 꼭 있어야 하는 단계. original은 책이 없으면 본문이 있는 모든 책을 돌린다.
-const needsBook: readonly Stage[] = ['source', 'canon', 'scenario', 'review-text', 'images', 'tts', 'quiz']
-
-const needsChapter: readonly Stage[] = ['canon', 'scenario', 'review-text', 'images', 'tts', 'quiz']
-
-// 모든 책을 함께 다뤄 책을 받지 않는 단계. 책이 오면 CLI와 같은 글로 거절한다.
-const refusesBook: Partial<Record<Stage, string>> = {
-  build: 'build는 본문이 있는 모든 책을 함께 만듭니다. --book은 받지 않습니다.',
-  'original-gloss': 'original-gloss는 모든 책이 함께 쓰는 사전을 채웁니다. --book은 받지 않습니다.',
+const STAGE_SPECS: Record<Stage, StageSpec> = {
+  source: { options: ['book', 'chapters'], book: 'required' },
+  canon: { options: ['book', 'chapter', 'dryRun'], book: 'required' },
+  scenario: { options: ['book', 'chapter', 'force', 'dryRun'], book: 'required' },
+  'review-text': { options: ['book', 'chapter', 'scenes', 'dryRun'], book: 'required' },
+  images: { options: ['book', 'chapter', 'scenes', 'force', 'allowDraft', 'dryRun', 'limit'], book: 'required' },
+  tts: { options: ['book', 'chapter', 'force', 'limit', 'dryRun'], book: 'required' },
+  original: { options: ['book'], book: 'optional' },
+  'original-gloss': {
+    options: ['limit', 'force', 'dryRun'],
+    book: { refuse: 'original-gloss는 모든 책이 함께 쓰는 사전을 채웁니다. --book은 받지 않습니다.' },
+  },
+  quiz: { options: ['book', 'chapter', 'force', 'dryRun'], book: 'required' },
+  build: { options: [], book: { refuse: 'build는 본문이 있는 모든 책을 함께 만듭니다. --book은 받지 않습니다.' } },
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -69,7 +68,7 @@ function readOption(key: keyof JobOptions, value: unknown): JobOptions[keyof Job
       return value
     case 'chapters':
       if (typeof value !== 'string') throw new JobRequestError('chapters(장 범위)는 "1-10"이나 "3" 같은 글이어야 합니다')
-      // 읽을 수 있는지만 본다. 책에 그 장이 있는지는 fetchSource가 받기 전에 본다.
+      // 여기서는 읽을 수 있는지만 본다. 책에 그 장이 있는지는 책을 읽은 뒤 parseJobRequest가 본다.
       try {
         parseChapterRange(value)
       } catch (error) {
@@ -101,22 +100,38 @@ export function parseJobRequest(body: unknown): { stage: Stage; options: JobOpti
   if (!isRecord(options)) throw new JobRequestError('options는 객체여야 합니다')
 
   const typedStage = stage as Stage
-  const refusal = refusesBook[typedStage]
-  if (refusal !== undefined && options.book !== undefined && options.book !== null) throw new JobRequestError(refusal)
+  const spec = STAGE_SPECS[typedStage]
+  if (typeof spec.book === 'object' && options.book !== undefined && options.book !== null) {
+    throw new JobRequestError(spec.book.refuse)
+  }
 
   const parsed: JobOptions = {}
-  for (const key of stageOptions[typedStage]) {
+  for (const key of spec.options) {
     const value = options[key]
     if (value === undefined || value === null) continue
     ;(parsed as Record<string, unknown>)[key] = readOption(key, value)
   }
-  if (needsBook.includes(typedStage) && parsed.book === undefined) {
+  if (spec.book === 'required' && parsed.book === undefined) {
     throw new JobRequestError(`${stage} 단계에는 책(book)이 필요합니다`)
   }
-  if (needsChapter.includes(typedStage) && parsed.chapter === undefined) {
+  if (spec.options.includes('chapter') && parsed.chapter === undefined) {
     throw new JobRequestError(`${stage} 단계에는 장 번호(chapter)가 필요합니다`)
   }
+  checkChapters(parsed)
   return { stage: typedStage, options: parsed }
+}
+
+// 장 번호와 장 범위가 그 책에 있는지 본다. 글은 파이프라인(fetchSource, chapterStem)과 같다.
+function checkChapters({ book, chapter, chapters }: JobOptions): void {
+  if (book === undefined) return
+  const { name, chapters: count } = getBook(book)
+  if (chapter !== undefined && !hasChapter(book, chapter)) throw new JobRequestError(`${name}에는 ${chapter}장이 없습니다`)
+  if (chapters !== undefined) {
+    const { from, to } = parseChapterRange(chapters)
+    if (!hasChapter(book, from) || !hasChapter(book, to) || from > to) {
+      throw new JobRequestError(`${name}의 장 범위가 틀렸습니다: ${from}~${to} (1~${count}장)`)
+    }
+  }
 }
 
 // 책이 꼭 있어야 하는 단계의 책. parseJobRequest가 먼저 보지만, 책 없이 만든 작업이 돌지 않게 여기서도 본다.

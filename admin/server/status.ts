@@ -13,6 +13,7 @@ import {
 import { verseAudioName, type BookId } from 'reader-core'
 import { readAudioNames, readSceneFiles, readSource } from './content.ts'
 import type { AppContext } from './context.ts'
+import { errorMessage } from './errors.ts'
 
 export type SceneCounts = { total: number; draft: number; reviewed: number; flagged: number; approved: number }
 
@@ -30,8 +31,10 @@ export type StateCounts = Record<ReviewState, number>
 
 export type StatusResponse = {
   chapters: ChapterStatus[]
-  canon: Record<CanonKind, StateCounts>
-  proposalsOpen: number
+  // 설정집을 읽지 못하면(설정집이나 어느 책의 본문이 깨졌을 때) canon과 proposalsOpen은 null이고 canonError에 까닭이 있다.
+  canon: Record<CanonKind, StateCounts> | null
+  proposalsOpen: number | null
+  canonError: string | null
   imageVersions: ImageVersion[]
 }
 
@@ -100,18 +103,24 @@ export function summarizeCanon(canon: Canon): Record<CanonKind, StateCounts> {
 }
 
 // content/를 읽어 책 하나의 대시보드 상태를 만든다. 설정집 요약과 그림 버전은 모든 책이 함께 쓰는 것이다.
+// 설정집 검증은 모든 책의 본문을 보므로, 다른 책의 본문이 깨져도 이 책의 진행은 보이게 설정집 오류는 따로 담는다.
 export async function readStatus(book: BookId, dirs: StatusDirs = {}): Promise<StatusResponse> {
   const source = await readSource(book, dirs.sourceDir)
-  const [sceneFiles, catalog, audioNames, canon] = await Promise.all([
+  const [sceneFiles, catalog, audioNames, canonResult] = await Promise.all([
     readSceneFiles(book, source, dirs.scenesDir),
     readImageCatalog({ file: dirs.imageVersionsFile, imagesDir: dirs.imagesDir }),
     readAudioNames(dirs.audioDir),
-    readCanon(dirs.storyBibleDir, { sourceDir: dirs.sourceDir }),
+    readCanon(dirs.storyBibleDir, { sourceDir: dirs.sourceDir }).then(
+      (canon) => ({ canon, error: null }),
+      (error: unknown) => ({ canon: null, error: errorMessage(error, '설정집을 읽지 못했습니다') }),
+    ),
   ])
+  const { canon, error } = canonResult
   return {
     chapters: computeChapterStatus(book, source, sceneFiles, catalog, audioNames),
-    canon: summarizeCanon(canon),
-    proposalsOpen: canon.proposals.filter((proposal) => proposal.status === 'open').length,
+    canon: canon ? summarizeCanon(canon) : null,
+    proposalsOpen: canon ? canon.proposals.filter((proposal) => proposal.status === 'open').length : null,
+    canonError: error,
     imageVersions: catalog.versions,
   }
 }
