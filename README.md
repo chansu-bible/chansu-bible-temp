@@ -66,7 +66,7 @@ npm run server               # 동기화 서버 (http://127.0.0.1:8790)
 
 홈 머리의 계정 단추로 로그인한다(시험 계정은 `infra/README.md`). 로그인하면 읽은 장면, 읽던 곳, 계획, 밑줄·메모, 끝까지 푼 퀴즈가 계정에 올라가고 다른 기기와 맞춰진다. 로그아웃하면 그 기기의 기록을 지우고, 다시 로그인하면 받아 온다.
 
-질문하기는 로그인한 사람만 쓴다. 동기화 서버가 묶음 폴더(`BUNDLE_DIR`, 비우면 `app/public/content`)의 책 묶음(`<책 id>.json`)을 모두 읽어 본문 절, 검수된 장면 해설, 설정집 대목을 찾는다. 읽고 있는 책의 대목을 앞에 두고, 찾은 대목만 OpenAI 모델에 준다. 문장마다 근거가 맞지 않으면 "자료에 없어요"로 답한다. 리포 루트 `.env`에 `OPENAI_API_KEY`가 있어야 켜지고, 모델은 `ASK_MODEL`(비우면 작성 모델), 한도는 계정마다 하루 `ASK_DAILY_LIMIT`번(비우면 20)이다. 서버는 시작할 때 묶음을 읽으므로 묶음을 다시 만들면 서버를 다시 띄운다. 묶음 하나라도 읽지 못하면 경고를 남기고 질문하기만 끈다(동기화는 그대로 된다). 질문과 답은 저장하지 않는다(서버는 하루 횟수만 센다).
+질문하기는 로그인한 사람만 쓴다. 동기화 서버가 묶음 폴더(`BUNDLE_DIR`, 비우면 `app/public/content`)의 책 묶음(`<책 id>.json`)을 모두 읽어 본문 절, 검수된 장면 해설, 설정집 대목을 찾는다. 읽고 있는 책과 장의 대목에는 점수를 더 주고, 찾은 대목만 OpenAI 모델에 준다. 문장마다 근거가 맞지 않으면 "자료에 없어요"로 답한다. 리포 루트 `.env`에 `OPENAI_API_KEY`가 있어야 켜지고, 모델은 `ASK_MODEL`(비우면 작성 모델), 한도는 계정마다 하루 `ASK_DAILY_LIMIT`번(비우면 20)이다. 서버는 시작할 때 묶음을 읽으므로 묶음을 다시 만들면 서버를 다시 띄운다. 묶음 하나라도 읽지 못하면 경고를 남기고 질문하기만 끈다(동기화는 그대로 된다). 질문과 답은 저장하지 않는다(서버는 하루 횟수만 센다).
 
 ## 관리 도구
 
@@ -90,7 +90,7 @@ npm run admin
 | `npm test` | 전체 테스트 |
 | `npm run infra:up`, `npm run infra:down` | 개발용 Postgres·키클락을 띄우고 멈춘다 |
 | `npm run server` | 동기화 서버를 띄운다 (http://127.0.0.1:8790) |
-| `npm run pipeline -- source --book genesis --chapters 1-10` | 위키문헌에서 개역한글 본문을 받아 `content/source/<책 id>.json`에 저장한다. `--chapters`(`3`, `1-10`)가 없으면 책 전체를 받는다 |
+| `npm run pipeline -- source --book genesis --chapters 1-10` | 위키문헌에서 개역한글 본문을 받아 `content/source/<책 id>.json`에 저장한다. `--chapters`(`3`, `1-10`)가 없으면 책 전체를 받는다. 있던 본문 파일은 이번에 받은 장으로 바뀐다(더하지 않는다). 설정집이 인용한 장이 빠지면 설정집 검증이 실패해 `build`와 Pages 배포가 멈춘다 |
 | `npm run pipeline -- images --book genesis --chapter 1 --allow-draft` | 1장 장면 중 그림이 없는 것을 OpenAI로 그려 `content/images/`에 저장한다 |
 | `npm run pipeline -- canon --book genesis --chapter 1` | 1장 본문에서 설정집 초안(인물·장소·시대·물건)을 뽑는다. `--dry-run`은 프롬프트만 보여 준다 |
 | `npm run pipeline -- migrate-canon-refs --book genesis` | 책이 없는 옛 설정집 인용(`2:7`)에 책을 붙인다. 한 번만 쓰는 이전이고, `--dry-run`은 몇 개인지만 보여 준다 |
