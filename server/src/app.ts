@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { isBookId } from 'reader-core'
 import { z } from 'zod'
 import { answerQuestion, type AskModel } from './ask/answer.ts'
 import type { PassageIndex } from './ask/retrieve.ts'
@@ -12,12 +13,14 @@ import { applyChanges, pullChanges, SyncRequestSchema } from './records.ts'
 
 type Env = { Variables: { user: User } }
 
-// 질문하기에 쓰는 것. 없으면(키나 묶음이 없음) /ask는 503이다.
-export type AskDeps = { index: PassageIndex; model: AskModel; book: string; dailyLimit?: number; now?: () => number }
+// 질문하기에 쓰는 것. 없으면(키나 묶음이 없음) /ask는 503이다. 읽어 둔 책은 index.books에 있다.
+export type AskDeps = { index: PassageIndex; model: AskModel; dailyLimit?: number; now?: () => number }
 
+// book은 독자가 읽고 있는 책의 id다. 성경 책 id가 아니면 400이다.
 const AskRequestSchema = z.object({
   question: z.string().trim().min(1).max(300),
   chapter: z.number().int().positive().optional(),
+  book: z.string().optional(),
 })
 
 export function createApp(deps: { sql: Sql; verify: Verify; corsOrigins: string[]; ask?: AskDeps | null }) {
@@ -90,13 +93,15 @@ export function createApp(deps: { sql: Sql; verify: Verify; corsOrigins: string[
       if (!ask) return c.json({ error: '질문하기를 지금 쓸 수 없어요' }, 503)
       const parsed = AskRequestSchema.safeParse(await c.req.json().catch(() => null))
       if (!parsed.success) return c.json({ error: '질문은 1자에서 300자 사이로 써 주세요' }, 400)
+      const { question, chapter, book } = parsed.data
+      if (book !== undefined && !isBookId(book)) return c.json({ error: `알 수 없는 책입니다: ${book}` }, 400)
       const user = c.get('user')
       const limit = ask.dailyLimit ?? DEFAULT_DAILY_LIMIT
       const day = koreaDay(ask.now?.())
       const taken = await takeAsk(deps.sql.query, user.sub, day, limit)
       if (!taken.allowed) return c.json({ error: '오늘 질문을 모두 썼어요. 내일 다시 물어 주세요.', remaining: 0 }, 429)
       try {
-        const result = await answerQuestion(ask.index, ask.model, parsed.data, ask.book)
+        const result = await answerQuestion(ask.index, ask.model, { question, chapter, book })
         return c.json({ ...result, remaining: Math.max(0, limit - taken.count) })
       } catch (error) {
         await giveBack(deps.sql.query, user.sub, day)

@@ -21,8 +21,8 @@ export type Config = {
   // 받아들일 클라이언트(토큰의 azp)
   clients: string[]
   corsOrigins: string[]
-  // 질문하기: 대목을 만들 앱 묶음, OpenAI 키(리포 루트 .env), 모델, 하루 한도
-  bundleFile: string
+  // 질문하기: 대목을 만들 책 묶음(<책 id>.json)이 든 폴더, OpenAI 키(리포 루트 .env), 모델, 하루 한도
+  bundleDir: string
   openaiApiKey: string | null
   askModel: string
   askDailyLimit: number
@@ -41,7 +41,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
     jwksUrl: env.AUTH_JWKS_URL ?? 'http://127.0.0.1:8080/realms/chansu-bible/protocol/openid-connect/certs',
     clients: list(env.AUTH_CLIENTS, ['chansu-bible-app', 'chansu-bible-test']),
     corsOrigins: list(env.CORS_ORIGINS, ['http://localhost:8081']),
-    bundleFile: env.BUNDLE_FILE ?? path.resolve(import.meta.dirname, '../../app/public/content/genesis.json'),
+    bundleDir: env.BUNDLE_DIR || path.resolve(import.meta.dirname, '../../app/public/content'),
     openaiApiKey: env.OPENAI_API_KEY || null,
     askModel: env.ASK_MODEL || env.OPENAI_WRITER_MODEL || 'gpt-6.1-sol',
     askDailyLimit: positiveInt(env.ASK_DAILY_LIMIT, 20),

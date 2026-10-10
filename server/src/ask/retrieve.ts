@@ -1,3 +1,4 @@
+import type { BookId } from 'reader-core'
 import type { Passage } from './passages.ts'
 
 const plain = (text: string): string => text.replace(/[\s\p{P}\p{S}]/gu, '')
@@ -95,6 +96,8 @@ export function keywords(question: string): { stems: string[]; phrases: string[]
 
 export type PassageIndex = {
   passages: Passage[]
+  // 대목이 든 책들
+  books: BookId[]
   // 대목마다 띄어쓰기를 지운 글(낱말 줄기를 찾는다)
   plains: string[]
   // 대목마다 바이그램 → 횟수
@@ -111,14 +114,33 @@ export function buildIndex(passages: Passage[]): PassageIndex {
   })
   const documentFrequency = new Map<string, number>()
   for (const map of counts) for (const gram of map.keys()) documentFrequency.set(gram, (documentFrequency.get(gram) ?? 0) + 1)
-  return { passages, plains: passages.map((passage) => plain(passage.text)), counts, documentFrequency }
+  return {
+    passages,
+    books: [...new Set(passages.map((passage) => passage.book))],
+    plains: passages.map((passage) => plain(passage.text)),
+    counts,
+    documentFrequency,
+  }
+}
+
+// 독자가 읽고 있는 책. 요청에 없으면 색인에 책이 하나뿐일 때만 그 책이다(여럿이면 어느 책인지 몰라 undefined).
+export function resolveBook(index: PassageIndex, book: BookId | undefined): BookId | undefined {
+  return book ?? (index.books.length === 1 ? index.books[0] : undefined)
 }
 
 export type Scored = { passage: Passage; score: number }
 
 // 점수: 질문의 낱말 줄기와 붙인 말이 대목에 들어 있으면 드물수록(idf) 크게 센다. 바이그램 겹침은 보조로 더한다.
-// 긴 대목은 조금 덜 세고, 질문한 장의 대목은 1.5배, 질문의 낱말이 이름 그대로인 설정집 항목은 크게 올린다.
-export function retrieve(index: PassageIndex, question: string, options: { chapter?: number; limit?: number } = {}): Scored[] {
+// 긴 대목은 조금 덜 세고, 독자가 읽는 장의 대목은 1.5배(책과 장이 둘 다 맞아야 하고, 책을 모르면 주지 않는다),
+// 질문의 낱말이 이름 그대로인 설정집 항목은 크게 올린다.
+export function retrieve(
+  index: PassageIndex,
+  question: string,
+  options: { book?: BookId; chapter?: number; limit?: number } = {},
+): Scored[] {
+  // 독자가 읽는 책과 장. 책을 모르면(묶음이 여럿인데 요청에 없다) 장만으로는 가중하지 않는다.
+  const book = resolveBook(index, options.book)
+  const reading = book !== undefined && options.chapter !== undefined ? { book, chapter: options.chapter } : null
   const total = index.passages.length
   const idf = (documents: number) => Math.log(1 + total / Math.max(documents, 1))
   const { stems, phrases } = keywords(question)
@@ -140,7 +162,7 @@ export function retrieve(index: PassageIndex, question: string, options: { chapt
     }
     if (score === 0) return
     score /= 1 + Math.log(1 + text.length / 120)
-    if (options.chapter !== undefined && passage.chapter === options.chapter) score *= 1.5
+    if (reading && passage.book === reading.book && passage.chapter === reading.chapter) score *= 1.5
     if (passage.kind === 'canon' && stems.includes(plain(passage.label.replace(/^설정집 · /, '')))) score += 8
     scored.push({ passage, score })
   })

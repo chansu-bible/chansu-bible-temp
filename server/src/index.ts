@@ -1,10 +1,11 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { serve } from '@hono/node-server'
 import { createRemoteJWKSet } from 'jose'
 import { createApp, type AskDeps } from './app.ts'
+import { readBundles } from './ask/bundles.ts'
 import { createOpenAiAskModel } from './ask/openaiModel.ts'
-import { buildPassages, type AskBundle } from './ask/passages.ts'
+import { buildPassages } from './ask/passages.ts'
 import { buildIndex } from './ask/retrieve.ts'
 import { createVerifier } from './auth.ts'
 import { readConfig } from './config.ts'
@@ -25,20 +26,20 @@ try {
 }
 
 const verify = createVerifier({ issuers: config.issuers, clients: config.clients, jwks: createRemoteJWKSet(new URL(config.jwksUrl)) })
-// 질문하기: 키와 묶음이 있을 때만 켠다.
+// 질문하기: 키와 책 묶음이 있을 때만 켠다.
 function loadAsk(): AskDeps | null {
   if (!config.openaiApiKey) {
     console.warn('OPENAI_API_KEY가 없어 질문하기를 끕니다.')
     return null
   }
-  if (!existsSync(config.bundleFile)) {
-    console.warn(`묶음(${config.bundleFile})이 없어 질문하기를 끕니다. 먼저 npm run pipeline -- build를 하세요.`)
+  const bundles = readBundles(config.bundleDir)
+  if (bundles.length === 0) {
+    console.warn(`묶음 폴더(${config.bundleDir})에 책 묶음이 없어 질문하기를 끕니다. 먼저 npm run pipeline -- build를 하세요.`)
     return null
   }
-  const bundle = JSON.parse(readFileSync(config.bundleFile, 'utf8')) as AskBundle
-  const index = buildIndex(buildPassages(bundle))
-  console.log(`질문하기: 대목 ${index.passages.length}개, 모델 ${config.askModel}, 하루 ${config.askDailyLimit}번`)
-  return { index, model: createOpenAiAskModel(config.openaiApiKey, config.askModel), book: bundle.book, dailyLimit: config.askDailyLimit }
+  const index = buildIndex(buildPassages(bundles))
+  console.log(`질문하기: 책 ${bundles.length}권, 대목 ${index.passages.length}개, 모델 ${config.askModel}, 하루 ${config.askDailyLimit}번`)
+  return { index, model: createOpenAiAskModel(config.openaiApiKey, config.askModel), dailyLimit: config.askDailyLimit }
 }
 
 const app = createApp({ sql, verify, corsOrigins: config.corsOrigins, ask: loadAsk() })

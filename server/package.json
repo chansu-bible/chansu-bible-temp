@@ -15,6 +15,7 @@
     "jose": "^6.2.12",
     "openai": "^7.27.0",
     "pg": "^8.23.1",
+    "reader-core": "*",
     "zod": "^4.6.5"
   },
   "devDependencies": {
