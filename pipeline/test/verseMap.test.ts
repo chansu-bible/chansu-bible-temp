@@ -1,3 +1,4 @@
+import type { Book } from 'reader-core'
 import { describe, expect, it } from 'vitest'
 import type { OriginalChapter } from '../src/original/oshb.ts'
 import { OSHB_BASE } from '../src/original/urls.ts'
@@ -36,6 +37,9 @@ const verseMap = `<?xml version="1.0" encoding="UTF-8"?>
 	<book osisID="Ps">
 		<verse wlc="Ps.3.2" kjv="Ps.3.1" type="full"/>
 		<verse wlc="Ps.3.3" kjv="Ps.3.2" type="full"/>
+		<verse wlc="Ps.13.5" kjv="Ps.13.4" type="full"/>
+		<verse wlc="Ps.13.6!a" kjv="Ps.13.5" type="partial"/>
+		<verse wlc="Ps.13.6!b" kjv="Ps.13.6" type="partial"/>
 		<verse wlc="Ps.51.2" kjv="Ps.51.1" type="full"/>
 		<verse wlc="Ps.51.3" kjv="Ps.51.1" type="full"/>
 		<verse wlc="Ps.51.4" kjv="Ps.51.2" type="full"/>
@@ -57,7 +61,8 @@ function summary(chapters: OriginalChapter[]): [string, string[]][] {
   )
 }
 
-const kjvOf = (osis: string, spec: Record<number, number[]>) => summary(toKjvVerses(wlcOf(spec), parseVerseMap(verseMap, osis)))
+const kjvOf = (osis: Book['osis'], spec: Record<number, number[]>) =>
+  summary(toKjvVerses(wlcOf(spec), parseVerseMap(verseMap, osis)))
 
 describe('parseVerseMap', () => {
   it('그 책의 대응만 읽고 조각 표시(!a, !b)를 따로 둔다', () => {
@@ -74,10 +79,16 @@ describe('parseVerseMap', () => {
     expect(parseVerseMap(verseMap, 'Gen')).toEqual([])
   })
 
-  it('읽을 수 없거나 다른 책을 가리키는 절이 있으면 오류', () => {
-    const other = '<book osisID="Gen"><verse wlc="Gen.32.1" kjv="Exod.31.55" type="full"/></book>'
-    expect(() => parseVerseMap(other, 'Gen')).toThrow('절 대응표에서 Gen의 절을 읽지 못했습니다: Exod.31.55')
-    expect(() => parseVerseMap('<book osisID="Gen"><verse wlc="Gen.32" kjv="Gen.31.55"/></book>', 'Gen')).toThrow('Gen.32')
+  it('읽을 수 없는 절이 있으면 그 줄을 그대로 보이며 오류', () => {
+    const broken = '<verse wlc="Gen.32" kjv="Gen.31.55" type="full"/>'
+    expect(() => parseVerseMap(`<book osisID="Gen">${broken}</book>`, 'Gen')).toThrow(`절 대응표의 Gen 대응에서 절을 읽지 못했습니다: ${broken}`)
+  })
+
+  it('다른 책의 절을 가리키면 그 책과 줄을 대며 오류', () => {
+    const other = '<verse wlc="Gen.32.1" kjv="Exod.31.55" type="full"/>'
+    expect(() => parseVerseMap(`<book osisID="Gen">${other}</book>`, 'Gen')).toThrow(
+      `절 대응표의 Gen 대응이 다른 책(Exod)의 절을 가리킵니다: ${other}`,
+    )
   })
 
   it('대응표는 OSHB와 같은 커밋에서 받는다', () => {
@@ -161,6 +172,15 @@ describe('toKjvVerses', () => {
       ['63:19', ['63:19']],
       ['64:1', ['63:19']],
       ['64:2', ['64:1']],
+    ])
+  })
+
+  it('두 조각이 모두 적혀 있고 두 목적지가 모두 비면 낱말을 둘 다에 준다', () => {
+    // Ps.13.6!a → 13.5, Ps.13.6!b → 13.6: KJV 13:5는 다른 WLC 절이 채우지 않는다(WLC 13:5는 KJV 13:4로 간다).
+    expect(kjvOf('Ps', { 13: [5, 6] })).toEqual([
+      ['13:4', ['13:5']],
+      ['13:5', ['13:6']],
+      ['13:6', ['13:6']],
     ])
   })
 

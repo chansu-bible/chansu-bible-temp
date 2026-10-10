@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { readFile, writeFile } from 'node:fs/promises'
+import { writeFile } from 'node:fs/promises'
 import { getBook, type BookId } from 'reader-core'
 import { createLlm, type Llm } from '../llm/client.ts'
 import {
@@ -10,9 +10,9 @@ import {
   sourceDir as defaultSourceDir,
   sourceFilePath,
 } from '../paths.ts'
-import { LexiconFileSchema, type OriginalFile, type Source } from '../schema.ts'
+import type { OriginalFile, Source } from '../schema.ts'
 import { readSource } from '../source/files.ts'
-import { readOriginal } from './files.ts'
+import { readLexicon, readOriginal } from './files.ts'
 import { buildGlossPrompt, GlossOutputSchema } from './glossPrompt.ts'
 
 export type GlossOptions = {
@@ -76,7 +76,7 @@ async function collectExamples(
 // 초안은 관리 도구에서 사람이 승인해야 앱 묶음에 들어간다.
 export async function runGloss(options: GlossOptions = {}, log: (line: string) => void = () => {}): Promise<GlossResult> {
   const lexiconFile = options.lexiconFile ?? defaultLexiconFile
-  const lexicon = LexiconFileSchema.parse(JSON.parse(await readFile(lexiconFile, 'utf8')))
+  const lexicon = await readLexicon(lexiconFile)
   const targets = lexicon.entries
     .filter((entry) => entry.korean === null || (options.force === true && entry.korean.status === 'draft'))
     .slice(0, options.limit ?? Number.POSITIVE_INFINITY)

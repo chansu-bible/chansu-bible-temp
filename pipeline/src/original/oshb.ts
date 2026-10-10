@@ -1,11 +1,9 @@
 import { cleanHebrew, strongOf } from './hebrew.ts'
+import { attribute } from './xml.ts'
 
 export type OriginalWord = { text: string; strong: string | null; morph: string }
 export type OriginalVerse = { verse: number; words: OriginalWord[] }
 export type OriginalChapter = { chapter: number; verses: OriginalVerse[] }
-
-const attribute = (attributes: string, name: string): string | null =>
-  new RegExp(`\\b${name}="([^"]*)"`).exec(attributes)?.[1] ?? null
 
 // OSHB(OSIS XML) 한 책에서 장(고르지 않으면 모든 장)의 절마다 낱말을 차례로 읽는다. 절 번호는 WLC 번호다.
 // 낱말 사이의 seg(마켑, 소프 파숙)는 뺀다. 낱말 안의 seg(큰 글자, 작은 글자, 매단 글자)는 태그만 지우고 글자는 둔다.

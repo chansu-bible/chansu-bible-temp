@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { readOriginal } from '../src/original/files.ts'
+import { readLexicon, readOriginal } from '../src/original/files.ts'
 import { displayPath } from '../src/paths.ts'
 
 const original = { chapters: [{ chapter: 1, verses: [{ verse: 1, words: [{ text: 'א', strong: 'H7225', morph: 'HR/Ncfsa' }] }] }] }
@@ -49,5 +49,23 @@ describe('readOriginal', () => {
     const message = await failure('genesis')
     expect(message.startsWith(`${displayPath(path.join(dir, 'genesis.json'))}: `)).toBe(true)
     expect(message).toContain('ENOENT')
+  })
+})
+
+describe('readLexicon', () => {
+  const entry = { strong: 'H7225', lemma: 'א', xlit: 'r', pos: 'n-f', definition: 'first', usage: 'beginning', count: 1, korean: null }
+
+  it('사전 파일을 읽는다', async () => {
+    const file = path.join(dir, 'lexicon.json')
+    await writeFile(file, JSON.stringify({ entries: [entry] }))
+    expect(await readLexicon(file)).toEqual({ entries: [entry] })
+  })
+
+  it('깨졌거나 형식에 맞지 않으면 파일 이름을 앞에 붙여 오류를 낸다', async () => {
+    const file = path.join(dir, 'lexicon.json')
+    for (const text of ['{ 깨진 JSON', JSON.stringify({ entries: [{ ...entry, count: -1 }] })]) {
+      await writeFile(file, text)
+      await expect(readLexicon(file)).rejects.toThrow(`${displayPath(file)}: `)
+    }
   })
 })

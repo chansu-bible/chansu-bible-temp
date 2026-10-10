@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanHebrew, strongOf } from '../src/original/hebrew.ts'
 import { posLabel } from '../src/original/morph.ts'
 import { parseOshb } from '../src/original/oshb.ts'
-import { originalBooks, oshbUrl, runOriginal } from '../src/original/runOriginal.ts'
+import { buildLexicon, memoizeFetch, originalBooks, oshbUrl, runOriginal } from '../src/original/runOriginal.ts'
 import { parseStrongs } from '../src/original/strongs.ts'
 import { STRONGS_URL } from '../src/original/urls.ts'
 import { OSHB_VERSE_MAP_URL } from '../src/original/verseMap.ts'
@@ -39,7 +39,35 @@ const strongs = `<div type="entry" n="7225">
         <w gloss="4a" lemma="אָב" morph="n-m" POS="awb" xlit="ʼâb" ID="H1" xml:lang="heb">אב</w>
         <note type="explanation"><hi>father</hi>, in a literal and immediate, or figurative and remote application</note>
         <note type="translation">chief, (fore-) father(-less), [idiom] patrimony, principal.</note>
+      </div>
+      <div type="entry" n="1254">
+        <w gloss="278" lemma="בָּרָא" morph="v" POS="baw-raw'" xlit="bârâʼ" ID="H1254" xml:lang="heb">ברא</w>
+        <note type="explanation">(absolutely) <hi>to create</hi></note>
+        <note type="translation">choose, create (creator), cut down, dispatch, do, make (fat).</note>
+      </div>
+      <div type="entry" n="5921">
+        <w gloss="1624p" lemma="עַל" morph="prep" POS="al" xlit="ʻal" ID="H5921" xml:lang="heb">על</w>
+        <note type="explanation"><hi>above</hi>, <hi>over</hi>, <hi>upon</hi>, or <hi>against</hi></note>
+        <note type="translation">above, according to(-ly), after.</note>
+      </div>
+      <div type="entry" n="6440">
+        <w gloss="1782a" lemma="פָּנִים" morph="n-m" POS="paw-neem'" xlit="pânîym" ID="H6440" xml:lang="heb">פנים</w>
+        <note type="explanation"><hi>the face</hi> (as the part that turns)</note>
+        <note type="translation">face, presence, sight.</note>
       </div>`
+
+// 사람이 쓴 한국어 뜻과 시험용 사전 항목
+const gloss: KoreanGloss = { meaning: '아버지', note: '사람이 쓴 뜻', status: 'approved' }
+const entryOf = (strong: string, korean: KoreanGloss | null): LexiconEntry => ({
+  strong,
+  lemma: 'אָב',
+  xlit: 'ʼâb',
+  pos: 'n-m',
+  definition: 'father',
+  usage: 'father',
+  count: 5,
+  korean,
+})
 
 describe('히브리어 낱말', () => {
   it('칸틸레이션 부호와 형태소 구분을 빼고 모음 부호는 둔다', () => {
@@ -202,7 +230,7 @@ describe('runOriginal', () => {
       STRONGS_URL,
     ])
     expect(lines[0]).toBe('OSHB 창세기를 받는 중…')
-    expect(result).toEqual({ chapters: 1, words: 4, entries: 1, withKorean: 0, skipped: [] })
+    expect(result).toEqual({ chapters: 1, words: 4, entries: 4, withKorean: 0, skipped: [] })
     // 본문에 있는 장만 쓴다.
     const original = await readJson<OriginalFile>(path.join(options.originalDir, 'genesis.json'))
     expect(original.chapters.map((chapter) => chapter.chapter)).toEqual([1])
@@ -220,17 +248,25 @@ describe('runOriginal', () => {
     const genesis = await readFile(path.join(options.originalDir, 'genesis.json'), 'utf8')
     // 사람이 검수한 한국어 뜻
     const lexicon = await readJson<LexiconFile>(options.lexiconFile)
-    expect(lexicon.entries.map((entry) => [entry.strong, entry.count])).toEqual([['H7225', 1]])
-    lexicon.entries[0]!.korean = { meaning: '처음', note: '', status: 'approved' }
+    expect(lexicon.entries.map((entry) => [entry.strong, entry.count])).toEqual([
+      ['H1254', 1],
+      ['H5921', 1],
+      ['H6440', 1],
+      ['H7225', 1],
+    ])
+    lexicon.entries.find((entry) => entry.strong === 'H7225')!.korean = { meaning: '처음', note: '', status: 'approved' }
     await writeFile(options.lexiconFile, JSON.stringify(lexicon))
 
     const result = await runOriginal('exodus', options)
 
-    expect(result).toEqual({ chapters: 1, words: 4, entries: 2, withKorean: 1, skipped: [] })
+    expect(result).toEqual({ chapters: 1, words: 4, entries: 5, withKorean: 1, skipped: [] })
     // H7225는 창세기 1:1에 한 번, 출애굽기 1:1과 1:3(WLC 2:1)에 두 번. H1은 출애굽기 1:1, 1:2
     const saved = await readJson<LexiconFile>(options.lexiconFile)
     expect(saved.entries.map((entry) => [entry.strong, entry.count, entry.korean])).toEqual([
       ['H1', 2, null],
+      ['H1254', 1, null],
+      ['H5921', 1, null],
+      ['H6440', 1, null],
       ['H7225', 3, { meaning: '처음', note: '', status: 'approved' }],
     ])
     // 앞 책 원어는 그대로다.
@@ -240,14 +276,57 @@ describe('runOriginal', () => {
   it('히브리어 절 번호를 개역한글 절 번호로 옮기고, 절 나눔이 본문과 다른 장은 원어 없이 두고 알린다', async () => {
     const lines: string[] = []
     const options = optionsOf()
-    await writeSource('exodus', [3, 3])
+    await writeSource('exodus', [3, 3, 2])
     const result = await runOriginal('exodus', options, (line) => lines.push(line))
 
-    // WLC 2:1이 KJV 1:3으로 가서 1장은 1~3절이 되고, 2장에는 2~3절만 남는다.
-    expect(result).toMatchObject({ chapters: 1, skipped: [2] })
+    // WLC 2:1이 KJV 1:3으로 가서 1장은 1~3절이 되고, 2장에는 2~3절만 남는다. 3장은 OSHB에 아예 없다.
+    expect(result).toMatchObject({ chapters: 1, skipped: [2, 3] })
     expect(lines).toContain('출애굽기 2장은 히브리어와 개역한글의 절 나눔이 달라 원어를 넣지 않았습니다(본문 3절, 원어 2절)')
+    expect(lines).toContain('출애굽기 3장은 히브리어와 개역한글의 절 나눔이 달라 원어를 넣지 않았습니다(본문 2절, 원어 0절)')
     const original = await readJson<OriginalFile>(path.join(options.originalDir, 'exodus.json'))
     expect(strongsOf(original)).toEqual([[1, [['H1', 'H7225'], ['H1'], ['H7225']]]])
+  })
+
+  it('본문의 어느 장에도 원어를 맞추지 못하면 아무 파일도 쓰지 않고 멈춘다', async () => {
+    const options = optionsOf()
+    // OSHB 출애굽기 1장은 KJV 절 번호로 옮기면 3절이라 5절인 본문과 맞지 않는다.
+    await writeSource('exodus', [5])
+    await expect(runOriginal('exodus', options)).rejects.toThrow(
+      `출애굽기 본문의 어느 장에도 원어를 맞추지 못했습니다. 받은 OSHB와 절 대응표가 맞는지 보세요: ${oshbUrl('exodus')}, ${OSHB_VERSE_MAP_URL}`,
+    )
+    expect(existsSync(path.join(options.originalDir, 'exodus.json'))).toBe(false)
+    expect(existsSync(options.lexiconFile)).toBe(false)
+  })
+
+  it.each([
+    [
+      '스트롱 사전',
+      STRONGS_URL,
+      `스트롱 사전에 없는 번호가 4개 있습니다(H1254, H5921, H6440, H7225). 받은 글이 스트롱 사전인지 보세요: ${STRONGS_URL}`,
+    ],
+    ['OSHB', oshbUrl('genesis'), `OSHB 창세기 자료에서 절을 하나도 찾지 못했습니다. 받은 글이 OSHB 파일인지 보세요: ${oshbUrl('genesis')}`],
+    ['절 대응표', OSHB_VERSE_MAP_URL, `받은 절 대응표에 <verseMap>이 없습니다. 받은 글이 VerseMap.xml인지 보세요: ${OSHB_VERSE_MAP_URL}`],
+  ])('받은 %s 글이 HTML 쪽 같은 엉뚱한 글이면 아무 파일도 쓰지 않고 주소를 대며 멈춘다', async (_, junkUrl, message) => {
+    // 사이에 낀 프록시가 200으로 돌려준 HTML 쪽
+    const options = { ...optionsOf(), fetchText: async (url: string) => (url === junkUrl ? '<html><body>로그인하세요</body></html>' : fetchText(url)) }
+    await mkdir(options.originalDir, { recursive: true })
+    const lexicon = JSON.stringify({ entries: [entryOf('H7225', gloss)] }, null, 2) + '\n'
+    await writeFile(options.lexiconFile, lexicon)
+
+    await expect(runOriginal('genesis', options)).rejects.toThrow(message)
+    expect(existsSync(path.join(options.originalDir, 'genesis.json'))).toBe(false)
+    expect(await readFile(options.lexiconFile, 'utf8')).toBe(lexicon)
+  })
+
+  it('사전 파일이 깨졌으면 받기 전에 그 파일 이름을 대고 멈춘다', async () => {
+    const options = optionsOf()
+    await mkdir(options.originalDir, { recursive: true })
+    await writeFile(options.lexiconFile, '{ 깨진 JSON')
+
+    await expect(runOriginal('genesis', options)).rejects.toThrow(`${displayPath(options.lexiconFile)}: `)
+    expect(urls).toEqual([])
+    expect(existsSync(path.join(options.originalDir, 'genesis.json'))).toBe(false)
+    expect(await readFile(options.lexiconFile, 'utf8')).toBe('{ 깨진 JSON')
   })
 
   it('다른 책 원어 파일이 깨졌으면 받거나 쓰기 전에 그 파일 이름을 대고 멈춘다', async () => {
@@ -268,17 +347,6 @@ describe('runOriginal', () => {
     const lines: string[] = []
     const options = optionsOf()
     await mkdir(options.originalDir, { recursive: true })
-    const gloss: KoreanGloss = { meaning: '아버지', note: '사람이 쓴 뜻', status: 'approved' }
-    const entryOf = (strong: string, korean: KoreanGloss | null): LexiconEntry => ({
-      strong,
-      lemma: 'אָב',
-      xlit: 'ʼâb',
-      pos: 'n-m',
-      definition: 'father',
-      usage: 'father',
-      count: 5,
-      korean,
-    })
     // 창세기 고정값에는 H1과 H2가 나오지 않는다.
     await writeFile(options.lexiconFile, JSON.stringify({ entries: [entryOf('H1', gloss), entryOf('H2', null)] }))
 
@@ -287,11 +355,14 @@ describe('runOriginal', () => {
     const saved = await readJson<LexiconFile>(options.lexiconFile)
     expect(saved.entries.map((entry) => [entry.strong, entry.count])).toEqual([
       ['H1', 0],
+      ['H1254', 1],
+      ['H5921', 1],
+      ['H6440', 1],
       ['H7225', 1],
     ])
     // 남긴 항목은 횟수만 0이고 나머지는 그대로다.
     expect(saved.entries[0]).toEqual({ ...entryOf('H1', gloss), count: 0 })
-    expect(result).toMatchObject({ entries: 2, withKorean: 1 })
+    expect(result).toMatchObject({ entries: 5, withKorean: 1 })
     expect(lines).toContain('어느 책 원어에도 나오지 않지만 한국어 뜻이 있어 남긴 사전 항목 1개: H1')
   })
 
@@ -317,6 +388,51 @@ describe('originalBooks', () => {
     const lines: string[] = []
     expect(originalBooks(['genesis', 'psalms'], (line) => lines.push(line))).toEqual(['genesis', 'psalms'])
     expect(lines).toEqual([])
+  })
+})
+
+describe('memoizeFetch', () => {
+  it('같은 주소는 한 번만 받고, 받다가 실패한 주소는 다음에 다시 받는다', async () => {
+    const calls: string[] = []
+    let failing = true
+    const fetchText = memoizeFetch(async (url) => {
+      calls.push(url)
+      if (url === 'b' && failing) {
+        failing = false
+        throw new Error('연결이 끊겼습니다')
+      }
+      return `${url}의 글`
+    })
+
+    expect(await fetchText('a')).toBe('a의 글')
+    expect(await fetchText('a')).toBe('a의 글')
+    await expect(fetchText('b')).rejects.toThrow('연결이 끊겼습니다')
+    expect(await fetchText('b')).toBe('b의 글')
+    expect(await fetchText('b')).toBe('b의 글')
+    expect(calls).toEqual(['a', 'b', 'b'])
+  })
+})
+
+describe('buildLexicon', () => {
+  const word = (strong: string) => ({ text: 'א', strong, morph: 'HNcmsa' })
+
+  it('한국어 뜻이 있는 이전 항목은 사전에서 만들지 못해도 남기고, 스트롱 사전에 없는 번호는 missing으로 알린다', () => {
+    const original: OriginalFile = { chapters: [{ chapter: 1, verses: [{ verse: 1, words: [word('H7225'), word('H9999'), word('H9999')] }] }] }
+    // H9999는 원어에 나오지만 스트롱 사전에 없고, H8888은 어느 원어에도 없다. H7777은 한국어 뜻이 없다.
+    const previous = [entryOf('H9999', gloss), entryOf('H8888', gloss), entryOf('H7777', null), entryOf('H7225', null)]
+
+    const { entries, missing, kept } = buildLexicon([original], strongs, previous)
+
+    expect(missing).toEqual(['H9999'])
+    expect(kept.map((entry) => [entry.strong, entry.count])).toEqual([
+      ['H8888', 0],
+      ['H9999', 2],
+    ])
+    expect(entries.map((entry) => [entry.strong, entry.count, entry.korean?.meaning ?? null])).toEqual([
+      ['H7225', 1, null],
+      ['H8888', 0, '아버지'],
+      ['H9999', 2, '아버지'],
+    ])
   })
 })
 

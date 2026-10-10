@@ -1,5 +1,7 @@
+import type { Book } from 'reader-core'
 import type { OriginalChapter, OriginalVerse } from './oshb.ts'
 import { OSHB_BASE } from './urls.ts'
+import { attribute } from './xml.ts'
 
 // WLC와 KJV(개역한글과 같은 절 나눔)의 절 번호 대응표다. OSHB가 WLC 주석으로 만들었고, OSHB와 같은 커밋에서 받는다.
 export const OSHB_VERSE_MAP_URL = `${OSHB_BASE}/VerseMap.xml`
@@ -10,23 +12,21 @@ export type VerseMapVerse = { chapter: number; verse: number; piece: VersePiece 
 // WLC 절(또는 조각)이 가는 KJV 절(또는 조각)
 export type VerseMapEntry = { wlc: VerseMapVerse; kjv: VerseMapVerse }
 
-const attribute = (attributes: string, name: string): string =>
-  new RegExp(`\\b${name}="([^"]*)"`).exec(attributes)?.[1] ?? ''
-
-// 대응표의 절("1Kgs.18.34!a")을 읽는다. 모양이 다르거나 다른 책의 절이면 오류다.
-function parseVerse(ref: string, osis: string): VerseMapVerse {
+// 대응표 한 줄(element)의 절("1Kgs.18.34!a")을 읽는다. 모양이 다르거나 다른 책의 절이면 그 줄을 그대로 보이며 오류를 낸다.
+function parseVerse(ref: string, osis: Book['osis'], element: string): VerseMapVerse {
   const match = /^([A-Za-z0-9]+)\.(\d+)\.(\d+)(?:!([ab]))?$/.exec(ref)
-  if (!match || match[1] !== osis) throw new Error(`절 대응표에서 ${osis}의 절을 읽지 못했습니다: ${ref}`)
+  if (!match) throw new Error(`절 대응표의 ${osis} 대응에서 절을 읽지 못했습니다: ${element}`)
+  if (match[1] !== osis) throw new Error(`절 대응표의 ${osis} 대응이 다른 책(${match[1]})의 절을 가리킵니다: ${element}`)
   const piece = match[4] === 'a' || match[4] === 'b' ? match[4] : null
   return { chapter: Number(match[2]), verse: Number(match[3]), piece }
 }
 
 // 대응표(VerseMap.xml)에서 한 책(OSIS 코드)의 대응만 읽는다. 대응이 없는 책(<book osisID="Josh"/>)과 대응표에 없는 책은 빈 목록이다.
-export function parseVerseMap(xml: string, osis: string): VerseMapEntry[] {
+export function parseVerseMap(xml: string, osis: Book['osis']): VerseMapEntry[] {
   const block = new RegExp(`<book osisID="${osis}"\\s*(?:/>|>([\\s\\S]*?)</book>)`).exec(xml)
   return [...(block?.[1] ?? '').matchAll(/<verse\s([^>]*)\/>/g)].map((match) => ({
-    wlc: parseVerse(attribute(match[1]!, 'wlc'), osis),
-    kjv: parseVerse(attribute(match[1]!, 'kjv'), osis),
+    wlc: parseVerse(attribute(match[1]!, 'wlc') ?? '', osis, match[0]),
+    kjv: parseVerse(attribute(match[1]!, 'kjv') ?? '', osis, match[0]),
   }))
 }
 
@@ -59,6 +59,8 @@ function targetsOf(entries: VerseMapEntry[]): Map<number, number[]> {
 //   (KJV 시편 3:1은 표제인 WLC 3:1과 WLC 3:2, KJV 민수기 26:1은 WLC 25:19와 26:1이다).
 // - 목적지가 여럿인 절(조각 대응)은 낱말을 나눌 경계가 대응표에 없으므로, 나머지 절을 다 둔 뒤 낱말을 받지 못한 목적지에 준다.
 //   그런 곳이 없으면 첫 목적지에, 여럿이면 모두에 준다(구약에서는 이사야 63:19, 시편 13:6의 낱말이 두 절에 겹친다).
+//   이런 절이 여럿이면 WLC 차례로 정하므로 앞 절이 채운 목적지는 뒤 절에게 비어 있지 않다.
+//   실제 대응표에서는 이런 절 둘이 같은 빈 목적지를 두고 다투는 일이 없어 차례가 결과를 바꾸지 않는다.
 // - 같은 KJV 절로 가는 낱말은 WLC 차례로 잇는다.
 export function toKjvVerses(chapters: OriginalChapter[], entries: VerseMapEntry[]): OriginalChapter[] {
   const targets = targetsOf(entries)
