@@ -103,20 +103,54 @@ export type LexiconFile = { schemaVersion: number; entries: Record<string, Lexic
 
 // 경로 규칙. 콘텐츠 뿌리(publish/, 서버의 /content/) 기준이고, 경로와 URL에 들어가는 값이라 규칙에 어긋나면 오류를 던진다.
 
-const MEDIA_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'mp3'] as const
+// 장면 그림·낭독 파일의 확장자. mp3가 낭독이고 나머지는 그림이다.
+export const MEDIA_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'mp3'] as const
 export type MediaExt = (typeof MEDIA_EXTENSIONS)[number]
+export type MediaKind = 'image' | 'audio'
+
+// 확장자마다 종류를 적어야 해서, 확장자를 더하고 여기를 빠뜨리면 타입 오류가 난다.
+const MEDIA_KINDS: Record<MediaExt, MediaKind> = { jpg: 'image', jpeg: 'image', png: 'image', webp: 'image', mp3: 'audio' }
 
 // contentHash의 12자리(소문자 16진수)
 const HASH_PATTERN = /^[0-9a-f]{12}$/
 // 장면 id는 파일 이름의 한 조각이다. 소문자·숫자·-만 쓴다(genesis-04-03, 1-samuel-01-02).
 const SCENE_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/
+// 영문, 숫자, . _ -와 조각을 가르는 /만 쓰고, 조각은 영문이나 숫자로 시작한다.
+const CONTENT_PATH_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*(\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/
 
 function matches(pattern: RegExp, value: unknown): boolean {
   return typeof value === 'string' && pattern.test(value)
 }
 
+// 네트워크에서 온 글자를 오류 글에 넣을 때 쓴다. 따옴표로 묶어 줄바꿈 같은 제어 문자를 드러내고, 40자가 넘으면 잘라 …를 붙인다.
+const SHOWN_MAX = 40
+function shown(text: string): string {
+  return text.length > SHOWN_MAX ? `${JSON.stringify(text.slice(0, SHOWN_MAX))}…` : JSON.stringify(text)
+}
+
+// 12자리 소문자 16진수(contentHash)인지 본다. packPath, mediaPath, canonPath, lexiconPath가 모두 이 규칙을 쓴다.
+export function isContentHash(value: unknown): value is string {
+  return matches(HASH_PATTERN, value)
+}
+
+// 콘텐츠 뿌리 아래의 상대 경로인지 본다. 절대 경로, 역슬래시, 빈 조각, ., ..는 받지 않는다.
+// 목록의 파일 경로와 꾸러미의 장면 그림·낭독 경로가 모두 이 규칙을 따른다. 앱이 이 값으로 기기의 파일 경로와 내려받을 주소를 만든다.
+export function isContentPath(value: unknown): value is string {
+  return matches(CONTENT_PATH_PATTERN, value)
+}
+
+// 점 없이 소문자로 쓴 미디어 확장자(MEDIA_EXTENSIONS)인지 본다.
+export function isMediaExt(value: string): value is MediaExt {
+  return (MEDIA_EXTENSIONS as readonly string[]).includes(value)
+}
+
 function checkHash(hash: string): void {
-  if (!matches(HASH_PATTERN, hash)) throw new Error(`해시는 12자리 소문자 16진수여야 합니다: ${String(hash)}`)
+  if (!isContentHash(hash)) throw new Error(`해시는 12자리 소문자 16진수여야 합니다: ${String(hash)}`)
+}
+
+// 미리 보기 파일은 콘텐츠 뿌리의 preview/ 아래에 둔다.
+function previewDir(preview: boolean): string {
+  return preview ? 'preview/' : ''
 }
 
 // 장 꾸러미 경로: "packs/genesis/4.3f9c2a1b7d0e.json". 장 번호는 0을 채우지 않는다(4, 119).
@@ -124,15 +158,41 @@ function checkHash(hash: string): void {
 export function packPath(book: BookId, chapter: number, hash: string, preview = false): string {
   if (!hasChapter(book, chapter)) throw new Error(`${getBook(book).name}에는 ${String(chapter)}장이 없습니다`)
   checkHash(hash)
-  return `${preview ? 'preview/' : ''}packs/${book}/${chapter}.${hash}.json`
+  return `${previewDir(preview)}packs/${book}/${chapter}.${hash}.json`
 }
 
 // 장면 그림·낭독 경로: "media/genesis-04-03.9a8b7c6d5e4f.jpg". 미리 보기는 앞에 "preview/"가 붙는다.
 export function mediaPath(sceneId: string, hash: string, ext: MediaExt, preview = false): string {
   if (!matches(SCENE_ID_PATTERN, sceneId)) throw new Error(`장면 id가 올바르지 않습니다: ${String(sceneId)}`)
   checkHash(hash)
-  if (!MEDIA_EXTENSIONS.includes(ext)) throw new Error(`미디어 확장자가 올바르지 않습니다: ${String(ext)}`)
-  return `${preview ? 'preview/' : ''}media/${sceneId}.${hash}.${ext}`
+  if (!isMediaExt(ext)) throw new Error(`미디어 확장자가 올바르지 않습니다: ${String(ext)}`)
+  return `${previewDir(preview)}media/${sceneId}.${hash}.${ext}`
+}
+
+// 공용 설정집 경로: "canon.a1b2c3d4e5f6.json". 미리 보기는 앞에 "preview/"가 붙는다.
+export function canonPath(hash: string, preview = false): string {
+  checkHash(hash)
+  return `${previewDir(preview)}canon.${hash}.json`
+}
+
+// 공용 사전 경로: "lexicon.0f1e2d3c4b5a.json". 미리 보기는 앞에 "preview/"가 붙는다.
+export function lexiconPath(hash: string, preview = false): string {
+  checkHash(hash)
+  return `${previewDir(preview)}lexicon.${hash}.json`
+}
+
+// 공개 목록 경로: "catalog.json". 다른 파일과 달리 이름에 해시가 없다. 미리 보기 목록은 "preview/catalog.json"이다.
+export function catalogPath(preview = false): string {
+  return `${previewDir(preview)}catalog.json`
+}
+
+// 미디어 파일의 종류. .mp3는 낭독('audio'), 그림 확장자는 그림('image')이다. 그 밖의 확장자이거나 확장자가 없으면 오류를 던진다.
+export function mediaKind(file: string): MediaKind {
+  const name = file.slice(file.lastIndexOf('/') + 1)
+  const dot = name.lastIndexOf('.')
+  const ext = dot > 0 ? name.slice(dot + 1) : ''
+  if (!isMediaExt(ext)) throw new Error(`미디어 파일의 종류를 알 수 없습니다: ${shown(file)}`)
+  return MEDIA_KINDS[ext]
 }
 
 // 검사. bundle.ts의 validateBundle처럼 꼭 있어야 하는 키와 그 형만 가볍게 본다. 모르는 키는 무시한다.
@@ -141,19 +201,16 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-// 0 이상의 정수
+// 0 이상의 정수. 2^53 - 1(Number.MAX_SAFE_INTEGER)을 넘는 수는 정확히 나타낼 수 없어 받지 않는다.
 function isCount(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 }
 
-// 콘텐츠 뿌리 아래의 상대 경로. 영문, 숫자, . _ -와 조각을 가르는 /만 쓰고, 조각은 영문이나 숫자로 시작한다.
-// 그래서 절대 경로, 역슬래시, 빈 조각, ., ..는 받지 않는다.
-const FILE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*(\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/
 // 장 키는 앞에 0이 없는 정수의 기본 표기다('4'만 받고 '04', '4.0'은 받지 않는다).
 const CHAPTER_KEY_PATTERN = /^[1-9][0-9]*$/
 
 function isFileRef(value: unknown): value is FileRef {
-  return isObject(value) && matches(FILE_PATTERN, value.file) && isCount(value.size)
+  return isObject(value) && isContentPath(value.file) && isCount(value.size)
 }
 
 const REQUIRED_CHECKS = ['scenesApproved', 'imagesComplete', 'audioComplete'] as const
@@ -174,6 +231,12 @@ function invalid(where: string, field: string): Error {
   return new Error(`${where}의 ${field} 값이 올바르지 않습니다`)
 }
 
+function checkSchemaVersion(where: string, value: Record<string, unknown>): void {
+  if (value.schemaVersion !== PUBLISH_SCHEMA_VERSION) {
+    throw new Error(`${where} 형식이 다릅니다 (schemaVersion ${String(value.schemaVersion)})`)
+  }
+}
+
 function checkCatalogChapter(where: string, value: unknown): void {
   if (!isObject(value)) throw new Error(`${where}의 정보가 비어 있습니다`)
   if (!isCount(value.revision)) throw invalid(where, 'revision')
@@ -185,12 +248,12 @@ function checkCatalogChapter(where: string, value: unknown): void {
 
 // 공개 목록이 이 앱이 읽을 수 있는 형식인지 본다. 아니면 오류를 던진다.
 // 책 키는 알려진 책, 장 키는 그 책에 있는 장이어야 한다. 파일이 실제로 있는지는 보지 않는다.
+// imageVersions와 sources는 배열인지만 보고 안의 항목은 보지 않는다.
+// defaultImageVersion도 글자나 null인지만 보고 imageVersions에 있는지는 보지 않는다.
 export function validateCatalog(value: unknown): Catalog {
-  if (!isObject(value)) throw new Error('공개 목록이 비어 있습니다')
-  if (value.schemaVersion !== PUBLISH_SCHEMA_VERSION) {
-    throw new Error(`공개 목록 형식이 다릅니다 (schemaVersion ${String(value.schemaVersion)})`)
-  }
   const where = '공개 목록'
+  if (!isObject(value)) throw new Error('공개 목록이 비어 있습니다')
+  checkSchemaVersion(where, value)
   if (!isCount(value.revision)) throw invalid(where, 'revision')
   if (typeof value.translation !== 'string') throw invalid(where, 'translation')
   if (!isFileRef(value.canon)) throw invalid(where, 'canon')
@@ -201,12 +264,12 @@ export function validateCatalog(value: unknown): Catalog {
   const books = value.books
   if (!isObject(books)) throw invalid(where, 'books')
   for (const [bookKey, chapters] of Object.entries(books)) {
-    if (!isBookId(bookKey)) throw new Error(`공개 목록의 책을 알 수 없습니다: ${bookKey}`)
-    if (!isObject(chapters)) throw invalid(where, bookKey)
+    if (!isBookId(bookKey)) throw new Error(`공개 목록의 책을 알 수 없습니다: ${shown(bookKey)}`)
     const name = getBook(bookKey).name
+    if (!isObject(chapters)) throw new Error(`${where}의 ${name} 장 목록이 올바르지 않습니다`)
     for (const [chapterKey, chapter] of Object.entries(chapters)) {
       if (!CHAPTER_KEY_PATTERN.test(chapterKey) || !hasChapter(bookKey, Number(chapterKey))) {
-        throw new Error(`공개 목록의 ${name} 장 번호가 올바르지 않습니다: ${chapterKey}`)
+        throw new Error(`공개 목록의 ${name} 장 번호가 올바르지 않습니다: ${shown(chapterKey)}`)
       }
       checkCatalogChapter(`${where}의 ${name} ${chapterKey}장`, chapter)
     }
@@ -214,24 +277,65 @@ export function validateCatalog(value: unknown): Catalog {
   return value as Catalog
 }
 
+// 장면 하나의 그림·낭독 경로를 본다. 앱이 이 값으로 기기의 파일 경로와 내려받을 주소를 만드니, 목록의 파일 경로와 같은 규칙(isContentPath)을 따라야 한다.
+function checkPackScene(scene: unknown, index: number): void {
+  if (!isObject(scene)) throw new Error(`꾸러미의 ${index + 1}번째 장면이 비어 있습니다`)
+  const { id, images, audio } = scene
+  // 오류 글에는 장면 id를 넣고, id가 글자가 아니면 몇 번째 장면인지를 넣는다.
+  const label = typeof id === 'string' ? `꾸러미 장면 ${shown(id)}` : `꾸러미의 ${index + 1}번째 장면`
+  if (!isObject(images) || !Object.values(images).every(isContentPath)) throw new Error(`${label}의 그림 경로가 올바르지 않습니다`)
+  if (audio !== null && !isContentPath(audio)) throw new Error(`${label}의 낭독 경로가 올바르지 않습니다`)
+}
+
+function chapterLabel(book: BookId, chapter: number): string {
+  return `${getBook(book).name} ${chapter}장`
+}
+
 // 장 꾸러미가 이 앱이 읽을 수 있는 형식인지 본다. 아니면 오류를 던진다.
-// 절·장면·퀴즈는 배열인지만 보고, 안의 항목은 보지 않는다.
-export function validatePack(value: unknown): ChapterPack {
+// expected를 주면 꾸러미의 책·장이 목록이 가리킨 책·장과 같은지도 본다.
+// 절·퀴즈는 배열인지만 보고, 안의 항목은 보지 않는다.
+// 장면은 배열이고 각 항목이 객체이며 그림·낭독 경로가 콘텐츠 뿌리 아래의 상대 경로인지까지 본다. 장면의 나머지 키는 보지 않는다.
+export function validatePack(value: unknown, expected?: { book: BookId; chapter: number }): ChapterPack {
   const where = '꾸러미'
   if (!isObject(value)) throw new Error('꾸러미가 비어 있습니다')
-  if (value.schemaVersion !== PUBLISH_SCHEMA_VERSION) {
-    throw new Error(`꾸러미 형식이 다릅니다 (schemaVersion ${String(value.schemaVersion)})`)
-  }
+  checkSchemaVersion(where, value)
   const { bookId, chapter } = value
   if (typeof bookId !== 'string' || !isBookId(bookId)) throw new Error('꾸러미의 책을 알 수 없습니다')
   if (typeof chapter !== 'number' || !hasChapter(bookId, chapter)) {
     throw new Error(`꾸러미의 장 번호가 올바르지 않습니다: ${getBook(bookId).name} ${String(chapter)}`)
   }
+  if (expected && (bookId !== expected.book || chapter !== expected.chapter)) {
+    throw new Error(`꾸러미의 책·장(${chapterLabel(bookId, chapter)})이 목록(${chapterLabel(expected.book, expected.chapter)})과 다릅니다`)
+  }
   for (const key of ['verses', 'scenes', 'quiz']) {
     if (!Array.isArray(value[key])) throw invalid(where, key)
   }
   if (value.original !== null && !Array.isArray(value.original)) throw invalid(where, 'original')
+  const scenes = value.scenes as unknown[]
+  scenes.forEach(checkPackScene)
   return value as ChapterPack
+}
+
+// 공용 설정집이 이 앱이 읽을 수 있는 형식인지 본다. 아니면 오류를 던진다.
+// 맨 위만 본다. 인물·장소·시대·물건은 배열인지만 보고, 안의 항목은 보지 않는다.
+export function validateCanonFile(value: unknown): CanonFile {
+  const where = '공용 설정집'
+  if (!isObject(value)) throw new Error(`${where}이 비어 있습니다`)
+  checkSchemaVersion(where, value)
+  for (const key of ['characters', 'places', 'eras', 'things']) {
+    if (!Array.isArray(value[key])) throw invalid(where, key)
+  }
+  return value as CanonFile
+}
+
+// 공용 사전이 이 앱이 읽을 수 있는 형식인지 본다. 아니면 오류를 던진다.
+// 맨 위만 본다. entries는 객체(배열이 아닌)인지만 보고, 안의 항목은 보지 않는다.
+export function validateLexiconFile(value: unknown): LexiconFile {
+  const where = '공용 사전'
+  if (!isObject(value)) throw new Error(`${where}이 비어 있습니다`)
+  checkSchemaVersion(where, value)
+  if (!isObject(value.entries)) throw invalid(where, 'entries')
+  return value as LexiconFile
 }
 
 // 그 책의 목록에 있는 장 번호(오름차순). 미리 보기 장도 든다. 목록에 없는 책이면 []이다.
