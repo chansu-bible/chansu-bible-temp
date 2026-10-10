@@ -49,15 +49,17 @@ function sameUser(a: AuthUser, b: AuthUser): boolean {
 // 못 받으면 discovery는 null로 남고 onFailed를 부른다. 발견 문서가 아닌 응답(없는 realm의 404 본문 등)도 못 받은 것이다.
 // retry를 부르면 다시 받는다(매달린 요청이 다시 받기를 막지 않게). 이미 받았으면 부르지 않는다.
 // 발급자는 바뀌지 않으니 앞서 보낸 요청의 늦은 성공도 받아 둔다.
-// 늦은 실패는 버린다(새 요청이 답하기 전에 못 받았다고 알리지 않게).
+// 늦은 실패와 이미 받은 뒤의 실패는 버린다(새 요청이 답하기 전이나 받은 뒤에 못 받았다고 알리지 않게).
 function useDiscovery(issuer: string, onFailed: () => void) {
   const [discovery, setDiscovery] = useState<AuthSession.DiscoveryDocument | null>(null)
   const [attempt, setAttempt] = useState(0)
   const mounted = useRef(true)
+  // 한 번이라도 받았는지. 받은 뒤에 끝난 다른 요청의 실패는 알리지 않는다.
+  const got = useRef(false)
   // onFailed는 최신 것을 ref에 둔다(어떤 함수를 줘도 다시 받지 않는다).
-  const failed = useRef(onFailed)
+  const onFailedRef = useRef(onFailed)
   useEffect(() => {
-    failed.current = onFailed
+    onFailedRef.current = onFailed
   }, [onFailed])
   useEffect(() => {
     mounted.current = true
@@ -75,10 +77,11 @@ function useDiscovery(issuer: string, onFailed: () => void) {
       })
       .then(
         (found) => {
+          got.current = true
           if (mounted.current) setDiscovery((had) => had ?? found)
         },
         () => {
-          if (alive) failed.current()
+          if (alive && !got.current) onFailedRef.current()
         },
       )
     return () => {
