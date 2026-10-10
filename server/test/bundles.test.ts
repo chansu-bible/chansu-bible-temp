@@ -147,6 +147,11 @@ describe('책 묶음 폴더', () => {
       expect(load()).toBeNull()
       expect(warnings.pop()).toMatch(/genesis\.json의 bookId\(exodus\)/)
 
+      // 글로 바꿀 수 없는 bookId(toString이 함수가 아님)도 파일 이름과 함께 알린다.
+      write('genesis.json', { ...withVerse('genesis', '창세기'), bookId: { toString: 1 } })
+      expect(load()).toBeNull()
+      expect(warnings.pop()).toMatch(/genesis\.json의 bookId\(\{"toString":1\}\)/)
+
       write('notes.json', { memo: '책이 아니다' })
       const notFolder = path.join(dir, 'notes.json')
       expect(load(notFolder)).toBeNull()

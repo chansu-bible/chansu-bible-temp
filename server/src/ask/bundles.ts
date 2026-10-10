@@ -22,7 +22,9 @@ function readBundle(file: string, id: BookId): AskBundle {
   if (!isBundle(bundle)) throw new Error(`${file}은 책 묶음 모양이 아닙니다`)
   // 책은 파일 이름이 정한다. 묶음 안의 bookId가 다르면 잘못 복사한 파일이라, 대목 id가 겹치지 않게 멈춘다.
   if (bundle.bookId !== undefined && bundle.bookId !== id) {
-    throw new Error(`${file}의 bookId(${String(bundle.bookId)})가 파일 이름과 다릅니다`)
+    // JSON에서 읽은 값이라 글이 아니어도 JSON.stringify로 적을 수 있다(String은 toString이 이상한 객체에서 던진다).
+    const shown = typeof bundle.bookId === 'string' ? bundle.bookId : JSON.stringify(bundle.bookId)
+    throw new Error(`${file}의 bookId(${shown})가 파일 이름과 다릅니다`)
   }
   return { ...bundle, bookId: id }
 }

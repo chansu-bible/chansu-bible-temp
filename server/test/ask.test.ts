@@ -182,7 +182,7 @@ describe('책 묶음이 여럿일 때의 대목', () => {
   })
 
   it('본문 절의 글이 null이어도 어느 묶음 파일의 몇 장 몇 절인지 밝힌다', () => {
-    // 둘째 묶음(출애굽기)의 3장 2절에 글이 없다. 그대로 두면 색인을 만들다 파일도 밝히지 못하고 죽는다.
+    // 둘째 묶음(출애굽기)의 3장 2절에 글이 없다. 그대로 두면 색인을 만들 때 파일 이름 없는 오류가 난다.
     const nullText = { ...exodus, chapters: [{ chapter: 3, verses: [{ verse: 2, text: null }], scenes: [] }] } as unknown as AskBundle
     expect(() => buildPassages([bundle, nullText])).toThrow('exodus.json으로 대목을 만들지 못했습니다: 3장 2절의 본문이 글이 아닙니다')
   })
