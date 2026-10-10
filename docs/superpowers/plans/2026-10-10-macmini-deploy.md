@@ -455,7 +455,9 @@ describe('Compose와 입구', () => {
   })
 
   it('비밀번호는 deploy/.env에서만 받는다', () => {
-    expect(compose).not.toMatch(/PASSWORD:\s*(?!\$\{)/)
+    const passwords = compose.split('\n').filter((line) => /^\s*\w*PASSWORD:/.test(line))
+    expect(passwords).toHaveLength(3)
+    for (const line of passwords) expect(line).toMatch(/PASSWORD:\s*\$\{/)
   })
 
   it('입구는 키클락 관리 화면을 먼저 막고, 공개 스킴을 알린다', () => {
@@ -495,7 +497,7 @@ CREATE DATABASE keycloak;
 
 :80 {
 	# 키클락 관리 화면은 밖에서 열지 않는다. 맥미니 안에서 127.0.0.1:${KC_ADMIN_PORT}로만 연다.
-	@kcadmin path /auth/admin /auth/admin/*
+	@kcadmin path /auth/admin* /auth/realms/master*
 	handle @kcadmin {
 		respond 404
 	}
@@ -535,7 +537,7 @@ services:
       # 처음 만들 때 한 번: 키클락이 쓸 데이터베이스
       - ./postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U chansu -d chansu']
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U chansu -d chansu']
       interval: 5s
       timeout: 3s
       retries: 30
@@ -623,7 +625,7 @@ volumes:
 PUBLIC_URL=
 # 공개 주소의 스킴. PC에서 http로 시험할 때만 http로 바꾼다.
 PUBLIC_SCHEME=https
-# 비밀 값은 맥미니에서 새로 만든다: openssl rand -base64 24
+# 비밀 값은 맥미니에서 새로 만든다: openssl rand -hex 24
 DB_PASSWORD=
 KC_ADMIN_PASSWORD=
 # 질문하기. 비우면 질문하기를 끈다. PC와 다른 키를 만들어 맥미니에만 둔다.
@@ -798,7 +800,7 @@ git commit -F <메시지 파일>   # feat(deploy): 맥미니 올리기(update.sh
 5. **설정:**
    - `cp deploy/.env.example deploy/.env`
    - `PUBLIC_URL`은 `tailscale status --json`의 `Self.DNSName`에서 끝의 `.`를 떼고 앞에 `https://`를 붙인 것이다.
-   - 비밀번호는 `openssl rand -base64 24`로 하나씩 만든다.
+   - 비밀번호는 `openssl rand -hex 24`로 하나씩 만든다.
    - OpenAI 키는 PC와 다른 새 키다.
    - 관리 도구와 파이프라인이 쓸 리포 루트 `.env`(OpenAI 키)는 따로다.
 6. **띄우기:**

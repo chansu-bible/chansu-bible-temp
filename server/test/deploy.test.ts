@@ -62,8 +62,9 @@ describe('Compose와 입구', () => {
     for (const line of passwords) expect(line).toMatch(/PASSWORD:\s*\$\{/)
   })
 
-  it('입구는 키클락 관리 화면을 먼저 막고, 공개 스킴을 알린다', () => {
+  it('입구는 키클락 관리 화면과 관리자 realm을 먼저 막고, 공개 스킴을 알린다', () => {
     const caddy = read('deploy/Caddyfile')
+    expect(caddy).toContain('@kcadmin path /auth/admin* /auth/realms/master*')
     const block = caddy.indexOf('handle @kcadmin')
     const keycloak = caddy.indexOf('handle @keycloak')
     expect(block).toBeGreaterThan(-1)

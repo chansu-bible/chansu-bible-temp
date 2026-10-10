@@ -45,7 +45,7 @@ Caddy는 HTTP로만 받는다. TLS는 Funnel이 맡는다(도메인으로 바꾼
 
 | 경로 | 보내는 곳 |
 |---|---|
-| `/auth/admin`, `/auth/admin/*` | 404(밖에서 막음) |
+| `/auth/admin*`, `/auth/realms/master*` | 404(밖에서 막음. 관리 화면과 관리자 realm) |
 | `/auth/*` | 키클락(`KC_HTTP_RELATIVE_PATH=/auth`) |
 | 그 밖(`/sync`, `/ask`, `/ask/usage`, `/health`, 2단계부터 `/content/*`) | 서버 |
 
@@ -130,7 +130,7 @@ realm 파일은 키클락이 처음 뜰 때 한 번만 읽는다(`--import-realm
   - 처음 띄우기, 로그 보기, 멈추기, 백업에서 되살리기
 - **Funnel:** `tailscale funnel --bg http://127.0.0.1:8443`. 공개 포트는 443이다. 맥미니의 다른 서비스가 이미 443 Funnel을 쓰고 있으면 8443이나 10000을 쓴다. 그때는 공개 주소에 포트가 붙는다.
 - **비밀 값:**
-  - 맥미니에서 새로 만든다(`openssl rand -base64 24` 등).
+  - 맥미니에서 새로 만든다(`openssl rand -hex 24` 등).
   - OpenAI 키는 PC와 다른 키를 만들어 맥미니에만 둔다. 하나가 새도 다른 쪽에 영향이 없게 한다.
 - **로그:** `docker compose logs -f server`. 서버는 질문과 답을 남기지 않는다(지금처럼).
 

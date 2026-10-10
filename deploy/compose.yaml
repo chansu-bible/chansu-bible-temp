@@ -15,7 +15,8 @@ services:
       # 처음 만들 때 한 번: 키클락이 쓸 데이터베이스
       - ./postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U chansu -d chansu']
+      # TCP로 묻는다. 처음 만들 때 잠깐 뜨는 소켓 전용 서버에 속지 않게 한다(그때는 키클락 DB가 아직 없다).
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U chansu -d chansu']
       interval: 5s
       timeout: 3s
       retries: 30
