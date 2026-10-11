@@ -45,3 +45,10 @@ export async function writeQuizFile(book: BookId, quizFile: QuizFile, dir: strin
 export async function listQuizChapters(book: BookId, dir: string = defaultQuizDir): Promise<number[]> {
   return listChapterFiles(book, dir)
 }
+
+// 그 책의 퀴즈 파일(genesis-NN.json)을 모두 읽는다. 장 번호 오름차순이다. 책 묶음(build)과 공개 콘텐츠 읽기가 함께 쓴다.
+// 틀린 파일이 있으면 readQuizFile처럼 파일 이름을 밝혀 던진다.
+export async function readQuizFiles(book: BookId, dir: string = defaultQuizDir): Promise<QuizFile[]> {
+  const files = await Promise.all((await listQuizChapters(book, dir)).map((chapter) => readQuizFile(book, chapter, dir)))
+  return files.filter((file): file is QuizFile => file !== null)
+}

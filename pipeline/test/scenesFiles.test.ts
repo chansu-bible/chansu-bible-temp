@@ -2,8 +2,8 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { sceneFilePath } from '../src/paths.ts'
-import { listSceneChapters, readSceneFile, writeSceneFile } from '../src/scenes/files.ts'
+import { displayPath, sceneFilePath } from '../src/paths.ts'
+import { listSceneChapters, readSceneFile, readSceneFiles, writeSceneFile } from '../src/scenes/files.ts'
 import type { Scene, SceneFile } from '../src/schema.ts'
 
 function scene(id: string, chapter = 1): Scene {
@@ -108,6 +108,26 @@ describe('writeSceneFile', () => {
     await writeSceneFile('1-samuel', { chapter: 3, scenes: [scene('1-samuel-03-01', 3)] }, dir)
     expect((await readSceneFile('1-samuel', 3, dir))!.scenes[0]!.id).toBe('1-samuel-03-01')
     expect(await readSceneFile('genesis', 3, dir)).toBeNull()
+  })
+})
+
+describe('readSceneFiles', () => {
+  it('그 책의 장면 파일을 모두 장 번호 오름차순으로 읽는다', async () => {
+    await writeSceneFile('genesis', { chapter: 10, scenes: [scene('genesis-10-01', 10)] }, dir)
+    await writeSceneFile('genesis', sceneFile, dir)
+    await writeSceneFile('exodus', { chapter: 2, scenes: [scene('exodus-02-01', 2)] }, dir)
+    // 장면 파일 이름이 아닌 것은 건너뛴다.
+    await writeFile(path.join(dir, 'genesis-04.json.tmp'), '{}')
+    expect(await readSceneFiles('genesis', dir)).toEqual([sceneFile, { chapter: 10, scenes: [scene('genesis-10-01', 10)] }])
+    expect((await readSceneFiles('exodus', dir)).map((file) => file.chapter)).toEqual([2])
+    expect(await readSceneFiles('leviticus', dir)).toEqual([])
+    expect(await readSceneFiles('genesis', path.join(dir, 'none'))).toEqual([])
+  })
+
+  it('틀린 파일이 있으면 그 파일 이름을 밝혀 던진다', async () => {
+    await writeSceneFile('genesis', sceneFile, dir)
+    await writeFile(sceneFilePath('genesis', 3, dir), '{ 깨진 JSON')
+    await expect(readSceneFiles('genesis', dir)).rejects.toThrow(`${displayPath(sceneFilePath('genesis', 3, dir))}: `)
   })
 })
 

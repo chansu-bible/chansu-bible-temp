@@ -754,6 +754,48 @@ describe('validatePack', () => {
     )
   })
 
+  // 꾸러미의 절 낭독은 늘 null이라, 앱은 절의 낭독 길이로 그 절이 장면 낭독에 들었는지와 절 구간을 정한다(narration.ts의 sceneTrack).
+  it('절의 낭독 길이(audioMs)는 없거나 null이거나 0 이상의 정수여야 한다', () => {
+    const text = '아담이 그 아내 하와와 동침하매'
+    for (const audioMs of [0, 1200, Number.MAX_SAFE_INTEGER, null, undefined]) {
+      expect(validatePack(withVerses([{ verse: 1, text, audio: null, audioMs }])), String(audioMs)).toBeTruthy()
+    }
+    expect(validatePack(withVerses([{ verse: 1, text, audio: null }]))).toBeTruthy()
+    const bad = [-1, 1.5, '1200', '', Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1, true, {}, [1200]]
+    for (const audioMs of bad) {
+      expect(() => validatePack(withVerses([{ verse: 1, text, audio: null, audioMs }])), String(audioMs)).toThrow(
+        '꾸러미 1절의 낭독 길이가 올바르지 않습니다',
+      )
+    }
+  })
+
+  it('절 낭독 길이 오류에도 절 번호를 넣고, 절 번호가 안전한 정수가 아니면 몇 번째 절인지를 넣는다', () => {
+    const valid = { verse: 1, text: '아담이 그 아내 하와와 동침하매', audio: null, audioMs: 1200 }
+    const bad = { text: '가인이 그 아우 아벨에게', audio: null, audioMs: -5 }
+    expect(messageOf(() => validatePack(withVerses([valid, { ...bad, verse: 8 }])))).toBe('꾸러미 8절의 낭독 길이가 올바르지 않습니다')
+    for (const verse of [undefined, '8', 1.5, 'x'.repeat(5000)]) {
+      expect(messageOf(() => validatePack(withVerses([valid, { ...bad, verse }]))), String(verse).slice(0, 20)).toBe(
+        '꾸러미 2절의 낭독 길이가 올바르지 않습니다',
+      )
+    }
+    // 낭독 경로와 길이가 모두 틀리면 낭독 경로를 먼저 알린다.
+    expect(messageOf(() => validatePack(withVerses([{ ...bad, verse: 1, audio: 'content/audio/genesis-04-001.mp3' }])))).toBe(
+      '꾸러미 1절의 낭독은 null이어야 합니다',
+    )
+  })
+
+  it('장면의 낭독 길이(audioMs)도 없거나 null이거나 0 이상의 정수여야 한다', () => {
+    for (const audioMs of [0, 1200, Number.MAX_SAFE_INTEGER, null, undefined]) {
+      expect(validatePack(withScene({ audioMs })), String(audioMs)).toBeTruthy()
+    }
+    const bad = [-1, 1.5, '1200', Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1, false, {}, [1200]]
+    for (const audioMs of bad) {
+      expect(() => validatePack(withScene({ audioMs })), String(audioMs)).toThrow('꾸러미 장면 "genesis-04-01"의 낭독 길이가 올바르지 않습니다')
+    }
+    // 장면 id가 글자가 아니면 몇 번째 장면인지 알린다.
+    expect(() => validatePack(withScene({ id: 4, audioMs: -1 }))).toThrow('꾸러미의 1번째 장면의 낭독 길이가 올바르지 않습니다')
+  })
+
   it('장면의 그림 경로가 콘텐츠 뿌리 밖을 가리키면 오류를 던진다', () => {
     const message = '꾸러미 장면 "genesis-04-01"의 그림 경로가 올바르지 않습니다'
     expect(() => validatePack(withScene({ images: { v1: '../../SQLite/db' } }))).toThrow(message)

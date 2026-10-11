@@ -26,6 +26,7 @@ import {
   type Verse,
 } from '../schema.ts'
 import { firstAppearanceOf } from '../canon/citations.ts'
+import { sceneImageStem } from '../images/versions.ts'
 import { posLabel } from '../original/morph.ts'
 import { findCoverageProblems } from '../scenes/coverage.ts'
 import { canonForBook, type BookCanon } from './canonForBook.ts'
@@ -345,11 +346,13 @@ function fallbackScene(book: BookId, chapter: number, verseCount: number, catalo
   }
 }
 
-// 버전마다 파일 이름(확장자 제외)이 장면 id와 같은 그림을 찾는다.
+// 버전마다 그 장면의 그림(sceneImageStem이 장면 id인 파일)을 찾는다.
+// 한 버전에 둘 이상이면 이름순(UTF-16 코드 단위)으로 앞의 것이다. 폴더 목록 순서는 컴퓨터마다 달라서 목록에서 처음 만난 것을 고르지 않는다.
+// 장 꾸러미의 해시가 이 고르기에 달려 있다. 공개 콘텐츠를 읽을 때는 assertUniqueImageStems가 둘 이상을 막는다.
 function imagesFor(sceneId: string, catalog: ImageCatalog): Record<string, string> {
   const images: Record<string, string> = {}
   for (const version of catalog.versions) {
-    const file = (catalog.files[version.id] ?? []).find((name) => name.slice(0, name.lastIndexOf('.')) === sceneId)
+    const [file] = (catalog.files[version.id] ?? []).filter((name) => sceneImageStem(name) === sceneId).sort()
     if (file) images[version.id] = `content/images/${version.id}/${file}`
   }
   return images

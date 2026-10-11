@@ -19,9 +19,9 @@ import {
   storyBibleDir as defaultStoryBibleDir,
   styleFile as defaultStyleFile,
 } from '../paths.ts'
-import { listQuizChapters, readQuizFile } from '../quiz/files.ts'
+import { readQuizFiles } from '../quiz/files.ts'
 import type { Canon, LexiconFile, OriginalFile, QuizFile, SceneFile, Source, SourceChapter, Style } from '../schema.ts'
-import { listSceneChapters, readSceneFile } from '../scenes/files.ts'
+import { readSceneFiles } from '../scenes/files.ts'
 import { listSourceBooks, readSource } from '../source/files.ts'
 import { readAudioCatalog } from '../tts/audioCatalog.ts'
 
@@ -60,18 +60,6 @@ export type ReleaseInputs = {
   // 그림과 낭독 파일이 있는 폴더. 꾸러미를 만들 때 파일 내용을 여기서 읽는다.
   imagesDir: string
   audioDir: string
-}
-
-// 그 책의 장면 파일(content/scenes/genesis-NN.json)을 모두 읽는다. 장 번호 오름차순이다.
-async function readSceneFiles(book: BookId, dir: string): Promise<SceneFile[]> {
-  const files = await Promise.all((await listSceneChapters(book, dir)).map((chapter) => readSceneFile(book, chapter, dir)))
-  return files.filter((file): file is SceneFile => file !== null)
-}
-
-// 그 책의 퀴즈 파일(content/quiz/genesis-NN.json)을 모두 읽는다. 장 번호 오름차순이다.
-async function readQuizFiles(book: BookId, dir: string): Promise<QuizFile[]> {
-  const files = await Promise.all((await listQuizChapters(book, dir)).map((chapter) => readQuizFile(book, chapter, dir)))
-  return files.filter((file): file is QuizFile => file !== null)
 }
 
 async function readBookInputs(

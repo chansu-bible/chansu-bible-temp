@@ -236,6 +236,11 @@ function isCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 }
 
+// 낭독 길이(ms). 없거나 null이거나 0 이상의 정수다.
+function isAudioMs(value: unknown): boolean {
+  return value === undefined || value === null || isCount(value)
+}
+
 // 장 키는 앞에 0이 없는 정수의 기본 표기다('4'만 받고 '04', '4.0'은 받지 않는다).
 const CHAPTER_KEY_PATTERN = /^[1-9][0-9]*$/
 
@@ -309,26 +314,28 @@ export function validateCatalog(value: unknown): Catalog {
 }
 
 // 절 하나의 낭독을 본다. 꾸러미의 절 낭독(audio)은 키가 있고 null이어야 한다. 앱은 장면 낭독을 재생하고, 절 낭독 경로는 내려받지 않는다.
+// 낭독 길이(audioMs)는 없거나 null이거나 0 이상의 정수다. 꾸러미에서는 이 값이 그 절이 장면 낭독에 들었는지와 절 구간을 정하므로(narration.ts의 sceneTrack),
+// 글자나 음수가 들어가면 화면의 시각이 깨진다.
 function checkPackVerse(verse: unknown, index: number): void {
   if (!isObject(verse)) throw new Error(`꾸러미의 ${index + 1}번째 절이 비어 있습니다`)
-  if (verse.audio !== null) {
-    // 오류 글에는 절 번호를 넣고, 절 번호가 안전한 정수가 아니면 몇 번째 절인지를 넣는다.
-    const label = typeof verse.verse === 'number' && Number.isSafeInteger(verse.verse) ? verse.verse : index + 1
-    throw new Error(`꾸러미 ${label}절의 낭독은 null이어야 합니다`)
-  }
+  // 오류 글에는 절 번호를 넣고, 절 번호가 안전한 정수가 아니면 몇 번째 절인지를 넣는다.
+  const label = typeof verse.verse === 'number' && Number.isSafeInteger(verse.verse) ? verse.verse : index + 1
+  if (verse.audio !== null) throw new Error(`꾸러미 ${label}절의 낭독은 null이어야 합니다`)
+  if (!isAudioMs(verse.audioMs)) throw new Error(`꾸러미 ${label}절의 낭독 길이가 올바르지 않습니다`)
 }
 
-// 장면 하나의 그림·낭독 경로를 본다. 앱이 이 값으로 기기의 파일 경로와 내려받을 주소를 만드니, 목록의 파일 경로와 같은 규칙(isContentPath)을 따라야 한다.
-// 그림은 그림 확장자, 낭독은 .mp3여야 한다(앱이 확장자로 종류를 안다).
+// 장면 하나의 그림·낭독 경로와 낭독 길이를 본다. 앱이 경로로 기기의 파일 경로와 내려받을 주소를 만드니, 목록의 파일 경로와 같은 규칙(isContentPath)을 따라야 한다.
+// 그림은 그림 확장자, 낭독은 .mp3여야 한다(앱이 확장자로 종류를 안다). 낭독 길이(audioMs)는 절과 같은 규칙이다.
 function checkPackScene(scene: unknown, index: number): void {
   if (!isObject(scene)) throw new Error(`꾸러미의 ${index + 1}번째 장면이 비어 있습니다`)
-  const { id, images, audio } = scene
+  const { id, images, audio, audioMs } = scene
   // 오류 글에는 장면 id를 넣고, id가 글자가 아니면 몇 번째 장면인지를 넣는다.
   const label = typeof id === 'string' ? `꾸러미 장면 ${shown(id)}` : `꾸러미의 ${index + 1}번째 장면`
   if (!isObject(images) || !Object.values(images).every((file) => isMediaFileOf('image', file))) {
     throw new Error(`${label}의 그림 경로가 올바르지 않습니다`)
   }
   if (audio !== null && !isMediaFileOf('audio', audio)) throw new Error(`${label}의 낭독 경로가 올바르지 않습니다`)
+  if (!isAudioMs(audioMs)) throw new Error(`${label}의 낭독 길이가 올바르지 않습니다`)
 }
 
 function chapterLabel(book: BookId, chapter: number): string {
@@ -338,8 +345,9 @@ function chapterLabel(book: BookId, chapter: number): string {
 // 장 꾸러미가 이 앱이 읽을 수 있는 형식인지 본다. 아니면 오류를 던진다.
 // expected를 주면 꾸러미의 책·장이 목록이 가리킨 책·장과 같은지도 본다.
 // 퀴즈는 배열인지만 보고, 안의 항목은 보지 않는다.
-// 절은 배열이고 각 항목이 객체이며 낭독(audio)이 null인지까지 본다. 절의 나머지 키는 보지 않는다.
-// 장면은 배열이고 각 항목이 객체이며 그림·낭독 경로가 콘텐츠 뿌리 아래의 상대 경로(그림은 그림 확장자, 낭독은 .mp3)인지까지 본다. 장면의 나머지 키는 보지 않는다.
+// 절은 배열이고 각 항목이 객체이며 낭독(audio)이 null이고 낭독 길이(audioMs)가 없거나 null이거나 0 이상의 정수인지까지 본다. 절의 나머지 키는 보지 않는다.
+// 장면은 배열이고 각 항목이 객체이며 그림·낭독 경로가 콘텐츠 뿌리 아래의 상대 경로(그림은 그림 확장자, 낭독은 .mp3)이고
+// 낭독 길이가 절과 같은 규칙인지까지 본다. 장면의 나머지 키는 보지 않는다.
 export function validatePack(value: unknown, expected?: { book: BookId; chapter: number }): ChapterPack {
   const where = '꾸러미'
   if (!isObject(value)) throw new Error('꾸러미가 비어 있습니다')

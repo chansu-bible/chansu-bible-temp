@@ -748,6 +748,42 @@ describe('buildChapter', () => {
     expect(second).toMatchObject({ id: 'genesis-01-02', images: {}, audio: null, audioMs: null })
   })
 
+  describe('장면 그림 고르기', () => {
+    const file = { chapter: 1, scenes: [scene({})] }
+    const imagesOf = (names: string[]) => {
+      const catalog = { versions: [{ id: 'v1', label: '1차', note: '' }], files: { v1: names } }
+      return buildChapter('genesis', chapter1, file, chapterContext({ catalog })).scenes[0]!.images
+    }
+
+    it('이름이 장면 id이고 확장자가 그림 확장자(소문자 jpg, jpeg, png, webp)인 파일을 고른다', () => {
+      for (const ext of ['jpg', 'jpeg', 'png', 'webp']) {
+        expect(imagesOf([`genesis-01-01.${ext}`]), ext).toEqual({ v1: `content/images/v1/genesis-01-01.${ext}` })
+      }
+    })
+
+    it.each([
+      ['점이 없는 이름(끝 글자를 떼어 맞추지 않는다)', 'genesis-01-01x'],
+      ['확장자가 없는 이름', 'genesis-01-01'],
+      ['대문자 확장자', 'genesis-01-01.PNG'],
+      ['꾸러미가 받지 않는 그림 확장자', 'genesis-01-01.gif'],
+      ['남은 파일', 'genesis-01-01.bak'],
+      ['끊긴 작업이 남긴 임시 파일', 'genesis-01-01.png.tmp'],
+      ['낭독 파일', 'genesis-01-01.mp3'],
+    ])('%s(%s)는 장면 그림으로 고르지 않는다', (_name, name) => {
+      expect(imagesOf([name])).toEqual({})
+    })
+
+    it('한 버전에 그 장면의 그림이 둘 이상이면 목록 순서와 상관없이 이름순으로 앞의 것을 고르고, 목록은 바꾸지 않는다', () => {
+      // 폴더 목록 순서는 운영체제마다 다르다. 목록에서 처음 만난 것을 고르면 컴퓨터마다 다른 그림이 된다.
+      const names = ['genesis-01-01.png', 'genesis-01-01.bak', 'genesis-01-01.webp', 'genesis-01-01.jpg']
+      for (const listed of [names, [...names].reverse()]) {
+        const before = [...listed]
+        expect(imagesOf(listed), listed.join(', ')).toEqual({ v1: 'content/images/v1/genesis-01-01.jpg' })
+        expect(listed).toEqual(before)
+      }
+    })
+  })
+
   it('장면의 인물은 ctx의 인물 id만 남긴다', () => {
     const file = { chapter: 1, scenes: [scene({ visual: { description: '그림', characters: ['adam', 'cain', 'serpent'] } })] }
     const chapter = buildChapter('genesis', chapter1, file, chapterContext({ characterIds: new Set(['adam', 'serpent']) }))

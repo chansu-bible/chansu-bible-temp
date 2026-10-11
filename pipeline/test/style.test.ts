@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mimeType, readStyle, referencePaths, writeStyle } from '../src/images/style.ts'
+import { displayPath } from '../src/paths.ts'
 import type { Style } from '../src/schema.ts'
 
 const style: Style = {
@@ -48,6 +49,17 @@ describe('readStyle', () => {
   it('예전 문자열 참고 이미지 형식은 거부한다', async () => {
     await writeFile(file, JSON.stringify({ ...style, references: ['brush.jpg'] }))
     await expect(readStyle(file, { refsDir })).rejects.toThrow()
+  })
+
+  it('깨졌거나 형식에 맞지 않으면 파일 이름을 앞에 붙여 오류를 낸다', async () => {
+    const texts = ['{ 깨진 JSON', JSON.stringify({ ...style, promptPrefix: '' }), JSON.stringify({ ...style, references: ['brush.jpg'] })]
+    for (const text of texts) {
+      await writeFile(file, text)
+      // 참고 이미지를 보지 않을 때도 같다(공개 목록의 자료 출처를 만들 때).
+      for (const requireFiles of [true, false]) {
+        await expect(readStyle(file, { refsDir, requireFiles }), text).rejects.toThrow(`${displayPath(file)}: `)
+      }
+    }
   })
 })
 

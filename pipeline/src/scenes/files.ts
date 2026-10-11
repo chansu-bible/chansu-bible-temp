@@ -54,3 +54,10 @@ export async function writeSceneFile(book: BookId, sceneFile: SceneFile, dir: st
 export async function listSceneChapters(book: BookId, dir: string = scenesDir): Promise<number[]> {
   return listChapterFiles(book, dir)
 }
+
+// 그 책의 장면 파일(genesis-NN.json)을 모두 읽는다. 장 번호 오름차순이다. 책 묶음(build)과 공개 콘텐츠 읽기가 함께 쓴다.
+// 틀린 파일이 있으면 readSceneFile처럼 파일 이름을 밝혀 던진다.
+export async function readSceneFiles(book: BookId, dir: string = scenesDir): Promise<SceneFile[]> {
+  const files = await Promise.all((await listSceneChapters(book, dir)).map((chapter) => readSceneFile(book, chapter, dir)))
+  return files.filter((file): file is SceneFile => file !== null)
+}

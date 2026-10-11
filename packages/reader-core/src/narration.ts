@@ -9,7 +9,7 @@ export type TrackRef = { chapter: number; sceneIndex: number }
 
 export type SceneTrack = TrackRef & {
   sceneId: string
-  // 묶음 안 경로(content/audio/scenes/...)
+  // 장면 낭독 파일 경로. 묶음은 사이트 루트 기준(content/audio/scenes/...), 장 꾸러미는 콘텐츠 뿌리 기준(media/...)이다.
   audio: string
   verses: TrackVerse[]
   durationMs: number

@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { refsDir as defaultRefsDir, styleFile } from '../paths.ts'
+import { displayPath, refsDir as defaultRefsDir, styleFile } from '../paths.ts'
 import { StyleSchema, type Style } from '../schema.ts'
 
 // 모든 참고 이미지가 refs 폴더에 있고 같은 파일이 두 번 들어 있지 않은지 확인한다.
@@ -15,13 +15,23 @@ function assertReferences(style: Style, dir: string): void {
 }
 
 // 화풍을 읽는다. requireFiles(기본 true)면 참고 이미지 파일이 실제로 있는지도 확인한다.
+// 읽지 못했거나 깨졌거나 형식에 맞지 않으면 파일 이름을 앞에 붙여 오류를 낸다.
 export async function readStyle(
   file: string = styleFile,
   options: { refsDir?: string; requireFiles?: boolean } = {},
 ): Promise<Style> {
-  const style = StyleSchema.parse(JSON.parse(await readFile(file, 'utf8')))
+  const style = await parseStyleFile(file)
   if (options.requireFiles ?? true) assertReferences(style, options.refsDir ?? defaultRefsDir)
   return style
+}
+
+async function parseStyleFile(file: string): Promise<Style> {
+  try {
+    return StyleSchema.parse(JSON.parse(await readFile(file, 'utf8')))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`${displayPath(file)}: ${message}`)
+  }
 }
 
 // 검증한 뒤 쓴다. 중간에 끊겨도 파일이 반쯤 쓰이지 않게 임시 파일을 거친다.

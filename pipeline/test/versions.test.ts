@@ -9,6 +9,7 @@ import {
   assertUniqueImageStems,
   readImageCatalog,
   readImageVersions,
+  sceneImageStem,
   versionDir,
   writeImageVersions,
 } from '../src/images/versions.ts'
@@ -42,6 +43,19 @@ beforeEach(async () => {
 afterEach(async () => {
   listing.reversed = false
   await rm(dir, { recursive: true, force: true })
+})
+
+describe('readImageVersions', () => {
+  it('목록 파일이 없으면 빈 목록이다', async () => {
+    expect(await readImageVersions(file)).toEqual([])
+  })
+
+  it('깨졌거나 형식에 맞지 않으면 파일 이름을 앞에 붙여 오류를 낸다', async () => {
+    for (const text of ['{ 깨진 JSON', JSON.stringify([{ ...v1, id: 'V1 flare' }]), JSON.stringify({ versions: [v1] })]) {
+      await writeFile(file, text)
+      await expect(readImageVersions(file), text).rejects.toThrow(`${displayPath(file)}: `)
+    }
+  })
 })
 
 describe('writeImageVersions', () => {
@@ -125,6 +139,27 @@ describe('readImageCatalog', () => {
   })
 })
 
+describe('sceneImageStem', () => {
+  it('그림 확장자(소문자 jpg, jpeg, png, webp)의 파일이면 확장자를 뗀 이름을 돌려준다', () => {
+    for (const ext of ['jpg', 'jpeg', 'png', 'webp']) expect(sceneImageStem(`genesis-01-01.${ext}`), ext).toBe('genesis-01-01')
+    // 확장자는 마지막 점 뒤다.
+    expect(sceneImageStem('a.b.png')).toBe('a.b')
+  })
+
+  it.each([
+    ['대문자 확장자', 'x.PNG'],
+    ['꾸러미가 받지 않는 그림 확장자', 'x.gif'],
+    ['남은 파일', 'x.bak'],
+    ['끊긴 작업이 남긴 임시 파일', 'x.png.tmp'],
+    ['낭독 파일', 'x.mp3'],
+    ['점이 없는 이름', 'x'],
+    ['점으로 끝나는 이름', 'x.'],
+    ['점으로 시작하는 이름', '.png'],
+  ])('%s(%s)은 장면 그림이 아니다', (_name, file) => {
+    expect(sceneImageStem(file)).toBeNull()
+  })
+})
+
 describe('assertUniqueImageStems', () => {
   const catalogOf = (files: Record<string, string[]>): ImageCatalog => ({ versions: [v1, v2], files })
 
@@ -141,8 +176,17 @@ describe('assertUniqueImageStems', () => {
   })
 
   it('셋이면 셋을 모두 밝힌다', () => {
-    const catalog = catalogOf({ 'v1-flare': ['a.bak', 'a.jpg', 'a.png'], 'v2-sunburst': [] })
-    expect(() => assertUniqueImageStems(catalog, dir)).toThrow('(a.bak, a.jpg, a.png)')
+    const catalog = catalogOf({ 'v1-flare': ['a.jpg', 'a.png', 'a.webp'], 'v2-sunburst': [] })
+    expect(() => assertUniqueImageStems(catalog, dir)).toThrow('(a.jpg, a.png, a.webp)')
+  })
+
+  it('장면 그림이 아닌 파일(남은 파일, 대문자 확장자, 다른 그림 확장자, 점이 없는 이름)은 세지 않는다', () => {
+    // 장면의 그림을 고르는 규칙(sceneImageStem)이 이 파일들을 고르지 않으니, 이름 앞부분이 같아도 어느 쪽을 고를지 헷갈리지 않는다.
+    const catalog = catalogOf({ 'v1-flare': ['a', 'a.PNG', 'a.bak', 'a.gif', 'a.png'], 'v2-sunburst': [] })
+    expect(() => assertUniqueImageStems(catalog, dir)).not.toThrow()
+    // 오류 글에도 장면 그림만 밝힌다.
+    const twice = catalogOf({ 'v1-flare': ['a.bak', 'a.jpg', 'a.png'], 'v2-sunburst': [] })
+    expect(() => assertUniqueImageStems(twice, dir)).toThrow('같은 장면의 그림이 둘 이상입니다(a.jpg, a.png)')
   })
 
   it('이름이 .png.tmp로 끝나는 임시 파일은 .png 파일과 다른 이름으로 본다', () => {

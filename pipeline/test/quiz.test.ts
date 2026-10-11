@@ -4,7 +4,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { approvedCanon } from '../src/canon/approved.ts'
 import type { Llm, ParseRequest } from '../src/llm/client.ts'
-import { listQuizChapters, readQuizFile, writeQuizFile } from '../src/quiz/files.ts'
+import { listQuizChapters, readQuizFile, readQuizFiles, writeQuizFile } from '../src/quiz/files.ts'
 import { buildQuizPrompt, buildQuizReviewPrompt } from '../src/quiz/prompt.ts'
 import { runQuiz } from '../src/quiz/runQuiz.ts'
 import { assembleScenes } from '../src/scenario/assemble.ts'
@@ -206,6 +206,24 @@ describe('퀴즈 파일', () => {
 
   it('책에 없는 장의 퀴즈 파일은 없다', async () => {
     expect(await readQuizFile('genesis', 51, dir)).toBeNull()
+  })
+
+  it('그 책의 퀴즈 파일을 모두 장 번호 오름차순으로 읽는다', async () => {
+    const tenth = { chapter: 10, questions: [storedQuestion('genesis-10-q1')] }
+    const fourth = { chapter: 4, questions: [storedQuestion('genesis-04-q1')] }
+    await writeQuizFile('genesis', tenth, dir)
+    await writeQuizFile('genesis', fourth, dir)
+    await writeQuizFile('exodus', { chapter: 3, questions: [] }, dir)
+    expect(await readQuizFiles('genesis', dir)).toEqual([fourth, tenth])
+    expect((await readQuizFiles('exodus', dir)).map((file) => file.chapter)).toEqual([3])
+    expect(await readQuizFiles('leviticus', dir)).toEqual([])
+    expect(await readQuizFiles('genesis', path.join(dir, 'none'))).toEqual([])
+  })
+
+  it('틀린 퀴즈 파일이 있으면 그 파일 이름을 밝혀 던진다', async () => {
+    await writeQuizFile('genesis', { chapter: 4, questions: [] }, dir)
+    await writeFile(path.join(dir, 'genesis-05.json'), '{ 깨진 JSON')
+    await expect(readQuizFiles('genesis', dir)).rejects.toThrow('genesis-05.json: ')
   })
 
   it('형식에 맞지 않으면 파일 이름과 함께 오류를 낸다', async () => {

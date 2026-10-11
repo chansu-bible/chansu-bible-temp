@@ -465,9 +465,10 @@ describe('공개 점검과 콘텐츠 읽기', () => {
         await expect(readInputs()).rejects.toThrow(`같은 장면의 그림이 둘 이상입니다(${G11}.jpg, ${G11}.png)`)
       })
 
-      it('그림이 아닌 남은 파일이어도 이름 앞부분이 같으면 던진다(장면 그림으로 잘못 고를 수 있다)', async () => {
-        await put(`content/images/v2/${G12}.bak`, png)
-        await expect(readInputs()).rejects.toThrow(`(${G12}.bak, ${G12}.png)`)
+      it('장면 그림이 아닌 남은 파일은 이름 앞부분이 같아도 던지지 않는다(장면 그림으로 고르지 않는다)', async () => {
+        for (const name of [`${G12}.bak`, `${G12}.PNG`, `${G12}.gif`, G12]) await put(`content/images/v2/${name}`, png)
+        const inputs = await readInputs()
+        expect(chapterChecks(inputs, 'genesis', 1).required).toEqual({ scenesApproved: true, imagesComplete: true, audioComplete: true })
       })
 
       it('다른 버전 폴더에 같은 장면의 그림이 하나씩 있는 것은 괜찮다', async () => {
