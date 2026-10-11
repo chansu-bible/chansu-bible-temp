@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api.ts'
 import { checkForm, entryToForm, formToEntry, type FormState, type FormValue } from '../canonForm.ts'
-import { KIND_LABEL } from '../labels.ts'
-import type { CanonEntry, CanonKind, Proposal } from '../types.ts'
+import { bookName, KIND_LABEL } from '../labels.ts'
+import { routeHref } from '../route.ts'
+import type { BookId, CanonEntry, CanonKind, Proposal } from '../types.ts'
 import { errorMessage, useLoad } from '../useLoad.ts'
 import CanonFormView from './CanonFormView.tsx'
 import ProposalList from './ProposalList.tsx'
 import StatusBadge from './StatusBadge.tsx'
 
 // 설정집 항목 하나의 상세·편집 패널. 새 항목이면 POST, 아니면 PUT.
+// book은 머리에서 고른 책이다. 책 없이 넣은 절 인용("2:7")에 붙인다.
 export default function CanonEditor({
   kind,
   entry,
+  book,
   isNew,
   proposals,
   onSaved,
@@ -21,6 +24,7 @@ export default function CanonEditor({
 }: {
   kind: CanonKind
   entry: CanonEntry
+  book: BookId | null
   isNew: boolean
   proposals: Proposal[]
   onSaved: (entry: CanonEntry) => void
@@ -68,10 +72,10 @@ export default function CanonEditor({
   }
 
   function save() {
-    const found = checkForm(kind, form)
+    const found = checkForm(kind, form, book)
     setProblems(found)
     if (found.length) return
-    const next = formToEntry(kind, form, entry)
+    const next = formToEntry(kind, form, entry, book)
     void run(() => (isNew ? api.canonCreate(kind, next) : api.canonUpdate(kind, next)), '저장했어요')
   }
 
@@ -150,6 +154,7 @@ export default function CanonEditor({
 
       {!isNew && (
         <ProposalList
+          kind={kind}
           proposals={proposals}
           entry={entry}
           disabledReason={reviewBlocked}
@@ -163,7 +168,7 @@ export default function CanonEditor({
           save()
         }}
       >
-        <CanonFormView kind={kind} form={form} onChange={change} idLocked={!isNew} disabled={busy} />
+        <CanonFormView kind={kind} form={form} book={book} onChange={change} idLocked={!isNew} disabled={busy} />
       </form>
 
       {!isNew && <UsageList kind={kind} id={entry.id} />}
@@ -171,6 +176,7 @@ export default function CanonEditor({
   )
 }
 
+// 본문이 있는 모든 책에서 이 항목을 쓰는 장면
 function UsageList({ kind, id }: { kind: CanonKind; id: string }) {
   const usage = useLoad(() => api.canonUsage(kind, id), `${kind}/${id}`)
   return (
@@ -182,9 +188,9 @@ function UsageList({ kind, id }: { kind: CanonKind; id: string }) {
         (usage.data.scenes.length ? (
           <ul className="plain-list">
             {usage.data.scenes.map((s) => (
-              <li key={`${s.chapter}/${s.id}`}>
-                <a href={`#/scenes/${s.chapter}/${encodeURIComponent(s.id)}`}>
-                  {s.chapter}장 · {s.title || s.id}
+              <li key={`${s.book}/${s.chapter}/${s.id}`}>
+                <a href={routeHref({ page: 'scenes', book: s.book, chapter: s.chapter, sceneId: s.id })}>
+                  {bookName(s.book)} {s.chapter}장 · {s.title || s.id}
                 </a>
               </li>
             ))}

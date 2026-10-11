@@ -9,14 +9,14 @@ import { assembleScenes } from '../src/scenario/assemble.ts'
 import type { ReviseOutput, TextVerdict } from '../src/scenario/output.ts'
 import type { Scene } from '../src/schema.ts'
 import { readSceneFile, writeSceneFile } from '../src/scenes/files.ts'
-import { canon, chapter3, outScene, source, style } from './scenarioFixtures.ts'
+import { canon, chapter3, outScene, source, storedCanon, style } from './scenarioFixtures.ts'
 
 const PASS: TextVerdict = { verdict: 'pass', issues: [] }
 const FAIL: TextVerdict = { verdict: 'fail', issues: ['3:1 해설이 요약에 그칩니다'] }
 
 describe('runReviewText', () => {
   let dir: string
-  let paths: { storyBibleDir: string; sourceFile: string; scenesDir: string; styleFile: string }
+  let paths: { storyBibleDir: string; sourceDir: string; scenesDir: string; styleFile: string }
   const lines: string[] = []
   const log = (line: string) => lines.push(line)
 
@@ -25,16 +25,16 @@ describe('runReviewText', () => {
     dir = await mkdtemp(path.join(tmpdir(), 'review-text-'))
     paths = {
       storyBibleDir: path.join(dir, 'story-bible'),
-      sourceFile: path.join(dir, 'genesis.json'),
+      sourceDir: dir,
       scenesDir: path.join(dir, 'scenes'),
       styleFile: path.join(dir, 'story-bible', 'style.json'),
     }
     await mkdir(paths.storyBibleDir, { recursive: true })
     for (const key of ['characters', 'places', 'eras', 'things', 'proposals'] as const) {
-      await writeFile(path.join(paths.storyBibleDir, `${key}.json`), JSON.stringify(canon[key]), 'utf8')
+      await writeFile(path.join(paths.storyBibleDir, `${key}.json`), JSON.stringify(storedCanon[key]), 'utf8')
     }
     await writeFile(paths.styleFile, JSON.stringify(style), 'utf8')
-    await writeFile(paths.sourceFile, JSON.stringify(source), 'utf8')
+    await writeFile(path.join(dir, 'genesis.json'), JSON.stringify(source), 'utf8')
   })
   afterEach(async () => {
     await rm(dir, { recursive: true, force: true })
@@ -43,12 +43,13 @@ describe('runReviewText', () => {
   // 3장 장면 두 개(1~2절, 3~4절)를 저장한다. change로 장면을 고칠 수 있다.
   async function saveScenes(change: (scenes: Scene[]) => void = () => {}): Promise<void> {
     const { scenes } = assembleScenes(
+      'genesis',
       chapter3,
       { scenes: [outScene({ verseEnd: 2 }), outScene({ verseStart: 3, glossary: [] })] },
       approvedCanon(canon),
     )
     change(scenes)
-    await writeSceneFile({ chapter: 3, scenes }, paths.scenesDir)
+    await writeSceneFile('genesis', { chapter: 3, scenes }, paths.scenesDir)
   }
 
   // 차례로 outputs를 돌려주는 가짜 모델
@@ -70,6 +71,7 @@ describe('runReviewText', () => {
     const reviewerCalls: ParseRequest[] = []
     const writerCalls: ParseRequest[] = []
     const result = await runReviewText(
+      'genesis',
       3,
       { ...paths, reviewer: fake([PASS, PASS], reviewerCalls), writer: fake([], writerCalls) },
       log,
@@ -79,7 +81,7 @@ describe('runReviewText', () => {
     expect(reviewerCalls[0]!.name).toBe('review_text')
     expect(reviewerCalls[0]!.model).toBeTruthy()
     expect(writerCalls).toEqual([])
-    const saved = await readSceneFile(3, paths.scenesDir)
+    const saved = await readSceneFile('genesis', 3, paths.scenesDir)
     expect(saved!.scenes[0]!.review).toMatchObject({ status: 'reviewed', text: PASS, attempts: 0 })
   })
 
@@ -87,6 +89,7 @@ describe('runReviewText', () => {
     await saveScenes()
     const writerCalls: ParseRequest[] = []
     const result = await runReviewText(
+      'genesis',
       3,
       { ...paths, sceneIds: ['genesis-03-01'], reviewer: fake([FAIL, PASS], []), writer: fake([revised], writerCalls) },
       log,
@@ -94,7 +97,7 @@ describe('runReviewText', () => {
     expect(result.reviewed).toEqual(['genesis-03-01'])
     expect(writerCalls).toHaveLength(1)
     expect(writerCalls[0]!.user).toContain('3:1 해설이 요약에 그칩니다')
-    const scene = (await readSceneFile(3, paths.scenesDir))!.scenes[0]!
+    const scene = (await readSceneFile('genesis', 3, paths.scenesDir))!.scenes[0]!
     expect(scene.title).toBe('고친 제목')
     expect(scene.review).toMatchObject({ status: 'reviewed', attempts: 1 })
   })
@@ -103,6 +106,7 @@ describe('runReviewText', () => {
     await saveScenes()
     const writerCalls: ParseRequest[] = []
     const result = await runReviewText(
+      'genesis',
       3,
       {
         ...paths,
@@ -114,7 +118,7 @@ describe('runReviewText', () => {
     )
     expect(result.flagged).toEqual(['genesis-03-01'])
     expect(writerCalls).toHaveLength(2)
-    const scene = (await readSceneFile(3, paths.scenesDir))!.scenes[0]!
+    const scene = (await readSceneFile('genesis', 3, paths.scenesDir))!.scenes[0]!
     expect(scene.review).toMatchObject({ status: 'flagged', text: FAIL, attempts: 2 })
   })
 
@@ -126,6 +130,7 @@ describe('runReviewText', () => {
     const reviewerCalls: ParseRequest[] = []
     const writerCalls: ParseRequest[] = []
     await runReviewText(
+      'genesis',
       3,
       { ...paths, sceneIds: ['genesis-03-01'], reviewer: fake([PASS], reviewerCalls), writer: fake([revised], writerCalls) },
       log,
@@ -140,13 +145,14 @@ describe('runReviewText', () => {
     })
     const calls: ParseRequest[] = []
     const result = await runReviewText(
+      'genesis',
       3,
       { ...paths, sceneIds: ['genesis-03-02'], reviewer: fake([PASS], calls), writer: fake([revised], calls) },
       log,
     )
     expect(calls).toEqual([])
     expect(result.flagged).toEqual(['genesis-03-02'])
-    const scene = (await readSceneFile(3, paths.scenesDir))!.scenes[1]!
+    const scene = (await readSceneFile('genesis', 3, paths.scenesDir))!.scenes[1]!
     expect(scene.review.status).toBe('flagged')
     expect(scene.review.text!.issues[0]).toContain('3절에서 시작해야')
   })
@@ -156,7 +162,7 @@ describe('runReviewText', () => {
       scenes[0]!.review.status = 'approved'
     })
     const calls: ParseRequest[] = []
-    const result = await runReviewText(3, { ...paths, reviewer: fake([PASS], calls), writer: fake([], []) }, log)
+    const result = await runReviewText('genesis', 3, { ...paths, reviewer: fake([PASS], calls), writer: fake([], []) }, log)
     expect(result.skipped).toEqual(['genesis-03-01'])
     expect(result.reviewed).toEqual(['genesis-03-02'])
     expect(calls).toHaveLength(1)
@@ -166,9 +172,9 @@ describe('runReviewText', () => {
     await saveScenes()
     // 두 번째 장면에서 모델이 실패해도 첫 장면 결과는 남는다
     await expect(
-      runReviewText(3, { ...paths, reviewer: fake([PASS], []), writer: fake([], []) }, log),
+      runReviewText('genesis', 3, { ...paths, reviewer: fake([PASS], []), writer: fake([], []) }, log),
     ).rejects.toThrow('더 부를 출력이 없습니다')
-    const saved = await readSceneFile(3, paths.scenesDir)
+    const saved = await readSceneFile('genesis', 3, paths.scenesDir)
     expect(saved!.scenes[0]!.review.status).toBe('reviewed')
     expect(saved!.scenes[1]!.review.status).toBe('draft')
   })
@@ -176,17 +182,37 @@ describe('runReviewText', () => {
   it('dry-run이면 첫 장면의 검수 프롬프트만 출력한다', async () => {
     await saveScenes()
     const calls: ParseRequest[] = []
-    const result = await runReviewText(3, { ...paths, dryRun: true, reviewer: fake([PASS], calls), writer: fake([], calls) }, log)
+    const result = await runReviewText('genesis', 3, { ...paths, dryRun: true, reviewer: fake([PASS], calls), writer: fake([], calls) }, log)
     expect(calls).toEqual([])
     expect(result.dryRun).toBe(true)
     expect(lines.join('\n')).toContain('genesis-03-01 "간교한 뱀"')
     expect(lines.join('\n')).not.toContain('genesis-03-02 "')
   })
 
+  it('다른 책이면 검수와 다시 쓰기 프롬프트 머리에 그 책 이름을 쓴다', async () => {
+    await writeFile(path.join(dir, 'exodus.json'), JSON.stringify({ ...source, book: '출애굽기' }), 'utf8')
+    const { scenes } = assembleScenes('exodus', chapter3, { scenes: [outScene({ verseEnd: 2 }), outScene({ verseStart: 3, glossary: [] })] }, approvedCanon(canon))
+    await writeSceneFile('exodus', { chapter: 3, scenes }, paths.scenesDir)
+
+    await runReviewText('exodus', 3, { ...paths, dryRun: true }, log)
+    expect(lines.join('\n')).toContain('출애굽기 3장, 검수할 장면 exodus-03-01 "간교한 뱀" (3:1~2)')
+
+    const reviewerCalls: ParseRequest[] = []
+    const writerCalls: ParseRequest[] = []
+    await runReviewText(
+      'exodus',
+      3,
+      { ...paths, sceneIds: ['exodus-03-01'], reviewer: fake([FAIL, PASS], reviewerCalls), writer: fake([revised], writerCalls) },
+      log,
+    )
+    expect(reviewerCalls[0]!.user.split('\n')[0]).toBe('출애굽기 3장, 검수할 장면 exodus-03-01 "간교한 뱀" (3:1~2)')
+    expect(writerCalls[0]!.user.split('\n')[0]).toBe('출애굽기 3장 (1~4절)')
+  })
+
   it('장면 파일이 없거나 없는 장면을 고르면 오류', async () => {
-    await expect(runReviewText(3, { ...paths, dryRun: true }, log)).rejects.toThrow('장면 파일이 없습니다')
+    await expect(runReviewText('genesis', 3, { ...paths, dryRun: true }, log)).rejects.toThrow('장면 파일이 없습니다')
     await saveScenes()
-    await expect(runReviewText(3, { ...paths, dryRun: true, sceneIds: ['genesis-03-09'] }, log)).rejects.toThrow(
+    await expect(runReviewText('genesis', 3, { ...paths, dryRun: true, sceneIds: ['genesis-03-09'] }, log)).rejects.toThrow(
       'genesis-03-09',
     )
   })

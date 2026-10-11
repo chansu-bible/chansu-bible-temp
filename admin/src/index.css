@@ -156,6 +156,65 @@ code {
   font-weight: 600;
 }
 
+/* 머리의 책 고르기 */
+.book-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 8px 14px;
+}
+
+.book-picker label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #cfc5b9;
+}
+
+/* 사이드바의 밝은 글자색을 물려받지 않게 한다 */
+.book-picker select {
+  color: var(--ink);
+}
+
+.book-note {
+  margin: 0 8px 14px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.08);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.book-picker .book-note {
+  margin: 0;
+}
+
+.book-note p {
+  margin: 0 0 6px;
+}
+
+.book-note-error {
+  background: rgb(176 58 46 / 0.35);
+  word-break: break-word;
+}
+
+/* 사이드바의 밝은 글자색을 물려받지 않게 한다 */
+.book-note .btn {
+  color: var(--ink);
+}
+
+/* 본문 파일을 읽지 못한 책과 그 까닭 */
+.sidebar .book-errors {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #f4c7c1;
+  word-break: break-word;
+}
+
+.book-errors li + li {
+  margin-top: 4px;
+}
+
 .sidebar ul {
   list-style: none;
   margin: 0;
@@ -461,7 +520,9 @@ code {
 }
 
 /* 표 */
+/* position: 화면 밖에 둔 글(sr-only)이 표를 따라 문서 밖으로 넘치지 않게 표 상자 안에 가둔다 */
 .table-wrap {
+  position: relative;
   overflow-x: auto;
 }
 
@@ -568,6 +629,12 @@ textarea:focus-visible {
   color: var(--ink-faint);
 }
 
+/* 체크 칸의 안내는 라벨 아래 줄에 */
+.field-check .hint {
+  flex-basis: 100%;
+  padding-left: 22px;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -583,6 +650,25 @@ textarea:focus-visible {
   flex-wrap: wrap;
   gap: 6px 18px;
   margin: 10px 0;
+}
+
+/* 폼 칸 아래의 안내(고를 책이 없을 때 등) */
+.form-note {
+  margin: 0;
+  color: var(--st-flagged);
+  font-size: 13px;
+}
+
+/* source 장 범위로 본문의 장이 없어질 때의 경고와 확인 칸 */
+.drop-warning {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--st-flagged-soft);
+  color: var(--st-flagged);
+}
+
+.drop-warning p {
+  margin: 0 0 6px;
 }
 
 /* 설정집 편집 */
@@ -998,10 +1084,169 @@ textarea:focus-visible {
   font-size: 13px;
 }
 
-.tag-current {
+.tag-current,
+.tag-answer {
   margin-left: 6px;
   background: var(--st-approved-soft);
   color: var(--st-approved);
+}
+
+/* 원어 뜻: 줄마다 입력 칸이 있는 사전 표 */
+.list-count {
+  align-self: center;
+  white-space: nowrap;
+}
+
+.hebrew {
+  font-family: 'SBL Hebrew', 'Ezra SIL', 'Noto Serif Hebrew', 'Times New Roman', serif;
+  font-size: 22px;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.lexicon-table code {
+  white-space: nowrap;
+}
+
+.lexicon-definition {
+  min-width: 200px;
+  max-width: 340px;
+}
+
+.lexicon-usage {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.lexicon-table .lexicon-meaning {
+  min-width: 150px;
+}
+
+/* 메모는 내용 길이만큼 늘어난다(field-sizing을 모르는 브라우저에서는 세 줄) */
+.lexicon-table .lexicon-note {
+  min-width: 220px;
+  min-height: 3.4em;
+  field-sizing: content;
+}
+
+.lexicon-actions {
+  flex-wrap: nowrap;
+  margin-bottom: 2px;
+}
+
+.row-error td {
+  padding-top: 0;
+}
+
+.row-error .form-error {
+  margin: 0;
+}
+
+/* 퀴즈: 문제 카드 */
+.quiz-tally {
+  margin: 0;
+}
+
+.quiz-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.quiz-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quiz-card.quiz-approved {
+  border-color: var(--st-approved);
+}
+
+.quiz-card.quiz-rejected {
+  background: var(--paper);
+}
+
+.quiz-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.quiz-question {
+  margin: 4px 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.quiz-options {
+  margin: 0 0 8px;
+  padding-left: 24px;
+}
+
+.quiz-options li {
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.quiz-options li.correct {
+  background: var(--st-approved-soft);
+  color: var(--st-approved);
+  font-weight: 600;
+}
+
+.evidence {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--line);
+  font-family: 'Noto Serif KR', 'Nanum Myeongjo', 'Batang', serif;
+  line-height: 1.7;
+}
+
+.quiz-issues {
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--st-flagged-soft);
+}
+
+.quiz-issues ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.quiz-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quiz-options-edit {
+  margin: 0;
+  padding: 6px 8px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.quiz-options-edit legend {
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.quiz-option-edit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.quiz-option-edit input[type='text'] {
+  flex: 1;
 }
 
 @media (max-width: 1100px) {
@@ -1036,6 +1281,10 @@ textarea:focus-visible {
 
   .ref-grid {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+
+  .quiz-list {
+    grid-template-columns: 1fr;
   }
 
   .uploader .field {

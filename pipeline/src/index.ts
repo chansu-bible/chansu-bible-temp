@@ -1,9 +1,12 @@
 // 관리 서버가 쓰는 공개 함수 모음. 여기 없는 모듈은 서버에서 직접 가져오지 않는다.
 export * from './schema.ts'
+// 관리 서버가 reader-core에 기대지 않고 책 id 형을 쓸 수 있게 다시 내보낸다.
+export type { BookId } from 'reader-core'
 export * as paths from './paths.ts'
 export { sceneFilePath } from './paths.ts'
-export { fetchSource } from './source/fetchSource.ts'
-export { writeBundle } from './build/writeBundle.ts'
+export { fetchSource, parseChapterRange, type ChapterRange } from './source/fetchSource.ts'
+export { readSource, readSourceChapter, listSourceBooks, readVerseCounts, type UnreadableSource } from './source/files.ts'
+export { writeBundles } from './build/writeBundle.ts'
 export { buildBundle, type BundleCanon, type ImageCatalog } from './build/buildBundle.ts'
 export { generateImages, type ImagesOptions, type ImagesResult } from './images/generateImages.ts'
 export { createOpenAiDraw } from './images/openaiDraw.ts'
@@ -18,13 +21,29 @@ export {
 export { readStyle, writeStyle, referencePaths, mimeType } from './images/style.ts'
 export { buildImagePrompt } from './images/prompt.ts'
 export { detectImageExtension } from './images/format.ts'
-export { readSceneFile, writeSceneFile } from './scenes/files.ts'
+export { readSceneFile, writeSceneFile, listSceneChapters } from './scenes/files.ts'
 export { generateSpeech, type SpeechOptions, type SpeechResult } from './tts/generateSpeech.ts'
 export { createOpenAiSpeak } from './tts/openaiSpeak.ts'
-export { readCanon, writeCanonKind, writeProposals, canonItemSchemas, canonFilePath, type CanonItem } from './canon/files.ts'
-export { validateCanon, GENESIS_VERSE_COUNTS } from './canon/validate.ts'
+export {
+  readCanon,
+  writeCanon,
+  writeCanonKind,
+  writeProposals,
+  canonItemSchemas,
+  canonFilePath,
+  type CanonItem,
+} from './canon/files.ts'
+export { validateCanon, type VerseCounts } from './canon/validate.ts'
+export { migrateCanonRefs } from './canon/migrateRefs.ts'
 export { runCanon, type CanonRunOptions, type CanonRunResult } from './canon/runCanon.ts'
-export { mergeCanon, CanonOutputSchema, type CanonOutput, type CanonRef, type MergeResult } from './canon/merge.ts'
+export {
+  mergeCanon,
+  CanonOutputSchema,
+  type CanonOutput,
+  type CanonRef,
+  type MergeOptions,
+  type MergeResult,
+} from './canon/merge.ts'
 export { buildCanonPrompt, type CanonPrompt } from './canon/prompt.ts'
 export { approvedCanon } from './canon/approved.ts'
 export {
@@ -45,3 +64,41 @@ export { runReviewText, type ReviewTextOptions, type ReviewTextResult } from './
 export { createLlm, type Llm, type LlmOptions, type ParseRequest } from './llm/client.ts'
 export { writerModel, reviewerModel, estimateUsd, MODEL_PRICES } from './llm/models.ts'
 export { readRuns, summarizeRuns, appendRun, RunSchema, type Run, type RunTotals } from './llm/runs.ts'
+export {
+  runOriginal,
+  originalBooks,
+  oshbUrl,
+  memoizeFetch,
+  alignChapters,
+  buildLexicon,
+  type FetchText,
+  type OriginalOptions,
+  type OriginalResult,
+  type SkippedChapter,
+} from './original/runOriginal.ts'
+export { readOriginal, readLexicon } from './original/files.ts'
+export { OSHB_BASE, STRONGS_URL } from './original/urls.ts'
+export { parseOshb, type OriginalChapter, type OriginalVerse, type OriginalWord } from './original/oshb.ts'
+export { OSHB_VERSE_MAP_URL, parseVerseMap, toKjvVerses, type VerseMapEntry } from './original/verseMap.ts'
+export { parseStrongs, type StrongsEntry } from './original/strongs.ts'
+export { posLabel } from './original/morph.ts'
+export { cleanHebrew, strongOf } from './original/hebrew.ts'
+export { runGloss, type GlossOptions, type GlossResult } from './original/runGloss.ts'
+export { buildGlossPrompt, GlossOutputSchema } from './original/glossPrompt.ts'
+export { runQuiz, quizCodeIssues, type QuizRunOptions, type QuizRunResult } from './quiz/runQuiz.ts'
+export { readQuizFile, writeQuizFile, listQuizChapters } from './quiz/files.ts'
+export { buildQuizPrompt, buildQuizReviewPrompt, type QuizDraft } from './quiz/prompt.ts'
+export { QuizWriteSchema, QuizReviewSchema } from './quiz/output.ts'
+export { contentHash, jsonBytes } from './release/hash.ts'
+export {
+  ReleasePartsSchema,
+  ReleaseEntrySchema,
+  ReleasesSchema,
+  readReleases,
+  writeReleases,
+  publishChapter,
+  withdrawChapter,
+  type ReleaseParts,
+  type ReleaseEntry,
+  type Releases,
+} from './release/releases.ts'

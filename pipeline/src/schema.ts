@@ -1,3 +1,4 @@
+import { formatRef, isBookId, parseRef } from 'reader-core'
 import { z } from 'zod'
 
 // 본문
@@ -18,8 +19,12 @@ export const SourceSchema = z.object({
 })
 
 // 설정집
-// 절 인용. "장:절" 또는 "장:절-절" (예: "1:26", "2:7-8")
-export const CitationSchema = z.string().regex(/^\d{1,2}:\d{1,3}(-\d{1,3})?$/)
+// 절 인용. "책 장:절" 또는 "책 장:절-절" (예: "genesis 1:26", "genesis 2:7-8")
+// formatRef가 쓰는 표준 모양만 받는다(앞뒤 공백, "02:07", 끝이 시작과 같은 "2:7-7"은 안 된다).
+export const CitationSchema = z.string().refine((value) => {
+  const ref = parseRef(value)
+  return ref?.book != null && formatRef(ref) === value
+}, '절 인용은 "책 장:절" 모양이어야 합니다(예: "genesis 2:7")')
 export const ReviewStateSchema = z.enum(['draft', 'approved', 'rejected'])
 export const CanonIdSchema = z.string().regex(/^[a-z][a-z0-9-]*$/)
 
@@ -189,8 +194,11 @@ export const ImageVersionSchema = z.object({
   note: z.string(),
 })
 
-// 앱용 묶음
-export const BundleVerseSchema = VerseSchema.extend({ audio: z.string().nullable() })
+// 앱용 묶음. audioMs는 절 낭독 길이(ms)이고, 음성이 없거나 길이를 모르면 null이다.
+export const BundleVerseSchema = VerseSchema.extend({
+  audio: z.string().nullable(),
+  audioMs: z.number().int().nonnegative().nullable(),
+})
 
 export const BundleSceneSchema = z.object({
   id: z.string(),
@@ -207,6 +215,9 @@ export const BundleSceneSchema = z.object({
   // 그림 버전 id → 그림 경로. 그 버전에 그림이 없는 장면은 키가 없다.
   images: z.record(z.string(), z.string()),
   reviewStatus: z.enum(['none', 'draft', 'reviewed', 'flagged', 'approved']),
+  // 장면 낭독: 장면에 든 절의 낭독을 이은 파일(content/audio/scenes/<장면 id>.mp3)과 길이(ms). 음성이 없으면 null
+  audio: z.string().nullable(),
+  audioMs: z.number().int().nonnegative().nullable(),
 })
 
 // 앱이 지도에 쓰는 장소. 설정집의 장소에서 만든다.
@@ -247,24 +258,75 @@ export const BundleEraSchema = z.object({
   absent: z.array(z.string()),
 })
 
+// 앱의 검색과 설정집 카드가 쓰는 물건. 승인된 물건의 facts만 옮긴다.
+export const BundleThingSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  aliases: z.array(z.string()),
+  description: z.string(),
+  details: z.array(z.string()),
+  sources: z.array(z.string()),
+})
+
 // 묶음 형식이 바뀌면 올린다. 형식은 docs/content-bundle.md에 적는다.
 // 키를 더하기만 할 때는 올리지 않는다(옛 독자는 모르는 키를 무시한다).
 export const BUNDLE_SCHEMA_VERSION = 1
 
+// 원어 보기: 절마다 히브리어 낱말. pos는 한국어 품사 이름(OSHB 형태 부호에서 만든다)
+export const BundleOriginalVerseSchema = z.object({
+  verse: z.number().int().positive(),
+  words: z.array(z.object({ text: z.string(), strong: z.string().nullable(), morph: z.string(), pos: z.string() })),
+})
+// 사전 항목. korean·note는 사람이 승인한 한국어 뜻만 들어 있다(아니면 null).
+export const BundleLexiconEntrySchema = z.object({
+  lemma: z.string(),
+  xlit: z.string(),
+  english: z.string(),
+  korean: z.string().nullable(),
+  note: z.string().nullable(),
+  count: z.number().int().nonnegative(),
+})
+// 사람이 승인한 이해 확인 문제
+export const BundleQuizQuestionSchema = z.object({
+  id: z.string(),
+  question: z.string(),
+  options: z.array(z.string()).length(4),
+  answer: z.number().int().min(0).max(3),
+  explanation: z.string(),
+  verse: z.number().int().positive(),
+})
+// 자료 출처와 이용 조건(앱의 자료 출처 화면)
+export const BundleSourceSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  detail: z.string(),
+  license: z.string(),
+  url: z.string().nullable(),
+})
+
 export const BundleSchema = z.object({
   schemaVersion: z.literal(BUNDLE_SCHEMA_VERSION),
+  // 책 id(reader-core의 books.ts). book은 그 책의 한국어 이름이다. isBookId가 형 가드라 BookId 형으로 읽힌다.
+  bookId: z.string().refine(isBookId, '알 수 없는 책 id입니다'),
   book: z.string(),
   translation: z.string(),
   places: z.array(BundlePlaceSchema),
   characters: z.array(BundleCharacterSchema),
   eras: z.array(BundleEraSchema),
+  things: z.array(BundleThingSchema),
   imageVersions: z.array(ImageVersionSchema),
   defaultImageVersion: z.string().nullable(),
+  // 스트롱 번호 → 사전 항목(묶음의 장에 나오는 것만)
+  lexicon: z.record(z.string(), BundleLexiconEntrySchema),
+  sources: z.array(BundleSourceSchema),
   chapters: z.array(
     z.object({
       chapter: z.number().int().positive(),
       verses: z.array(BundleVerseSchema).min(1),
       scenes: z.array(BundleSceneSchema).min(1),
+      // 원어 자료가 없는 장은 null
+      original: z.array(BundleOriginalVerseSchema).nullable(),
+      quiz: z.array(BundleQuizQuestionSchema),
     }),
   ),
 })
@@ -284,6 +346,7 @@ export type Canon = { characters: Character[]; places: Place[]; eras: Era[]; thi
 export type BundlePlace = z.infer<typeof BundlePlaceSchema>
 export type BundleCharacter = z.infer<typeof BundleCharacterSchema>
 export type BundleEra = z.infer<typeof BundleEraSchema>
+export type BundleThing = z.infer<typeof BundleThingSchema>
 export type Gloss = z.infer<typeof GlossSchema>
 export type StyleReference = z.infer<typeof StyleReferenceSchema>
 export type Style = z.infer<typeof StyleSchema>
@@ -292,3 +355,61 @@ export type Scene = z.infer<typeof SceneSchema>
 export type SceneFile = z.infer<typeof SceneFileSchema>
 export type BundleScene = z.infer<typeof BundleSceneSchema>
 export type Bundle = z.infer<typeof BundleSchema>
+
+// 원어 낱말(OSHB). strong은 스트롱 번호(H7225), 접두사뿐인 낱말은 null. morph는 OSHB 형태 부호
+export const OriginalWordSchema = z.object({ text: z.string(), strong: z.string().regex(/^H\d+$/).nullable(), morph: z.string() })
+export const OriginalFileSchema = z.object({
+  chapters: z.array(
+    z.object({
+      chapter: z.number().int().positive(),
+      verses: z.array(z.object({ verse: z.number().int().positive(), words: z.array(OriginalWordSchema) })),
+    }),
+  ),
+})
+
+// 사전 항목의 한국어 뜻. draft는 original-gloss 단계의 초안, approved는 사람이 관리 도구에서 승인한 것
+export const KoreanGlossSchema = z.object({
+  meaning: z.string().min(1),
+  note: z.string(),
+  status: z.enum(['draft', 'approved']),
+})
+export const LexiconEntrySchema = z.object({
+  strong: z.string().regex(/^H\d+$/),
+  lemma: z.string(),
+  xlit: z.string(),
+  pos: z.string(),
+  definition: z.string(),
+  usage: z.string(),
+  // 모든 책 원어에 나오는 횟수. 0이면 어느 책에도 나오지 않지만 한국어 뜻 때문에 남긴 항목이다.
+  count: z.number().int().nonnegative(),
+  korean: KoreanGlossSchema.nullable(),
+})
+export const LexiconFileSchema = z.object({ entries: z.array(LexiconEntrySchema) })
+
+export type OriginalFile = z.infer<typeof OriginalFileSchema>
+export type KoreanGloss = z.infer<typeof KoreanGlossSchema>
+export type LexiconEntry = z.infer<typeof LexiconEntrySchema>
+export type LexiconFile = z.infer<typeof LexiconFileSchema>
+
+// 이해 확인 문제. reviewed는 검수 모델 통과, flagged는 검수 모델이나 코드 검사가 지적한 것,
+// approved는 사람이 관리 도구에서 승인한 것(이것만 앱에 나간다), rejected는 버린 것
+// id는 reader-core의 quizQuestionId 모양이다(genesis-04-q1, psalms-119-q2).
+export const QuizQuestionSchema = z.object({
+  id: z.string().regex(/^[a-z0-9-]+-\d{1,3}-q\d+$/),
+  question: z.string().min(1),
+  options: z.array(z.string().min(1)).length(4),
+  answer: z.number().int().min(0).max(3),
+  explanation: z.string().min(1),
+  verse: z.number().int().positive(),
+  status: z.enum(['draft', 'reviewed', 'flagged', 'approved', 'rejected']),
+  issues: z.array(z.string()),
+})
+export const QuizFileSchema = z.object({ chapter: z.number().int().positive(), questions: z.array(QuizQuestionSchema) })
+
+export type QuizQuestion = z.infer<typeof QuizQuestionSchema>
+export type QuizFile = z.infer<typeof QuizFileSchema>
+
+export type BundleOriginalVerse = z.infer<typeof BundleOriginalVerseSchema>
+export type BundleLexiconEntry = z.infer<typeof BundleLexiconEntrySchema>
+export type BundleQuizQuestion = z.infer<typeof BundleQuizQuestionSchema>
+export type BundleSource = z.infer<typeof BundleSourceSchema>

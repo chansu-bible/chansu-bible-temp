@@ -2,14 +2,14 @@ import { Hono } from 'hono'
 import type { AppContext } from './context.ts'
 import { errorMessage, HttpError } from './errors.ts'
 import { JobQueue } from './jobs.ts'
+import { bookRoutes, bookScopedRoutes } from './routes/books.ts'
 import { canonRoutes } from './routes/canon.ts'
 import { gitRoutes } from './routes/git.ts'
 import { imageRoutes } from './routes/images.ts'
 import { jobRoutes } from './routes/jobs.ts'
+import { lexiconRoutes } from './routes/lexicon.ts'
 import { proposalRoutes } from './routes/proposals.ts'
 import { runRoutes } from './routes/runs.ts'
-import { sceneRoutes } from './routes/scenes.ts'
-import { statusRoutes } from './routes/status.ts'
 import { styleRoutes } from './routes/style.ts'
 import { createRunner } from './stages.ts'
 
@@ -18,12 +18,15 @@ export function createApp(overrides: Partial<AppContext> = {}): Hono {
   const ctx: AppContext = { queue: new JobQueue(50), createRunner, ...overrides }
   const app = new Hono()
 
-  app.route('/api/status', statusRoutes(ctx))
+  // 책 목록과 책을 가리는 API(상태·장면·퀴즈). 모르는 책은 404다.
+  app.route('/api/books', bookRoutes(ctx))
+  app.route('/api/books/:book', bookScopedRoutes(ctx))
+  // 설정집·원어 사전·그림·작업·실행 기록·저장소는 모든 책이 함께 쓴다.
   app.route('/api/canon', canonRoutes(ctx))
   app.route('/api/proposals', proposalRoutes(ctx))
-  app.route('/api/scenes', sceneRoutes(ctx))
   app.route('/api/style', styleRoutes(ctx))
   app.route('/api/images', imageRoutes(ctx))
+  app.route('/api/lexicon', lexiconRoutes(ctx))
   app.route('/api/jobs', jobRoutes(ctx))
   app.route('/api/runs', runRoutes())
   app.route('/api/git', gitRoutes())

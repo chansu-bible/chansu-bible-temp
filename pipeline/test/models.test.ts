@@ -12,6 +12,7 @@ function run(overrides: Partial<Run> = {}): Run {
     at: '2026-10-06T12:00:00.000Z',
     stage: 'canon',
     model: 'gpt-6.1-sol',
+    book: 'genesis',
     chapter: 1,
     inputTokens: 1000,
     outputTokens: 500,
@@ -71,6 +72,11 @@ describe('실행 기록', () => {
     expect(parseRun(line)).toEqual(run())
   })
 
+  it('책을 적기 전의 옛 줄은 book이 null이다', () => {
+    const { book: _book, ...old } = run()
+    expect(parseRun(JSON.stringify(old))).toEqual(run({ book: null }))
+  })
+
   it('날짜별 파일에 덧붙이고 최근 며칠 것만 읽는다', async () => {
     await appendRun(run({ at: '2026-10-01T09:00:00.000Z', note: 'old' }), dir)
     await appendRun(run({ at: '2026-10-05T09:00:00.000Z', note: 'a' }), dir)
@@ -118,6 +124,7 @@ describe('createLlm', () => {
     const seen: unknown[] = []
     const llm = createLlm({
       stage: 'canon',
+      book: 'genesis',
       chapter: 2,
       call: fakeCall({ output_parsed: { word: '빛' }, output: [], usage: { input_tokens: 10, output_tokens: 3 } }, seen),
       record: async (item) => {
@@ -136,13 +143,22 @@ describe('createLlm', () => {
     ])
 
     expect(records).toHaveLength(1)
-    expect(records[0]).toMatchObject({ stage: 'canon', chapter: 2, model: 'gpt-6-luna', inputTokens: 10, outputTokens: 3, ok: true })
+    expect(records[0]).toMatchObject({
+      stage: 'canon',
+      book: 'genesis',
+      chapter: 2,
+      model: 'gpt-6-luna',
+      inputTokens: 10,
+      outputTokens: 3,
+      ok: true,
+    })
   })
 
   it('거부하면 오류를 던지고 실패로 기록한다', async () => {
     const records: Run[] = []
     const llm = createLlm({
       stage: 'canon',
+      book: null,
       chapter: null,
       call: fakeCall({
         output_parsed: null,
@@ -162,6 +178,7 @@ describe('createLlm', () => {
   it('파싱된 값이 없으면 오류를 던진다', async () => {
     const llm = createLlm({
       stage: 'canon',
+      book: null,
       chapter: null,
       call: fakeCall({ output_parsed: null, output: [], usage: null }),
       record: async () => {},

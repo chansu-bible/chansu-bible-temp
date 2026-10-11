@@ -8,6 +8,7 @@ const approved = approvedCanon(canon)
 describe('assembleScenes', () => {
   it('순서대로 id를 붙이고 저장용 기본값을 채운다', () => {
     const result = assembleScenes(
+      'genesis',
       chapter3,
       { scenes: [outScene({ verseEnd: 2 }), outScene({ verseStart: 3, verseEnd: 4, glossary: [] })] },
       approved,
@@ -30,6 +31,7 @@ describe('assembleScenes', () => {
 
   it('범위 밖이거나 본문에 없는 낱말은 빼고 경고한다', () => {
     const result = assembleScenes(
+      'genesis',
       chapter3,
       {
         scenes: [
@@ -54,6 +56,7 @@ describe('assembleScenes', () => {
 
   it('승인되지 않았거나 모르는 id는 빼거나 null로 하고 경고한다', () => {
     const result = assembleScenes(
+      'genesis',
       chapter3,
       {
         scenes: [
@@ -75,16 +78,21 @@ describe('assembleScenes', () => {
     expect(result.warnings).toHaveLength(4)
   })
 
+  it('다른 책이면 그 책의 장면 id를 붙인다', () => {
+    const result = assembleScenes('psalms', chapter3, { scenes: [outScene({ verseEnd: 2 }), outScene({ verseStart: 3, glossary: [] })] }, approved)
+    expect(result.scenes.map((scene) => scene.id)).toEqual(['psalms-003-01', 'psalms-003-02'])
+  })
+
   it('절 범위 문제는 problems로 따로 보고한다', () => {
-    const result = assembleScenes(chapter3, { scenes: [outScene({ verseEnd: 2 }), outScene({ verseStart: 4 })] }, approved)
+    const result = assembleScenes('genesis', chapter3, { scenes: [outScene({ verseEnd: 2 }), outScene({ verseStart: 4 })] }, approved)
     expect(result.problems).toEqual(['genesis-03-02: 3절에서 시작해야 하는데 4절에서 시작합니다'])
-    expect(assembleScenes(chapter3, { scenes: [] }, approved).problems).toEqual(['장면이 하나도 없습니다'])
+    expect(assembleScenes('genesis', chapter3, { scenes: [] }, approved).problems).toEqual(['장면이 하나도 없습니다'])
   })
 })
 
 describe('assembleRevision', () => {
   it('id, 절 범위, image, review는 기존 값을 두고 나머지를 바꾼다', () => {
-    const [before] = assembleScenes(chapter3, { scenes: [outScene()] }, approved).scenes
+    const [before] = assembleScenes('genesis', chapter3, { scenes: [outScene()] }, approved).scenes
     before!.image = 'genesis-03-01.jpg'
     before!.review.attempts = 1
     const { scene, warnings } = assembleRevision(

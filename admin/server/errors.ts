@@ -36,7 +36,7 @@ function issueMessage(issue: Issue): string {
       if (issue.origin === 'string') return `${String(issue.maximum)}글자 이하여야 합니다`
       return `${String(issue.maximum)} 이하여야 합니다`
     case 'invalid_format':
-      return issue.format === 'regex' ? '형식이 맞지 않습니다(예: 절 인용 "1:26", id는 영문 소문자)' : '형식이 맞지 않습니다'
+      return issue.format === 'regex' ? '형식이 맞지 않습니다(예: 절 인용 "genesis 1:26", id는 영문 소문자)' : '형식이 맞지 않습니다'
     case 'invalid_value':
       return `다음 중 하나여야 합니다: ${(issue.values ?? []).map((value) => JSON.stringify(value)).join(', ')}`
     case 'unrecognized_keys':

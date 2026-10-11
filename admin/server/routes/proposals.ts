@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
-import { readCanon, writeProposals, type CanonKind, type Proposal } from 'pipeline'
+import { writeProposals, type CanonKind, type Proposal } from 'pipeline'
 import type { AppContext } from '../context.ts'
 import { setAtPath } from '../dotPath.ts'
 import { errorMessage, HttpError } from '../errors.ts'
-import { parseItem, saveKind } from './canon.ts'
+import { parseItem, readCanonOf, saveKind } from './canon.ts'
 
 function findOpen(proposals: Proposal[], id: string): number {
   const index = proposals.findIndex((proposal) => proposal.id === id)
@@ -13,9 +13,9 @@ function findOpen(proposals: Proposal[], id: string): number {
   return index
 }
 
-async function saveProposals(proposals: Proposal[], dir: string | undefined): Promise<void> {
+async function saveProposals(proposals: Proposal[], ctx: AppContext): Promise<void> {
   try {
-    await writeProposals(proposals, dir)
+    await writeProposals(proposals, ctx.storyBibleDir, { sourceDir: ctx.sourceDir })
   } catch (error) {
     throw new HttpError(400, errorMessage(error, '제안 목록 검증에 실패했습니다'))
   }
@@ -24,11 +24,11 @@ async function saveProposals(proposals: Proposal[], dir: string | undefined): Pr
 export function proposalRoutes(ctx: AppContext): Hono {
   const app = new Hono()
 
-  app.get('/', async (c) => c.json((await readCanon(ctx.storyBibleDir)).proposals))
+  app.get('/', async (c) => c.json((await readCanonOf(ctx)).proposals))
 
   // target 항목의 field에 value를 넣고 검증해 저장한 뒤, 제안을 applied로 바꾼다. 바뀐 제안을 돌려준다.
   app.post('/:id/apply', async (c) => {
-    const canon = await readCanon(ctx.storyBibleDir)
+    const canon = await readCanonOf(ctx)
     const proposals = [...canon.proposals]
     const index = findOpen(proposals, c.req.param('id'))
     const proposal = proposals[index]!
@@ -48,20 +48,20 @@ export function proposalRoutes(ctx: AppContext): Hono {
     if ((items[itemIndex] as { id: string }).id !== targetId) {
       throw new HttpError(400, '제안이 항목의 id를 바꿀 수 없습니다')
     }
-    await saveKind(kind, items as never, ctx.storyBibleDir)
+    await saveKind(kind, items as never, ctx)
 
     const applied: Proposal = { ...proposal, status: 'applied' }
     proposals[index] = applied
-    await saveProposals(proposals, ctx.storyBibleDir)
+    await saveProposals(proposals, ctx)
     return c.json(applied)
   })
 
   app.post('/:id/dismiss', async (c) => {
-    const proposals = [...(await readCanon(ctx.storyBibleDir)).proposals]
+    const proposals = [...(await readCanonOf(ctx)).proposals]
     const index = findOpen(proposals, c.req.param('id'))
     const dismissed: Proposal = { ...proposals[index]!, status: 'dismissed' }
     proposals[index] = dismissed
-    await saveProposals(proposals, ctx.storyBibleDir)
+    await saveProposals(proposals, ctx)
     return c.json(dismissed)
   })
 

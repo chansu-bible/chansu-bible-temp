@@ -1,14 +1,23 @@
 // 관리 서버 fetch 래퍼. 서버가 { error }를 돌려주면 그 문장으로 Error를 던진다.
 import type {
+  BookId,
+  BookSummary,
   CanonEntryMap,
   CanonKind,
   GitStatus,
+  GlossInput,
   ImageVersion,
   Job,
   JobOptions,
   JobStatus,
+  LexiconEntry,
+  LexiconFile,
   Proposal,
   PromptResponse,
+  QuizChapterSummary,
+  QuizEdit,
+  QuizQuestion,
+  QuizResponse,
   RunsResponse,
   Scene,
   ScenesResponse,
@@ -61,8 +70,13 @@ function send<T>(method: string, path: string, data?: unknown): Promise<T> {
   return request<T>(path, { method, body: data === undefined ? undefined : JSON.stringify(data) })
 }
 
+// 책을 가리는 API의 앞부분
+const bookPath = (book: BookId) => `/api/books/${encodeURIComponent(book)}`
+
 export const api = {
-  status: () => request<StatusResponse>('/api/status'),
+  // 본문 파일이 있는 책(성경 순서)
+  getBooks: () => request<BookSummary[]>('/api/books'),
+  status: (book: BookId) => request<StatusResponse>(`${bookPath(book)}/status`),
 
   canonList: <K extends CanonKind>(kind: K) => request<CanonEntryMap[K][]>(`/api/canon/${kind}`),
   canonCreate: <K extends CanonKind>(kind: K, entry: CanonEntryMap[K]) =>
@@ -73,16 +87,18 @@ export const api = {
     send<CanonEntryMap[K]>('POST', `/api/canon/${kind}/${encodeURIComponent(id)}/${action}`),
   canonUsage: (kind: CanonKind, id: string) =>
     request<UsageResponse>(`/api/canon/${kind}/${encodeURIComponent(id)}/usage`),
+  // 종류의 항목마다 쓰는 장면 수 { 항목 id: 장면 수 }. 장면이 가리키지 않는 항목은 없다.
+  canonUsageCounts: (kind: CanonKind) => request<Record<string, number>>(`/api/canon/${kind}/usage`),
 
   proposals: () => request<Proposal[]>('/api/proposals'),
   proposalAction: (id: string, action: 'apply' | 'dismiss') =>
     send<unknown>('POST', `/api/proposals/${encodeURIComponent(id)}/${action}`),
 
-  scenes: (chapter: number) => request<ScenesResponse>(`/api/scenes/${chapter}`),
-  scenePrompt: (chapter: number, id: string) =>
-    request<PromptResponse>(`/api/scenes/${chapter}/${encodeURIComponent(id)}/prompt`),
-  sceneSave: (chapter: number, scene: Scene) =>
-    send<Scene>('PUT', `/api/scenes/${chapter}/${encodeURIComponent(scene.id)}`, scene),
+  scenes: (book: BookId, chapter: number) => request<ScenesResponse>(`${bookPath(book)}/scenes/${chapter}`),
+  scenePrompt: (book: BookId, chapter: number, id: string) =>
+    request<PromptResponse>(`${bookPath(book)}/scenes/${chapter}/${encodeURIComponent(id)}/prompt`),
+  sceneSave: (book: BookId, chapter: number, scene: Scene) =>
+    send<Scene>('PUT', `${bookPath(book)}/scenes/${chapter}/${encodeURIComponent(scene.id)}`, scene),
 
   style: () => request<Style>('/api/style'),
   styleSave: (style: Style) => send<Style>('PUT', '/api/style', style),
@@ -96,6 +112,15 @@ export const api = {
   styleImport: (body: { url: string; label?: string; source?: string }) =>
     send<StyleRefResponse>('POST', '/api/style/refs/import', body),
   styleDeleteRef: (file: string) => send<Style>('DELETE', `/api/style/refs/${encodeURIComponent(file)}`),
+
+  lexicon: () => request<LexiconFile>('/api/lexicon'),
+  lexiconSave: (strong: string, gloss: GlossInput) =>
+    send<LexiconEntry>('PUT', `/api/lexicon/${encodeURIComponent(strong)}`, gloss),
+
+  quizSummary: (book: BookId) => request<QuizChapterSummary[]>(`${bookPath(book)}/quiz`),
+  quiz: (book: BookId, chapter: number) => request<QuizResponse>(`${bookPath(book)}/quiz/${chapter}`),
+  quizSave: (book: BookId, chapter: number, id: string, edit: QuizEdit) =>
+    send<QuizQuestion>('PUT', `${bookPath(book)}/quiz/${chapter}/${encodeURIComponent(id)}`, edit),
 
   imageVersions: () => request<ImageVersion[]>('/api/images/versions'),
   imageVersionCreate: (version: ImageVersion) => send<ImageVersion[]>('POST', '/api/images/versions', version),

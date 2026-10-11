@@ -20,13 +20,13 @@ export const adam: Character = {
   aliases: ['사람'],
   status: 'approved',
   facts: {
-    firstAppearance: '2:7',
+    firstAppearance: 'genesis 2:7',
     gender: '남',
     years: { born: 0, died: 930 },
     relations: [{ type: '유혹한 자', to: 'serpent' }],
-    attire: [{ from: '3:21', description: '가죽옷' }],
+    attire: [{ from: 'genesis 3:21', description: '가죽옷' }],
     notes: '흙으로 지어졌다.',
-    sources: ['2:7'],
+    sources: ['genesis 2:7'],
   },
   design: { build: '', face: '', hair: '짧은 검은 곱슬머리', skin: '', ageNotes: '', notes: '' },
   refs: [],
@@ -47,7 +47,7 @@ export const eden: Place = {
   name: '에덴',
   aliases: [],
   status: 'approved',
-  facts: { firstAppearance: '2:8', description: '동산이 있던 땅', sources: ['2:8'] },
+  facts: { firstAppearance: 'genesis 2:8', description: '동산이 있던 땅', sources: ['genesis 2:8'] },
   location: { lat: null, lng: null, certainty: '불명' },
   design: { landscape: '', notes: '' },
 }
@@ -56,9 +56,9 @@ export const edenEra: Era = {
   id: 'eden-era',
   name: '에덴',
   status: 'approved',
-  range: { from: '2:4', to: '3:24' },
+  range: { from: 'genesis 2:4', to: 'genesis 3:24' },
   years: { from: null, to: null },
-  facts: { description: '동산 시절', present: ['동산과 네 강(2:8-14)'], absent: ['성읍'], sources: ['2:8'] },
+  facts: { description: '동산 시절', present: ['동산과 네 강(2:8-14)'], absent: ['성읍'], sources: ['genesis 2:8'] },
   design: { visualNotes: '' },
 }
 
@@ -68,6 +68,24 @@ export const canon: Canon = {
   eras: [edenEra],
   things: [],
   proposals: [],
+}
+
+// runScenario·runReviewText 시험이 임시 폴더에 쓰는 설정집. 설정집은 읽을 때 그 폴더 본문(3장 1~4절)의 절 수로
+// 인용을 검증하므로 인용을 모두 본문 안의 절로 바꾼다. 이 시험들은 인용 글을 보지 않는다.
+const inSource = 'genesis 3:1'
+export const storedCanon: Canon = {
+  ...canon,
+  characters: canon.characters.map((item) => ({
+    ...item,
+    facts: {
+      ...item.facts,
+      firstAppearance: inSource,
+      attire: item.facts.attire.map((attire) => ({ ...attire, from: inSource })),
+      sources: [inSource],
+    },
+  })),
+  places: canon.places.map((item) => ({ ...item, facts: { ...item.facts, firstAppearance: inSource, sources: [inSource] } })),
+  eras: canon.eras.map((item) => ({ ...item, range: { from: inSource, to: inSource }, facts: { ...item.facts, sources: [inSource] } })),
 }
 
 export const style: Style = {

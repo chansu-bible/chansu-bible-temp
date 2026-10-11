@@ -8,12 +8,13 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "reader-core": "*"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.22",

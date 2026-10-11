@@ -10,7 +10,13 @@ export type AppContext = {
   imagesDir?: string
   imageVersionsFile?: string
   scenesDir?: string
-  sourceFile?: string
+  // 본문 폴더(<책 id>.json). 설정집의 절 인용도 이 폴더의 본문으로 검증한다.
+  sourceDir?: string
+  // 음성 폴더(genesis-01-001.mp3)
+  audioDir?: string
+  // 원어 사전(lexicon.json)과 퀴즈 폴더(<책 id>-NN.json)
+  lexiconFile?: string
+  quizDir?: string
   // 주소로 참고 이미지를 가져올 때 쓴다. 비우면 전역 fetch.
   fetchImpl?: typeof fetch
   queue: JobQueue

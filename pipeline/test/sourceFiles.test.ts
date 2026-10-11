@@ -1,0 +1,149 @@
+import { mkdtemp, rm, stat, utimes, writeFile } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { listSourceBooks, readSource, readSourceChapter, readVerseCounts } from '../src/source/files.ts'
+
+const chapter = (number: number, verseCount: number) => ({
+  chapter: number,
+  verses: Array.from({ length: verseCount }, (_, index) => ({ verse: index + 1, text: `${number}장 ${index + 1}절` })),
+})
+
+let dir: string
+
+beforeEach(async () => {
+  dir = await mkdtemp(path.join(os.tmpdir(), 'pipeline-'))
+  await writeFile(
+    path.join(dir, 'genesis.json'),
+    JSON.stringify({ book: '창세기', translation: '개역한글', chapters: [chapter(1, 3), chapter(2, 2)] }),
+  )
+  // 출애굽기는 2장만 받아 둔 경우
+  await writeFile(path.join(dir, 'exodus.json'), JSON.stringify({ book: '출애굽기', translation: '개역한글', chapters: [chapter(2, 4)] }))
+  await writeFile(path.join(dir, 'notes.json'), JSON.stringify({ memo: '책이 아닌 파일' }))
+})
+
+afterEach(async () => {
+  await rm(dir, { recursive: true, force: true })
+})
+
+describe('listSourceBooks', () => {
+  it('본문 파일이 있는 책을 성경 순서로 돌려주고, 책이 아닌 파일은 건너뛴다', async () => {
+    await writeFile(path.join(dir, 'leviticus.json.tmp'), '{}')
+    expect(await listSourceBooks(dir)).toEqual(['genesis', 'exodus'])
+  })
+
+  it('폴더가 없으면 빈 목록', async () => {
+    expect(await listSourceBooks(path.join(dir, 'none'))).toEqual([])
+  })
+})
+
+describe('readVerseCounts', () => {
+  it('책마다 장별 절 수를 센다. 받지 않은 장은 0이다', async () => {
+    expect(await readVerseCounts(dir)).toEqual(
+      new Map([
+        ['genesis', [3, 2]],
+        ['exodus', [0, 4]],
+      ]),
+    )
+  })
+
+  it('바뀐 본문 파일은 다음에 다시 세고, 지운 파일의 책은 빠진다', async () => {
+    expect((await readVerseCounts(dir)).get('genesis')).toEqual([3, 2])
+    await writeFile(
+      path.join(dir, 'genesis.json'),
+      JSON.stringify({ book: '창세기', translation: '개역한글', chapters: [chapter(1, 3), chapter(2, 5)] }),
+    )
+    expect((await readVerseCounts(dir)).get('genesis')).toEqual([3, 5])
+    await rm(path.join(dir, 'genesis.json'))
+    expect(await readVerseCounts(dir)).toEqual(new Map([['exodus', [0, 4]]]))
+  })
+
+  it('수정 시각과 크기가 그대로인 본문 파일은 다시 읽지 않는다', async () => {
+    // 시각을 정해 두고 센 뒤 같은 크기의 깨진 글로 바꾸고 시각을 되돌린다. 다시 읽었다면 JSON 오류가 난다.
+    const file = path.join(dir, 'exodus.json')
+    const time = new Date('2026-01-01T00:00:00.000Z')
+    await utimes(file, time, time)
+    const before = await readVerseCounts(dir)
+    await writeFile(file, 'x'.repeat((await stat(file)).size))
+    await utimes(file, time, time)
+    expect(await readVerseCounts(dir)).toEqual(before)
+  })
+
+  it('본문 하나가 깨져도 던지지 않고 그 책만 읽지 못했다고 하며, 다른 책은 그대로 센다', async () => {
+    // 먼저 세어 기억하게 한 뒤 크기가 다른 깨진 글로 바꾼다.
+    await readVerseCounts(dir)
+    await writeFile(path.join(dir, 'exodus.json'), '{ 깨진 파일')
+    const counts = await readVerseCounts(dir)
+    expect([...counts.keys()]).toEqual(['genesis', 'exodus'])
+    expect(counts.get('genesis')).toEqual([3, 2])
+    expect(counts.get('exodus')).toEqual({ unreadable: expect.stringContaining('exodus.json') })
+  })
+
+  it('파일의 책 이름이 그 책이 아니면 그 책은 읽지 못한 것으로 둔다', async () => {
+    await writeFile(
+      path.join(dir, 'genesis.json'),
+      JSON.stringify({ book: '출애굽기', translation: '개역한글', chapters: [chapter(1, 3)] }),
+    )
+    const counts = await readVerseCounts(dir)
+    expect(counts.get('genesis')).toEqual({ unreadable: expect.stringContaining('책 이름(출애굽기)이 창세기가 아닙니다') })
+    expect(counts.get('exodus')).toEqual([0, 4])
+  })
+
+  it('읽지 못하던 본문 파일을 고치면 다시 센다. 읽지 못한 파일은 기억하지 않는다', async () => {
+    // 고친 글을 처음과 같은 크기·수정 시각으로 둔다. 읽지 못했을 때 옛 값을 지우지 않았다면 그 옛 값이 나온다.
+    const file = path.join(dir, 'exodus.json')
+    const time = new Date('2026-01-01T00:00:00.000Z')
+    const write = async (text: string) => {
+      await writeFile(file, text)
+      await utimes(file, time, time)
+    }
+    // 장 번호의 자릿수가 같아 크기가 같다.
+    const exodus = (chapterNumber: number) =>
+      JSON.stringify({ book: '출애굽기', translation: '개역한글', chapters: [chapter(chapterNumber, 4)] })
+
+    await write(exodus(2))
+    expect((await readVerseCounts(dir)).get('exodus')).toEqual([0, 4])
+    await write('{ 깨진 파일')
+    expect((await readVerseCounts(dir)).get('exodus')).toEqual({ unreadable: expect.stringContaining('exodus.json') })
+    await write(exodus(3))
+    expect((await readVerseCounts(dir)).get('exodus')).toEqual([0, 0, 4])
+  })
+})
+
+describe('readSource', () => {
+  it('책의 본문을 읽는다', async () => {
+    const source = await readSource('genesis', dir)
+    expect(source.book).toBe('창세기')
+    expect(source.chapters.map((item) => item.chapter)).toEqual([1, 2])
+  })
+
+  it('파일의 책 이름이 그 책이 아니면 오류', async () => {
+    await writeFile(path.join(dir, 'genesis.json'), JSON.stringify({ book: '출애굽기', translation: '개역한글', chapters: [] }))
+    await expect(readSource('genesis', dir)).rejects.toThrow('책 이름(출애굽기)이 창세기가 아닙니다')
+  })
+
+  it('본문 파일이 없으면 source 단계를 먼저 돌리라고 한다', async () => {
+    await expect(readSource('leviticus', dir)).rejects.toThrow('레위기 본문이 없습니다. 먼저 source --book leviticus를 실행하세요.')
+  })
+
+  it('형식에 맞지 않으면 파일 이름과 함께 오류', async () => {
+    await writeFile(path.join(dir, 'genesis.json'), JSON.stringify({ book: '창세기' }))
+    await expect(readSource('genesis', dir)).rejects.toThrow('genesis.json')
+  })
+})
+
+describe('readSourceChapter', () => {
+  it('한 장을 읽고, 본문 파일에 그 장이 없으면 source를 먼저 돌리라고 한다', async () => {
+    expect((await readSourceChapter('exodus', 2, dir)).verses).toHaveLength(4)
+    await expect(readSourceChapter('exodus', 1, dir)).rejects.toThrow(
+      '출애굽기 본문에 1장이 없습니다. 먼저 source --book exodus를 실행하세요.',
+    )
+  })
+
+  it('책에 없는 장이면 source를 돌려도 소용없으니 그렇다고만 한다', async () => {
+    await expect(readSourceChapter('genesis', 51, dir)).rejects.toThrow(/^창세기에는 51장이 없습니다$/)
+    await expect(readSourceChapter('genesis', 0, dir)).rejects.toThrow(/^창세기에는 0장이 없습니다$/)
+    // 본문 파일이 없는 책이어도 장 번호부터 본다.
+    await expect(readSourceChapter('obadiah', 2, dir)).rejects.toThrow(/^오바댜에는 2장이 없습니다$/)
+  })
+})

@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "openai": "^7.27.0",
+    "reader-core": "*",
     "zod": "^4.6.5"
   },
   "devDependencies": {

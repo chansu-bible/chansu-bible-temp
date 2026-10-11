@@ -1,8 +1,9 @@
+import { getBook, type BookId } from 'reader-core'
 import type { Canon, Scene, SourceChapter, Style } from '../schema.ts'
 import { toScenarioScene } from '../scenario/output.ts'
 import { canonSummary, styleSection, verseLines, type ScenarioPrompt } from '../scenario/prompt.ts'
 
-const SYSTEM = `너는 성경 읽기 앱의 글 검수자다. 작성 모델이 창세기 한 장면에 쓴 제목, 해설, 낱말 풀이, 역사 배경, 그림 지시를 본문과 설정집에 견주어 검수한다.
+const SYSTEM = `너는 성경 읽기 앱의 글 검수자다. 작성 모델이 성경 한 장면에 쓴 제목, 해설, 낱말 풀이, 역사 배경, 그림 지시를 본문과 설정집에 견주어 검수한다.
 독자는 성경을 처음 읽는 한국어 사용자다. 절 범위, 낱말이 본문에 글자 그대로 있는지, 설정집 id가 있는지는 코드가 이미 검사했다. 너는 내용을 본다.
 
 볼 것:
@@ -22,11 +23,17 @@ const SYSTEM = `너는 성경 읽기 앱의 글 검수자다. 작성 모델이 �
 - pass면 issues는 []로 둔다.
 - 한국어로 쓴다.`
 
-// review-text 단계 프롬프트. user에는 장 본문 전체, 장면 범위의 본문, 승인된 설정집 요약, 표현 기준, 검수할 장면이 들어간다.
-export function buildReviewTextPrompt(chapter: SourceChapter, canon: Canon, style: Style, scene: Scene): ScenarioPrompt {
+// review-text 단계 프롬프트. user에는 책 이름과 장 번호, 장 본문 전체, 장면 범위의 본문, 승인된 설정집 요약, 표현 기준, 검수할 장면이 들어간다.
+export function buildReviewTextPrompt(
+  book: BookId,
+  chapter: SourceChapter,
+  canon: Canon,
+  style: Style,
+  scene: Scene,
+): ScenarioPrompt {
   const range = `${chapter.chapter}:${scene.verseStart}~${scene.verseEnd}`
   const user = [
-    `창세기 ${chapter.chapter}장, 검수할 장면 ${scene.id} "${scene.title}" (${range})`,
+    `${getBook(book).name} ${chapter.chapter}장, 검수할 장면 ${scene.id} "${scene.title}" (${range})`,
     '',
     '## 장 본문 전체',
     ...verseLines(chapter),
@@ -34,7 +41,7 @@ export function buildReviewTextPrompt(chapter: SourceChapter, canon: Canon, styl
     `## 이 장면의 본문 (${range})`,
     ...verseLines(chapter, scene.verseStart, scene.verseEnd),
     '',
-    canonSummary(canon),
+    canonSummary(canon, book),
     '',
     styleSection(style),
     '',

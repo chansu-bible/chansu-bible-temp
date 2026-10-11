@@ -2,18 +2,27 @@ import { useEffect } from 'react'
 import { api } from '../api.ts'
 import DataTable, { type Column } from '../components/DataTable.tsx'
 import { Empty, ErrorBox, Loading } from '../components/Notice.tsx'
-import { KIND_LABEL } from '../labels.ts'
-import { CANON_KINDS, type CanonKind, type ChapterStatus, type StatusResponse } from '../types.ts'
+import { bookName, KIND_LABEL } from '../labels.ts'
+import { routeHref } from '../route.ts'
+import {
+  CANON_KINDS,
+  type BookId,
+  type CanonKind,
+  type ChapterStatus,
+  type StateCounts,
+  type StatusResponse,
+} from '../types.ts'
 import { useLoad } from '../useLoad.ts'
 
 const REFRESH_MS = 30_000
 
-async function loadStatus(): Promise<{ status: StatusResponse; at: Date }> {
-  return { status: await api.status(), at: new Date() }
+async function loadStatus(book: BookId): Promise<{ status: StatusResponse; at: Date }> {
+  return { status: await api.status(book), at: new Date() }
 }
 
-export default function Dashboard() {
-  const status = useLoad(loadStatus, 'status')
+// 고른 책의 장별 진행. 설정집 요약과 그림 버전은 모든 책이 함께 쓰는 것이다.
+export default function Dashboard({ book }: { book: BookId }) {
+  const status = useLoad(() => loadStatus(book), `status/${book}`)
   const { reload } = status
   const updatedAt = status.data?.at ?? null
 
@@ -30,7 +39,7 @@ export default function Dashboard() {
   return (
     <div className="page">
       <header className="page-head">
-        <h1>대시보드</h1>
+        <h1>{bookName(book)} 대시보드</h1>
         <div className="page-actions">
           {updatedAt && (
             <span className="muted">
@@ -45,12 +54,12 @@ export default function Dashboard() {
 
       {status.error && <ErrorBox message={status.error} onRetry={reload} />}
       {!status.data && !status.error && <Loading />}
-      {status.data && <StatusView data={status.data.status} />}
+      {status.data && <StatusView book={book} data={status.data.status} />}
     </div>
   )
 }
 
-function StatusView({ data }: { data: StatusResponse }) {
+function StatusView({ book, data }: { book: BookId; data: StatusResponse }) {
   // 그림 버전 열: 버전 목록 순서대로, 목록에 없지만 장에 있는 버전은 뒤에 붙인다.
   const versionIds = [
     ...data.imageVersions.map((v) => v.id),
@@ -59,7 +68,11 @@ function StatusView({ data }: { data: StatusResponse }) {
   const versionLabel = (id: string) => data.imageVersions.find((v) => v.id === id)?.label || id
 
   const columns: Column<ChapterStatus>[] = [
-    { key: 'chapter', header: '장', cell: (c) => <a href={`#/scenes/${c.chapter}`}>{c.chapter}장</a> },
+    {
+      key: 'chapter',
+      header: '장',
+      cell: (c) => <a href={routeHref({ page: 'scenes', book, chapter: c.chapter, sceneId: null })}>{c.chapter}장</a>,
+    },
     { key: 'verses', header: '절', numeric: true, cell: (c) => c.verses },
     {
       key: 'total',
@@ -94,18 +107,24 @@ function StatusView({ data }: { data: StatusResponse }) {
           columns={columns}
           rows={data.chapters}
           rowKey={(c) => String(c.chapter)}
-          empty="본문이 없어요. 작업 화면에서 source를 먼저 실행하세요."
+          empty={`${bookName(book)} 본문이 없어요. 작업 화면에서 source를 먼저 실행하세요.`}
         />
       </section>
 
       <div className="grid-2">
         <section className="card">
           <h2>설정집</h2>
-          <CanonSummary canon={data.canon} />
+          {data.canon ? (
+            <CanonSummary canon={data.canon} />
+          ) : (
+            <ErrorBox message={`설정집을 읽지 못했어요: ${data.canonError ?? '까닭을 모릅니다'}`} />
+          )}
         </section>
         <section className="card">
           <h2>변경 제안</h2>
-          {data.proposalsOpen > 0 ? (
+          {data.proposalsOpen === null ? (
+            <p className="muted">설정집을 읽지 못해 제안을 세지 못했어요</p>
+          ) : data.proposalsOpen > 0 ? (
             <p>
               열린 제안 <strong>{data.proposalsOpen}</strong>개 · <a href="#/queue">검수 대기열에서 보기</a>
             </p>
@@ -131,9 +150,9 @@ function StatusView({ data }: { data: StatusResponse }) {
   )
 }
 
-function CanonSummary({ canon }: { canon: StatusResponse['canon'] }) {
+function CanonSummary({ canon }: { canon: Record<CanonKind, StateCounts> }) {
   const rows = CANON_KINDS.map((kind) => ({ kind, counts: canon[kind] ?? { draft: 0, approved: 0, rejected: 0 } }))
-  const columns: Column<{ kind: CanonKind; counts: StatusResponse['canon'][CanonKind] }>[] = [
+  const columns: Column<{ kind: CanonKind; counts: StateCounts }>[] = [
     { key: 'kind', header: '종류', cell: (r) => <a href={`#/canon/${r.kind}`}>{KIND_LABEL[r.kind]}</a> },
     { key: 'draft', header: '초안', numeric: true, cell: (r) => count(r.counts.draft) },
     { key: 'approved', header: '승인', numeric: true, cell: (r) => count(r.counts.approved) },

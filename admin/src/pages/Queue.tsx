@@ -1,29 +1,37 @@
 import { api } from '../api.ts'
+import { skippedBooksNote } from '../bookChoice.ts'
 import { Empty, ErrorBox, Loading } from '../components/Notice.tsx'
 import StatusBadge from '../components/StatusBadge.tsx'
-import { formatTime, KIND_LABEL } from '../labels.ts'
+import { bookName, formatTime, KIND_LABEL } from '../labels.ts'
 import { routeHref } from '../route.ts'
-import { CANON_KINDS, type CanonKind, type Proposal } from '../types.ts'
+import { CANON_KINDS, type BookId, type BookSummary, type CanonKind, type Proposal } from '../types.ts'
 import { useLoad } from '../useLoad.ts'
 
-type FlaggedScene = { chapter: number; id: string; title: string; issues: string[] }
+type FlaggedScene = { book: BookId; chapter: number; id: string; title: string; issues: string[] }
 type DraftEntry = { kind: CanonKind; id: string; name: string }
+type QuizPending = { book: BookId; chapter: number; reviewed: number; flagged: number }
 
-// 확인 필요 장면: 대시보드 상태에서 flagged가 있는 장만 장면 파일을 읽는다.
-async function loadFlagged(): Promise<FlaggedScene[]> {
-  const status = await api.status()
-  const chapters = status.chapters.filter((c) => c.scenes.flagged > 0).map((c) => c.chapter)
-  const files = await Promise.all(chapters.map((n) => api.scenes(n)))
-  return files.flatMap((f) =>
-    (f.scenes ?? [])
-      .filter((s) => s.review.status === 'flagged')
-      .map((s) => ({
-        chapter: f.chapter,
-        id: s.id,
-        title: s.title,
-        issues: [s.review.text, s.review.facts, s.review.image].flatMap((v) => v?.issues ?? []),
-      })),
+// 확인 필요 장면: 책마다 대시보드 상태에서 flagged가 있는 장만 장면 파일을 읽는다(성경 순서).
+async function loadFlagged(books: BookId[]): Promise<FlaggedScene[]> {
+  const perBook = await Promise.all(
+    books.map(async (book) => {
+      const status = await api.status(book)
+      const chapters = status.chapters.filter((c) => c.scenes.flagged > 0).map((c) => c.chapter)
+      const files = await Promise.all(chapters.map((n) => api.scenes(book, n)))
+      return files.flatMap((f) =>
+        (f.scenes ?? [])
+          .filter((s) => s.review.status === 'flagged')
+          .map((s) => ({
+            book,
+            chapter: f.chapter,
+            id: s.id,
+            title: s.title,
+            issues: [s.review.text, s.review.facts, s.review.image].flatMap((v) => v?.issues ?? []),
+          })),
+      )
+    }),
   )
+  return perBook.flat()
 }
 
 async function loadDrafts(): Promise<DraftEntry[]> {
@@ -37,15 +45,47 @@ async function loadOpenProposals(): Promise<Proposal[]> {
   return (await api.proposals()).filter((p) => p.status === 'open')
 }
 
-export default function Queue() {
-  const flagged = useLoad(loadFlagged, 'flagged')
+// 한국어 뜻 초안 수
+async function loadGlossDrafts(): Promise<number> {
+  return (await api.lexicon()).entries.filter((e) => e.korean?.status === 'draft').length
+}
+
+// 사람이 검수할 퀴즈(검수 통과·확인 필요)가 있는 장. 책마다 본다(성경 순서).
+async function loadQuizPending(books: BookId[]): Promise<QuizPending[]> {
+  const perBook = await Promise.all(
+    books.map(async (book) =>
+      (await api.quizSummary(book)).map((s) => ({ book, chapter: s.chapter, reviewed: s.counts.reviewed, flagged: s.counts.flagged })),
+    ),
+  )
+  return perBook.flat().filter((c) => c.reviewed + c.flagged > 0)
+}
+
+// 검수 대기열. 장면과 퀴즈는 본문을 읽을 수 있는 모든 책(books)에서 모은다.
+// 본문을 읽지 못한 책(unreadable)이나 책 목록 오류(listError)가 있으면 이 목록에서 빠졌다고 알린다.
+export default function Queue({
+  books,
+  unreadable,
+  listError,
+}: {
+  books: BookSummary[]
+  unreadable: string[]
+  listError: string | null
+}) {
+  const ids = books.map((b) => b.id)
+  const skipped = skippedBooksNote(unreadable, listError, '이 목록')
+  const flagged = useLoad(() => loadFlagged(ids), `flagged/${ids.join(',')}`)
   const drafts = useLoad(loadDrafts, 'drafts')
   const proposals = useLoad(loadOpenProposals, 'proposals')
+  const glossDrafts = useLoad(loadGlossDrafts, 'gloss-drafts')
+  const quizPending = useLoad(() => loadQuizPending(ids), `quiz-pending/${ids.join(',')}`)
+  const quizTotal = quizPending.data?.reduce((sum, c) => sum + c.reviewed + c.flagged, 0) ?? 0
 
   function reloadAll() {
     flagged.reload()
     drafts.reload()
     proposals.reload()
+    glossDrafts.reload()
+    quizPending.reload()
   }
 
   return (
@@ -57,6 +97,8 @@ export default function Queue() {
         </button>
       </header>
 
+      {skipped && <p className="notice">{skipped}</p>}
+
       <section className="card">
         <h2>확인 필요 장면 {flagged.data && <span className="count">{flagged.data.length}</span>}</h2>
         {flagged.error && <ErrorBox message={flagged.error} onRetry={flagged.reload} />}
@@ -65,9 +107,9 @@ export default function Queue() {
           (flagged.data.length ? (
             <ul className="queue-list">
               {flagged.data.map((s) => (
-                <li key={`${s.chapter}/${s.id}`}>
-                  <a href={routeHref({ page: 'scenes', chapter: s.chapter, sceneId: s.id })}>
-                    {s.chapter}장 · {s.title || s.id}
+                <li key={`${s.book}/${s.chapter}/${s.id}`}>
+                  <a href={routeHref({ page: 'scenes', book: s.book, chapter: s.chapter, sceneId: s.id })}>
+                    {bookName(s.book)} {s.chapter}장 · {s.title || s.id}
                   </a>{' '}
                   <StatusBadge status="flagged" />
                   {s.issues.length > 0 && <p className="muted">{s.issues.join(' / ')}</p>}
@@ -120,6 +162,61 @@ export default function Queue() {
             </ul>
           ) : (
             <Empty>열린 제안이 없어요</Empty>
+          ))}
+      </section>
+
+      <section className="card">
+        <h2>한국어 뜻 초안 {glossDrafts.data !== null && <span className="count">{glossDrafts.data}</span>}</h2>
+        {glossDrafts.error && <ErrorBox message={glossDrafts.error} onRetry={glossDrafts.reload} />}
+        {glossDrafts.data === null && !glossDrafts.error && <Loading />}
+        {glossDrafts.data !== null &&
+          (glossDrafts.data > 0 ? (
+            <p>
+              <a href={routeHref({ page: 'lexicon', filter: 'draft' })}>한국어 뜻 초안 {glossDrafts.data}개</a>{' '}
+              <span className="muted">· 원어 뜻 화면에서 한 줄씩 읽고 승인해요</span>
+            </p>
+          ) : (
+            <Empty>검수할 한국어 뜻 초안이 없어요</Empty>
+          ))}
+      </section>
+
+      <section className="card">
+        <h2>검수할 퀴즈 {quizPending.data && <span className="count">{quizTotal}</span>}</h2>
+        {quizPending.error && <ErrorBox message={quizPending.error} onRetry={quizPending.reload} />}
+        {!quizPending.data && !quizPending.error && <Loading />}
+        {quizPending.data &&
+          (quizTotal > 0 ? (
+            <>
+              <p>
+                <a href={routeHref({ page: 'quiz', book: quizPending.data[0]!.book, chapter: quizPending.data[0]!.chapter })}>
+                  검수할 퀴즈 {quizTotal}문제
+                </a>{' '}
+                <span className="muted">· 검수 통과했거나 지적된 문제예요</span>
+              </p>
+              <ul className="queue-list">
+                {quizPending.data.map((c) => (
+                  <li key={`${c.book}/${c.chapter}`}>
+                    <a href={routeHref({ page: 'quiz', book: c.book, chapter: c.chapter })}>
+                      {bookName(c.book)} {c.chapter}장
+                    </a>
+                    {c.reviewed > 0 && (
+                      <>
+                        {' '}
+                        <StatusBadge status="reviewed" /> {c.reviewed}
+                      </>
+                    )}
+                    {c.flagged > 0 && (
+                      <>
+                        {' '}
+                        <StatusBadge status="flagged" /> {c.flagged}
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <Empty>검수할 퀴즈가 없어요</Empty>
           ))}
       </section>
     </div>

@@ -9,3 +9,9 @@ content/runs/*.jsonl
 
 # tsc -b 산출물
 *.tsbuildinfo
+
+# 테스트 도구가 남기는 결과 파일
+.vitest/
+
+# 끊긴 작업이 남긴 임시 파일(<파일>.tmp를 거쳐 쓴 뒤 이름을 바꾼다)
+*.tmp

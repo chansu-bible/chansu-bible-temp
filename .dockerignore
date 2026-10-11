@@ -1,0 +1,23 @@
+# 서버 이미지(deploy/server.Dockerfile)의 빌드 맥락. 비밀 값과 큰 폴더는 넣지 않는다.
+**/node_modules
+**/.env
+**/.env.*
+**/*.env
+**/.npmrc
+!**/.env.example
+.git
+.claude
+content
+publish
+**/*.tmp
+**/.vitest
+**/dist
+# 작업 공간 목록이 맞아야 npm ci가 되므로 다른 작업 공간은 package.json만 넣는다.
+app/*
+!app/package.json
+admin/*
+!admin/package.json
+mobile/*
+!mobile/package.json
+pipeline/*
+!pipeline/package.json

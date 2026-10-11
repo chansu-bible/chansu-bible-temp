@@ -8,14 +8,14 @@ const catalog = {
     { id: 'v2', label: '2차', note: '' },
   ],
   files: {
-    v1: ['g1-s1.jpeg', 'g1-s2.png', 'g9-s1.jpeg', 'g1-s3.txt.bak'],
-    v2: ['g1-s3.jpeg'],
+    v1: ['genesis-01-01.jpeg', 'genesis-01-02.png', 'genesis-09-01.jpeg', 'genesis-01-03.txt.bak'],
+    v2: ['genesis-01-03.jpeg'],
   },
 }
 
 describe('computeChapterStatus', () => {
-  const audio = new Set(['genesis-01-001.mp3', 'genesis-01-003.mp3', 'genesis-02-005.mp3', 'note.txt'])
-  const result = computeChapterStatus(source, sceneFiles, catalog, audio)
+  const audio = new Set(['genesis-01-001.mp3', 'genesis-01-003.mp3', 'genesis-02-005.mp3', 'exodus-02-001.mp3', 'note.txt'])
+  const result = computeChapterStatus('genesis', source, sceneFiles, catalog, audio)
 
   it('본문의 장마다 한 줄을 만든다', () => {
     expect(result.map((item) => item.chapter)).toEqual([1, 2])

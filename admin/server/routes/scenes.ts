@@ -10,15 +10,11 @@ import {
   type ImageCatalog,
   type Scene,
 } from 'pipeline'
+import { getBook, type BookId } from 'reader-core'
 import type { AppContext } from '../context.ts'
-import { readSceneFile, readSource } from '../content.ts'
+import { readSceneFile } from '../content.ts'
 import { errorMessage, HttpError, readJsonBody } from '../errors.ts'
-
-function parseChapter(raw: string): number {
-  const chapter = Number(raw)
-  if (!Number.isInteger(chapter) || chapter < 1) throw new HttpError(400, `장 번호가 잘못되었습니다: ${raw}`)
-  return chapter
-}
+import { parseChapter, sourceChapterOf, type BookEnv } from './params.ts'
 
 // 장면 id → 버전 id → 그림 파일 이름. 확장자를 뗀 이름이 장면 id인 파일만 본다. 그림이 없는 버전은 키가 없다.
 export function sceneImages(scenes: Scene[], catalog: ImageCatalog): Record<string, Record<string, string>> {
@@ -34,13 +30,14 @@ export function sceneImages(scenes: Scene[], catalog: ImageCatalog): Record<stri
   return images
 }
 
-export function sceneRoutes(ctx: AppContext): Hono {
-  const app = new Hono()
+// /api/books/:book/scenes
+export function sceneRoutes(ctx: AppContext): Hono<BookEnv> {
+  const app = new Hono<BookEnv>()
   const scenesDir = ctx.scenesDir ?? paths.scenesDir
 
-  const findScene = async (chapter: number, id: string) => {
-    const sceneFile = await readSceneFile(chapter, scenesDir)
-    if (!sceneFile) throw new HttpError(404, `${chapter}장의 장면 파일이 없습니다`)
+  const findScene = async (book: BookId, chapter: number, id: string) => {
+    const sceneFile = await readSceneFile(book, chapter, scenesDir)
+    if (!sceneFile) throw new HttpError(404, `${getBook(book).name} ${chapter}장의 장면 파일이 없습니다`)
     const index = sceneFile.scenes.findIndex((scene) => scene.id === id)
     if (index < 0) throw new HttpError(404, `${id} 장면이 ${chapter}장에 없습니다`)
     return { sceneFile, index }
@@ -48,11 +45,11 @@ export function sceneRoutes(ctx: AppContext): Hono {
 
   // 장 본문과 장면, 그림 버전, 장면별 버전 그림. 장면 파일이 없으면 scenes는 null이다.
   app.get('/:chapter', async (c) => {
+    const book = c.var.book
     const chapter = parseChapter(c.req.param('chapter'))
-    const sourceChapter = (await readSource(ctx.sourceFile)).chapters.find((item) => item.chapter === chapter)
-    if (!sourceChapter) throw new HttpError(404, `본문에 ${chapter}장이 없습니다`)
+    const sourceChapter = await sourceChapterOf(book, chapter, ctx.sourceDir)
     const [sceneFile, catalog] = await Promise.all([
-      readSceneFile(chapter, scenesDir),
+      readSceneFile(book, chapter, scenesDir),
       readImageCatalog({ file: ctx.imageVersionsFile, imagesDir: ctx.imagesDir }),
     ])
     return c.json({
@@ -67,7 +64,7 @@ export function sceneRoutes(ctx: AppContext): Hono {
   // images 단계가 모델에 보낼 최종 프롬프트와 함께 보낼 참고 이미지 파일 이름
   app.get('/:chapter/:id/prompt', async (c) => {
     const chapter = parseChapter(c.req.param('chapter'))
-    const { sceneFile, index } = await findScene(chapter, c.req.param('id'))
+    const { sceneFile, index } = await findScene(c.var.book, chapter, c.req.param('id'))
     const style = await readStyle(ctx.styleFile, { refsDir: ctx.refsDir, requireFiles: false })
     return c.json({
       prompt: buildImagePrompt(style, sceneFile.scenes[index]!),
@@ -77,6 +74,7 @@ export function sceneRoutes(ctx: AppContext): Hono {
 
   // 장면 하나를 전체 검증한 뒤 그 장면만 바꿔 파일을 다시 쓴다.
   app.put('/:chapter/:id', async (c) => {
+    const book = c.var.book
     const chapter = parseChapter(c.req.param('chapter'))
     const id = c.req.param('id')
     const parsed = SceneSchema.safeParse(await readJsonBody(c.req.raw))
@@ -84,11 +82,11 @@ export function sceneRoutes(ctx: AppContext): Hono {
     const scene = parsed.data
     if (scene.id !== id) throw new HttpError(400, `본문의 id(${scene.id})가 주소의 id(${id})와 다릅니다`)
     if (scene.chapter !== chapter) throw new HttpError(400, `본문의 장 번호(${scene.chapter})가 주소의 장 번호(${chapter})와 다릅니다`)
-    const { sceneFile, index } = await findScene(chapter, id)
+    const { sceneFile, index } = await findScene(book, chapter, id)
     const scenes = [...sceneFile.scenes]
     scenes[index] = scene
     try {
-      await writeSceneFile({ ...sceneFile, scenes }, scenesDir)
+      await writeSceneFile(book, { ...sceneFile, scenes }, scenesDir)
     } catch (error) {
       throw new HttpError(400, errorMessage(error, '장면 파일 검증에 실패했습니다'))
     }

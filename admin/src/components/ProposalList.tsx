@@ -1,18 +1,22 @@
 import { useState } from 'react'
 import { api } from '../api.ts'
-import { getPath } from '../canonForm.ts'
+import { citationPaths, getPath } from '../canonForm.ts'
+import { citationLabel, citationValueLabel } from '../citations.ts'
 import { formatTime } from '../labels.ts'
-import type { Proposal } from '../types.ts'
+import type { CanonKind, Proposal } from '../types.ts'
 import { errorMessage } from '../useLoad.ts'
 import JsonView from './JsonView.tsx'
 
 // 한 항목에 걸린 열린 제안. 지금 값과 제안 값을 나란히 보여 주고 적용/버리기.
+// 절 인용은 책 이름으로 보인다("창세기 2:7"). 인용이 든 자리는 그 종류의 폼 필드(SECTIONS)에서 온다.
 export default function ProposalList({
+  kind,
   proposals,
   entry,
   disabledReason,
   onChanged,
 }: {
+  kind: CanonKind
   proposals: Proposal[]
   entry: object
   disabledReason: string | null
@@ -20,6 +24,7 @@ export default function ProposalList({
 }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const paths = citationPaths(kind)
 
   async function act(p: Proposal, action: 'apply' | 'dismiss') {
     setBusy(p.id)
@@ -54,15 +59,15 @@ export default function ProposalList({
           <div className="proposal-compare">
             <div>
               <h4>지금 값</h4>
-              <JsonView value={getPath(entry, p.field)} label="지금 값" />
+              <JsonView value={citationValueLabel(paths, p.field, getPath(entry, p.field))} label="지금 값" />
             </div>
             <div>
               <h4>제안 값</h4>
-              <JsonView value={p.value} label="제안 값" />
+              <JsonView value={citationValueLabel(paths, p.field, p.value)} label="제안 값" />
             </div>
           </div>
           {p.reason && <p>{p.reason}</p>}
-          {p.sources.length > 0 && <p className="muted">근거: {p.sources.join(', ')}</p>}
+          {p.sources.length > 0 && <p className="muted">근거: {p.sources.map(citationLabel).join(', ')}</p>}
           <div className="button-row">
             <button
               type="button"

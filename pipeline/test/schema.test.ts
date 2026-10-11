@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CitationSchema,
   ImageVersionSchema,
   IMAGE_VERSION_ID_PATTERN,
   REFERENCE_FILE_PATTERN,
@@ -72,6 +73,24 @@ describe('StyleSchema', () => {
     expect(REFERENCE_FILE_PATTERN.test('a.jpeg')).toBe(true)
     expect(REFERENCE_FILE_PATTERN.test(`${'a'.repeat(80)}.png`)).toBe(true)
     expect(REFERENCE_FILE_PATTERN.test(`${'a'.repeat(81)}.png`)).toBe(false)
+  })
+})
+
+describe('CitationSchema', () => {
+  it('책이 붙은 표준 모양의 절 인용만 받는다', () => {
+    for (const value of ['genesis 2:7', 'genesis 2:7-8', 'exodus 3:2', '1-samuel 3:4', 'psalms 119:105']) {
+      expect(CitationSchema.safeParse(value).success).toBe(true)
+    }
+    // 책 없음, 앞뒤 공백, 앞에 0, 끝이 시작과 같은 범위, 그 책에 없는 장, 대문자 책 id, 두 칸 띄어쓰기
+    for (const value of ['2:7', ' genesis 2:7 ', 'genesis 02:07', 'genesis 2:7-7', 'genesis 51:1', 'Genesis 2:7', 'genesis  2:7']) {
+      expect(CitationSchema.safeParse(value).success).toBe(false)
+    }
+  })
+
+  it('표준 모양이 아니면 책 장:절 모양이어야 한다고 알린다', () => {
+    for (const value of [' genesis 2:7 ', 'genesis 02:07', 'genesis 2:7-7']) {
+      expect(CitationSchema.safeParse(value).error?.issues[0]?.message).toBe('절 인용은 "책 장:절" 모양이어야 합니다(예: "genesis 2:7")')
+    }
   })
 })
 

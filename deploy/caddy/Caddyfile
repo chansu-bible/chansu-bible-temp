@@ -1,0 +1,39 @@
+# 맥미니의 유일한 입구. TLS는 앞의 Tailscale Funnel(나중에는 Cloudflare 터널)이 맡고 여기는 HTTP로 받는다.
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	# 경로 매개변수(;)는 서버마다 다르게 읽어 허용 목록을 비껴갈 수 있으므로 먼저 막는다. 키클락 26.8은 스스로도 거절하지만 기대지 않는다.
+	@params path_regexp ;
+	handle @params {
+		respond 404
+	}
+
+	# 인코딩한 빗금(%2F)도 먼저 막는다. Caddy는 풀어서 경로를 맞춰 보지만 키클락은 풀지 않아서,
+	# /auth/realms/master/account/..%2F..%2Fchansu-bible 같은 주소가 허용 목록을 지나 master로 간다.
+	@encodedSlash vars_regexp {http.request.uri} ^[^?]*%2[fF]
+	handle @encodedSlash {
+		respond 404
+	}
+
+	# 키클락은 앱의 realm과 화면 자원만 밖에 연다. 밖에서 HTTPS로 왔다는 것을 키클락에 직접 알린다.
+	@keycloak path /auth/realms/chansu-bible /auth/realms/chansu-bible/* /auth/resources/*
+	handle @keycloak {
+		reverse_proxy keycloak:8080 {
+			header_up X-Forwarded-Proto {$PUBLIC_SCHEME}
+		}
+	}
+
+	# 그 밖의 키클락 주소(관리 화면, 관리자 realm, 첫 화면)는 밖에서 열지 않는다. 관리는 SSH 포트 전달로 127.0.0.1에서 한다.
+	@keycloakOther path /auth /auth/*
+	handle @keycloakOther {
+		respond 404
+	}
+
+	# 그 밖은 동기화·질문하기 서버(2단계부터 /content도)
+	handle {
+		reverse_proxy server:8790
+	}
+}

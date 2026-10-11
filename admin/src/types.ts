@@ -1,7 +1,11 @@
 // 관리 서버 API 계약의 타입. pipeline/src/schema.ts와 계획 문서의 "공통 계약"을 손으로 옮겼다.
-// 화면 묶음에 Node 코드가 들어가지 않도록 pipeline을 불러오지 않는다.
+// 화면 묶음에 Node 코드가 들어가지 않도록 pipeline을 불러오지 않는다(reader-core는 브라우저에서도 돈다).
+import type { BookId } from 'reader-core'
 
-export type Citation = string // "1:26", "2:7-8"
+export type { BookId }
+
+// 저장 모양은 책 id가 붙은 "genesis 1:26", "genesis 2:7-8"이고, 화면에는 "창세기 1:26"으로 보인다.
+export type Citation = string
 export type ReviewState = 'draft' | 'approved' | 'rejected'
 export type CanonKind = 'characters' | 'places' | 'eras' | 'things'
 export const CANON_KINDS: CanonKind[] = ['characters', 'places', 'eras', 'things']
@@ -100,6 +104,39 @@ export type Scene = {
 
 export type ImageVersion = { id: string; label: string; note: string }
 
+// 원어 사전(content/original/lexicon.json). korean은 original-gloss 단계의 초안이나 사람이 승인한 뜻, 없으면 null
+export type KoreanGlossStatus = 'draft' | 'approved'
+export type KoreanGloss = { meaning: string; note: string; status: KoreanGlossStatus }
+export type LexiconEntry = {
+  strong: string // 스트롱 번호 "H7225"
+  lemma: string // 히브리어 원형
+  xlit: string // 음역
+  pos: string // 스트롱 품사 부호 "n-f"
+  definition: string // 영어 정의
+  usage: string // KJV 번역어
+  count: number // 원어를 받은 모든 책에 나오는 횟수
+  korean: KoreanGloss | null
+}
+export type LexiconFile = { entries: LexiconEntry[] }
+// PUT /api/lexicon/:strong 본문. meaning을 비우면 뜻을 지운다.
+export type GlossInput = { meaning: string; note: string; status: KoreanGlossStatus }
+
+// 이해 확인 퀴즈(content/quiz/<책 id>-NN.json). reviewed는 검수 모델 통과, flagged는 지적 있음,
+// approved는 사람이 승인(앱에 나간다), rejected는 버린 것
+export type QuizStatus = 'draft' | 'reviewed' | 'flagged' | 'approved' | 'rejected'
+export type QuizQuestion = {
+  id: string // "genesis-04-q1"
+  question: string
+  options: string[] // 넷
+  answer: number // 정답 보기 번호 0~3
+  explanation: string
+  verse: number // 근거 절
+  status: QuizStatus
+  issues: string[] // 검수 지적(기록이라 저장해도 바뀌지 않는다)
+}
+// PUT /api/books/:book/quiz/:chapter/:id 본문
+export type QuizEdit = Omit<QuizQuestion, 'id' | 'issues'>
+
 // 화풍. 참고 파일 이름은 폴더 구분자 없이 영문 소문자·숫자·점·밑줄·하이픈(.jpg·.png·.webp).
 export type StyleReference = { file: string; label: string; source: string }
 export type Style = {
@@ -111,6 +148,18 @@ export type Style = {
 }
 
 // 관리 서버 응답
+
+// GET /api/books: 본문 파일이 있는 책(성경 순서). chapters는 책의 장 수, sourceChapters는 본문에 든 장 수,
+// sourceRange는 본문의 첫 장·끝 장(장이 없거나 읽지 못하면 null). 본문 파일을 읽지 못한 책은 error에 까닭(파일 이름)이 있다.
+export type BookSummary = {
+  id: BookId
+  name: string
+  chapters: number
+  sourceChapters: number
+  sourceRange: { from: number; to: number } | null
+  error?: string
+}
+
 export type StateCounts = { draft: number; approved: number; rejected: number }
 
 export type ChapterStatus = {
@@ -122,14 +171,17 @@ export type ChapterStatus = {
   audio: { have: number; total: number }
 }
 
+// 설정집을 읽지 못하면(설정집이 깨졌거나, 설정집이 인용한 책의 본문을 읽지 못할 때) canon과 proposalsOpen은 null이고 canonError에 까닭이 있다.
 export type StatusResponse = {
   chapters: ChapterStatus[]
-  canon: Record<CanonKind, StateCounts>
-  proposalsOpen: number
+  canon: Record<CanonKind, StateCounts> | null
+  proposalsOpen: number | null
+  canonError: string | null
   imageVersions: ImageVersion[]
 }
 
-export type UsageResponse = { scenes: { chapter: number; id: string; title: string }[] }
+// 설정집 항목을 쓰는 장면. 본문이 있는 모든 책에서 찾는다.
+export type UsageResponse = { scenes: { book: BookId; chapter: number; id: string; title: string }[] }
 
 export type ScenesResponse = {
   chapter: number
@@ -139,14 +191,45 @@ export type ScenesResponse = {
   images: Record<string, Record<string, string>> // 장면 id → 버전 id → 파일 이름(있을 때만)
 }
 
+export type QuizResponse = { chapter: number; verses: Verse[]; questions: QuizQuestion[] }
+export type QuizChapterSummary = {
+  chapter: number
+  hasFile: boolean
+  total: number
+  counts: Record<QuizStatus, number>
+}
+
 export type PromptResponse = { prompt: string; references: string[] }
 export type StyleRefResponse = { style: Style; added: string }
 
-export type Stage = 'source' | 'canon' | 'scenario' | 'review-text' | 'images' | 'tts' | 'build'
-export const STAGES: Stage[] = ['source', 'canon', 'scenario', 'review-text', 'images', 'tts', 'build']
+export type Stage =
+  | 'source'
+  | 'canon'
+  | 'scenario'
+  | 'review-text'
+  | 'images'
+  | 'tts'
+  | 'original'
+  | 'original-gloss'
+  | 'quiz'
+  | 'build'
+export const STAGES: Stage[] = [
+  'source',
+  'canon',
+  'scenario',
+  'review-text',
+  'images',
+  'tts',
+  'original',
+  'original-gloss',
+  'quiz',
+  'build',
+]
 
 export type JobOptions = {
+  book?: BookId
   chapter?: number
+  chapters?: string // source가 받을 장 범위("1-10", "3"). 없으면 책 전체
   scenes?: string[]
   force?: boolean
   allowDraft?: boolean

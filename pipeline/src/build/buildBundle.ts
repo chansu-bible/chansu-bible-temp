@@ -1,89 +1,249 @@
+import { bookOrder, fallbackSceneIdOf, formatRef, getBook, josa, sceneIdOf, verseAudioName, type BookId } from 'reader-core'
 import {
   BUNDLE_SCHEMA_VERSION,
   type Bundle,
   type BundleCharacter,
   type BundleEra,
+  type BundleLexiconEntry,
+  type BundleOriginalVerse,
   type BundlePlace,
+  type BundleQuizQuestion,
+  type BundleSource,
   type BundleScene,
+  type BundleThing,
   type Character,
   type Era,
   type ImageVersion,
+  type LexiconFile,
+  type OriginalFile,
   type Place,
+  type QuizFile,
   type Scene,
   type SceneFile,
   type Source,
+  type SourceChapter,
+  type Thing,
   type Verse,
 } from '../schema.ts'
+import { firstAppearanceOf } from '../canon/citations.ts'
+import { posLabel } from '../original/morph.ts'
 import { findCoverageProblems } from '../scenes/coverage.ts'
-import { audioName } from '../tts/select.ts'
+import { canonForBook, type BookCanon } from './canonForBook.ts'
 
 // files: 버전 id → 그 버전 폴더에 있는 그림 파일 이름들
 export type ImageCatalog = { versions: ImageVersion[]; files: Record<string, string[]> }
 
-// 묶음에 넣을 설정집. 승인 여부는 buildBundle이 거른다.
-export type BundleCanon = { characters: Character[]; places: Place[]; eras: Era[] }
+// 묶음에 넣을 설정집(모든 책). 승인 여부는 bookCanonOf가, 그 책까지 나왔는지와 인용 모양은 canonForBook이 맡는다.
+export type BundleCanon = { characters: Character[]; places: Place[]; eras: Era[]; things?: Thing[] }
 
+// 책 하나의 묶음에 들어가는 설정집. approvedPlaces는 책에 맞추기 전의 승인된 장소 전체다.
+export type BookBundleCanon = BookCanon & { approvedPlaces: readonly Place[] }
+
+// 음성 파일 이름 → 재생 길이(ms, 모르면 null). 이름만 아는 Set도 받는다.
+export type AudioCatalog = ReadonlyMap<string, number | null> | ReadonlySet<string>
+
+// 원어, 사전, 퀴즈, 자료 출처. 없으면 묶음에서 비운다.
+export type BundleExtras = {
+  original?: OriginalFile | null
+  lexicon?: LexiconFile | null
+  quizzes?: QuizFile[]
+  sources?: BundleSource[]
+}
+
+// 묶음의 장. 책 묶음(buildBundle)과 장 꾸러미가 함께 쓰는 모양이다.
+export type BundleChapter = Bundle['chapters'][number]
+
+// buildChapter가 장 하나를 만드는 데 쓰는 것이다. 직접 채우지 말고 chapterContextOf로 만든다.
+export type ChapterContext = {
+  catalog: ImageCatalog
+  // 음성 파일 이름 → 재생 길이(ms, 모르면 null)
+  durations: ReadonlyMap<string, number | null>
+  // 이 책 묶음에 들어가는 장소와 인물의 id. 승인된 전체가 아니라 canonForBook이 책에 맞춰 거른 것이다.
+  placeIds: ReadonlySet<string>
+  characterIds: ReadonlySet<string>
+  // 승인된 장소 전체. 장면이 가리키는 장소가 묶음에 없을 때 오류 글이 까닭을 밝히는 데만 쓴다.
+  approvedPlaces: readonly Place[]
+  // 원어 파일(없으면 null)과 퀴즈 파일들. 이 장의 것만 쓴다.
+  original: OriginalFile | null
+  quizzes: readonly QuizFile[]
+}
+
+function audioDurations(audio: AudioCatalog): ReadonlyMap<string, number | null> {
+  return audio instanceof Map ? audio : new Map([...(audio as ReadonlySet<string>)].map((name) => [name, null] as const))
+}
+
+// 책 하나의 묶음에 넣을 설정집을 만든다. source는 그 책의 본문 전체다(뒤 책에서 끝나는 시대의 끝을 이 본문의 마지막 절로 맞춘다).
+// 사람이 승인한 항목만 앱에 나간다. 검수 전 초안은 지도와 인물 카드에 올리지 않는다.
+// 그 가운데 이 책을 다 읽은 독자가 아는 항목만, 인용을 묶음 모양으로 바꿔 넣는다(canonForBook). 책마다 한 번만 돌린다.
+export function bookCanonOf(book: BookId, source: Source, canon: BundleCanon): BookBundleCanon {
+  const approved = <T extends { status: string }>(items: T[]) => items.filter((item) => item.status === 'approved')
+  const approvedPlaces = approved(canon.places)
+  const bookCanon = canonForBook(
+    {
+      places: approvedPlaces,
+      characters: approved(canon.characters),
+      eras: approved(canon.eras),
+      things: approved(canon.things ?? []),
+    },
+    book,
+    lastVerseOf(source),
+  )
+  return { ...bookCanon, approvedPlaces }
+}
+
+// 장을 만드는 문맥을 책의 설정집으로 만든다. 책 묶음(buildBundle)과 장 꾸러미가 함께 써서 설정집 거르기를 한 곳에서만 한다.
+// 장소·인물 id는 승인된 전체가 아니라 bookCanonOf가 이 책에 맞춰 거른 것이다. 손으로 만들면 뒤 책의 인물과 장소가 샌다.
+export function chapterContextOf(
+  bookCanon: BookBundleCanon,
+  audio: AudioCatalog,
+  catalog: ImageCatalog,
+  extras: BundleExtras,
+): ChapterContext {
+  return {
+    catalog,
+    durations: audioDurations(audio),
+    placeIds: new Set(bookCanon.places.map((place) => place.id)),
+    characterIds: new Set(bookCanon.characters.map((character) => character.id)),
+    approvedPlaces: bookCanon.approvedPlaces,
+    original: extras.original ?? null,
+    quizzes: extras.quizzes ?? [],
+  }
+}
+
+// 책 하나의 묶음을 만든다. book은 그 책 id이고, 장면 id·음성 파일 이름·대체 장면에 쓴다. 본문은 그 책의 것이어야 한다.
 export function buildBundle(
+  book: BookId,
   source: Source,
   sceneFiles: SceneFile[],
   canon: BundleCanon,
-  audioNames: ReadonlySet<string> = new Set(),
+  audio: AudioCatalog = new Map(),
   catalog: ImageCatalog = { versions: [], files: {} },
+  extras: BundleExtras = {},
 ): Bundle {
-  // 사람이 승인한 장소만 앱에 나간다. 검수 전 초안은 지도에 올리지 않는다.
-  const places = canon.places.filter((place) => place.status === 'approved')
-  const placeIds = new Set(places.map((place) => place.id))
-  // 인물과 시대도 승인된 것만 나간다.
-  const characters = canon.characters.filter((character) => character.status === 'approved')
-  const characterIds = new Set(characters.map((character) => character.id))
-  const eras = canon.eras.filter((era) => era.status === 'approved')
+  const bookName = getBook(book).name
+  if (source.book !== bookName) throw new Error(`본문의 책 이름(${source.book})이 ${josa(bookName, '이가')} 아닙니다`)
+  const bookCanon = bookCanonOf(book, source, canon)
+  const { places, characters, eras, things } = bookCanon
 
+  // 장 단위 오류에는 책 이름을 붙인다. 책이 여럿이라 장 번호만으로는 어느 책인지 모른다.
   const seenChapters = new Set<number>()
   for (const file of sceneFiles) {
-    if (seenChapters.has(file.chapter)) throw new Error(`${file.chapter}장의 장면 파일이 둘 이상입니다`)
+    if (seenChapters.has(file.chapter)) throw new Error(`${bookName} ${file.chapter}장의 장면 파일이 둘 이상입니다`)
     seenChapters.add(file.chapter)
     if (!source.chapters.some((sourceChapter) => sourceChapter.chapter === file.chapter)) {
-      throw new Error(`${file.chapter}장은 본문에 없습니다`)
+      throw new Error(`${bookName} ${file.chapter}장은 본문에 없습니다`)
     }
   }
 
-  const chapters = source.chapters.map((sourceChapter) => {
-    const { chapter } = sourceChapter
-    // 본문은 원본 그대로 두고, 음성 파일이 있는 절에만 경로를 붙인다.
-    const verses = sourceChapter.verses.map((verse) => {
-      const name = audioName(chapter, verse.verse)
-      return { ...verse, audio: audioNames.has(name) ? `content/audio/${name}` : null }
-    })
-    const sceneFile = sceneFiles.find((file) => file.chapter === chapter)
-    if (!sceneFile) return { chapter, verses, scenes: [fallbackScene(chapter, verses.length, catalog)] }
+  // 장 문맥도 위에서 거른 설정집으로 만든다(canonForBook은 책마다 한 번이다).
+  const ctx = chapterContextOf(bookCanon, audio, catalog, extras)
+  const chapters = source.chapters.map((sourceChapter) =>
+    buildChapter(book, sourceChapter, sceneFiles.find((file) => file.chapter === sourceChapter.chapter) ?? null, ctx),
+  )
 
-    checkSceneIds(sceneFile)
-
-    const problems = findCoverageProblems(sceneFile.scenes, verses.length)
-    if (problems.length > 0) {
-      throw new Error(`${chapter}장 장면의 절 범위가 맞지 않습니다:\n${problems.join('\n')}`)
+  // 사전은 묶음의 장에 나오는 번호만, 한국어 뜻은 승인된 것만 넣는다.
+  // 횟수는 이 묶음의 원어에서 센다(lexicon.json의 count는 모든 책의 합이다).
+  const counts = new Map<string, number>()
+  for (const item of chapters) {
+    for (const verse of item.original ?? []) {
+      for (const word of verse.words) if (word.strong) counts.set(word.strong, (counts.get(word.strong) ?? 0) + 1)
     }
-    for (const scene of sceneFile.scenes) {
-      if (scene.placeId && !placeIds.has(scene.placeId)) {
-        throw new Error(`${scene.id}: 장소 ${scene.placeId}가 places.json의 승인된 항목에 없습니다`)
-      }
-      checkGlossary(scene, chapter, sourceChapter.verses)
+  }
+  const lexicon: Record<string, BundleLexiconEntry> = {}
+  for (const entry of extras.lexicon?.entries ?? []) {
+    const count = counts.get(entry.strong)
+    if (count === undefined) continue
+    const approved = entry.korean?.status === 'approved' ? entry.korean : null
+    lexicon[entry.strong] = {
+      lemma: entry.lemma,
+      xlit: entry.xlit,
+      english: entry.definition,
+      korean: approved?.meaning ?? null,
+      note: approved && approved.note !== '' ? approved.note : null,
+      count,
     }
-    return { chapter, verses, scenes: sceneFile.scenes.map((scene) => toBundleScene(scene, catalog, characterIds)) }
-  })
+  }
 
   return {
     schemaVersion: BUNDLE_SCHEMA_VERSION,
+    bookId: book,
     book: source.book,
     translation: source.translation,
     places: places.map(toBundlePlace),
-    characters: characters.map((character) => toBundleCharacter(character, characterIds)),
+    characters: characters.map(toBundleCharacter),
     eras: eras.map(toBundleEra),
+    things: things.map(toBundleThing),
     imageVersions: catalog.versions,
     // 가장 나중에 추가한 버전을 기본으로 보여 준다.
     defaultImageVersion: catalog.versions.at(-1)?.id ?? null,
+    lexicon,
+    sources: extras.sources ?? [],
     chapters,
   }
+}
+
+// 묶음의 장 하나를 만든다. 책 묶음(buildBundle)과 장 꾸러미가 함께 쓴다.
+// 절과 절 낭독, 장면과 장면 낭독, 원어, 승인된 퀴즈를 넣는다. sceneFile이 null이면 장 전체를 덮는 대체 장면 하나를 둔다.
+// sceneFile은 이 장의 장면 파일이어야 한다. 장 번호, 장면 id, 절 범위, 장소, 낱말 풀이가 맞지 않으면 던진다.
+export function buildChapter(
+  book: BookId,
+  sourceChapter: SourceChapter,
+  sceneFile: SceneFile | null,
+  ctx: ChapterContext,
+): BundleChapter {
+  const { chapter } = sourceChapter
+  if (sceneFile && sceneFile.chapter !== chapter) {
+    throw new Error(`${getBook(book).name} ${chapter}장에 ${sceneFile.chapter}장 장면 파일을 받았습니다`)
+  }
+  // 본문은 원본 그대로 두고, 음성 파일이 있는 절에만 경로를 붙인다.
+  const verses = sourceChapter.verses.map((verse) => {
+    const name = verseAudioName(book, chapter, verse.verse)
+    const has = ctx.durations.has(name)
+    return { ...verse, audio: has ? `content/audio/${name}` : null, audioMs: has ? (ctx.durations.get(name) ?? null) : null }
+  })
+  const scenes = sceneFile
+    ? scenesFromFile(book, sourceChapter, sceneFile, verses, ctx)
+    : [withSceneAudio(fallbackScene(book, chapter, verses.length, ctx.catalog), verses)]
+  return { chapter, verses, scenes, original: originalOf(ctx.original, chapter), quiz: quizOf(ctx.quizzes, chapter) }
+}
+
+// 장면 파일의 장면을 검사하고 묶음 장면으로 옮긴다. verses는 절 낭독을 붙인 절이다.
+function scenesFromFile(
+  book: BookId,
+  sourceChapter: SourceChapter,
+  sceneFile: SceneFile,
+  verses: VerseAudio[],
+  ctx: ChapterContext,
+): BundleScene[] {
+  const { chapter } = sourceChapter
+  checkSceneIds(book, sceneFile)
+
+  const problems = findCoverageProblems(sceneFile.scenes, verses.length)
+  if (problems.length > 0) {
+    throw new Error(`${getBook(book).name} ${chapter}장 장면의 절 범위가 맞지 않습니다:\n${problems.join('\n')}`)
+  }
+  for (const scene of sceneFile.scenes) {
+    if (scene.placeId && !ctx.placeIds.has(scene.placeId)) {
+      throw new Error(missingPlaceMessage(book, scene.id, scene.placeId, ctx.approvedPlaces))
+    }
+    checkGlossary(scene, chapter, sourceChapter.verses)
+  }
+  return sceneFile.scenes.map((scene) => withSceneAudio(toBundleScene(scene, ctx.catalog, ctx.characterIds), verses))
+}
+
+// 원어 낱말에 한국어 품사 이름을 붙인다. 원어 자료가 없는 장은 null이다.
+function originalOf(original: OriginalFile | null, chapter: number): BundleOriginalVerse[] | null {
+  const found = original?.chapters.find((item) => item.chapter === chapter)
+  return found
+    ? found.verses.map((verse) => ({ verse: verse.verse, words: verse.words.map((word) => ({ ...word, pos: posLabel(word.morph) })) }))
+    : null
+}
+
+// 사람이 승인한 문제만 앱에 나간다.
+function quizOf(quizzes: readonly QuizFile[], chapter: number): BundleQuizQuestion[] {
+  return (quizzes.find((item) => item.chapter === chapter)?.questions ?? [])
+    .filter((question) => question.status === 'approved')
+    .map(({ id, question, options, answer, explanation, verse }) => ({ id, question, options, answer, explanation, verse }))
 }
 
 // 앱은 지도에 쓸 것만 받는다. '확실'이 아닌 위치는 추정으로 표시한다.
@@ -98,8 +258,15 @@ function toBundlePlace(place: Place): BundlePlace {
   }
 }
 
-// 인물 카드와 연표에 쓸 사실만 옮긴다. 묶음에 없는 인물을 가리키는 관계는 뺀다.
-function toBundleCharacter(character: Character, characterIds: ReadonlySet<string>): BundleCharacter {
+// 본문의 마지막 절("50:26"). 본문에 장이 없으면 null이다.
+function lastVerseOf(source: Source): string | null {
+  const chapter = source.chapters.at(-1)
+  const verse = chapter?.verses.at(-1)
+  return chapter && verse ? `${chapter.chapter}:${verse.verse}` : null
+}
+
+// 인물 카드와 연표에 쓸 사실만 옮긴다. 관계와 인용은 canonForBook이 이 책 묶음에 맞게 거르고 바꿔 둔 것이다.
+function toBundleCharacter(character: Character): BundleCharacter {
   const { facts } = character
   return {
     id: character.id,
@@ -108,7 +275,7 @@ function toBundleCharacter(character: Character, characterIds: ReadonlySet<strin
     gender: facts.gender,
     firstAppearance: facts.firstAppearance,
     years: facts.years,
-    relations: facts.relations.filter((relation) => characterIds.has(relation.to)),
+    relations: facts.relations,
     attire: facts.attire,
     notes: facts.notes,
     sources: facts.sources,
@@ -119,7 +286,7 @@ function toBundleEra(era: Era): BundleEra {
   return {
     id: era.id,
     name: era.name,
-    range: era.range,
+    range: { from: era.range.from, to: era.range.to },
     years: era.years,
     description: era.facts.description,
     present: era.facts.present,
@@ -127,13 +294,46 @@ function toBundleEra(era: Era): BundleEra {
   }
 }
 
-function fallbackScene(chapter: number, verseCount: number, catalog: ImageCatalog): BundleScene {
-  const id = `genesis-${String(chapter).padStart(2, '0')}-00`
+function toBundleThing(thing: Thing): BundleThing {
+  return {
+    id: thing.id,
+    name: thing.name,
+    aliases: thing.aliases,
+    description: thing.facts.description,
+    details: thing.facts.details,
+    sources: thing.facts.sources,
+  }
+}
+
+type SceneWithoutAudio = Omit<BundleScene, 'audio' | 'audioMs'>
+type VerseAudio = { verse: number; audio: string | null; audioMs: number | null }
+
+// 장면 낭독에 들어가는 절 낭독 파일(묶음 안 경로)을 차례대로. writeBundle이 이 파일들을 이어 붙인다.
+// 앱은 장면마다 이 파일 하나를 재생한다. 화면을 꺼도 절마다 파일을 바꾸지 않아 끊기지 않고, 잠금 화면에는 장면 단위로 보인다.
+export function sceneAudioParts(scene: { verseStart: number; verseEnd: number }, verses: VerseAudio[]): string[] {
+  return verses.flatMap((verse) =>
+    verse.verse >= scene.verseStart && verse.verse <= scene.verseEnd && verse.audio !== null ? [verse.audio] : [],
+  )
+}
+
+function withSceneAudio(scene: SceneWithoutAudio, verses: VerseAudio[]): BundleScene {
+  const parts = verses.filter((verse) => verse.verse >= scene.verseStart && verse.verse <= scene.verseEnd && verse.audio !== null)
+  if (parts.length === 0) return { ...scene, audio: null, audioMs: null }
+  const known = parts.every((verse) => verse.audioMs !== null)
+  return {
+    ...scene,
+    audio: `content/audio/scenes/${scene.id}.mp3`,
+    audioMs: known ? parts.reduce((sum, verse) => sum + (verse.audioMs ?? 0), 0) : null,
+  }
+}
+
+function fallbackScene(book: BookId, chapter: number, verseCount: number, catalog: ImageCatalog): SceneWithoutAudio {
+  const id = fallbackSceneIdOf(book, chapter)
   return {
     id,
     verseStart: 1,
     verseEnd: verseCount,
-    title: `창세기 ${chapter}장`,
+    title: `${getBook(book).name} ${chapter}장`,
     commentary: null,
     explanation: [],
     history: [],
@@ -156,7 +356,7 @@ function imagesFor(sceneId: string, catalog: ImageCatalog): Record<string, strin
 }
 
 // 장면의 인물은 묶음에 있는 인물만 남긴다. 승인 전 인물은 오류 없이 조용히 뺀다.
-function toBundleScene(scene: Scene, catalog: ImageCatalog, characterIds: ReadonlySet<string>): BundleScene {
+function toBundleScene(scene: Scene, catalog: ImageCatalog, characterIds: ReadonlySet<string>): SceneWithoutAudio {
   return {
     id: scene.id,
     verseStart: scene.verseStart,
@@ -186,12 +386,27 @@ function checkGlossary(scene: Scene, chapter: number, verses: Verse[]): void {
   }
 }
 
-function checkSceneIds(file: SceneFile): void {
+// 장면이 가리키는 장소가 이 책 묶음에 없을 때의 오류 글. 까닭을 어림하지 않고 확인해서 쓴다.
+// 승인된 장소의 처음 나오는 곳이 뒤 책이면 canonForBook이 뺀 것이니(canonForBook의 knownBy가 거르는 조건과 같다) 그렇게 알린다.
+// 그 밖에는 설정집에 없거나 승인되지 않은 장소와 같이 승인된 항목에 없다고 알린다.
+// placeIds는 늘 책의 설정집(bookCanonOf)에서 만든다. 그래야 승인된 장소가 빠지는 까닭이 뒤 책뿐이라 이 글이 맞다.
+// 손으로 만든 placeIds가 승인된 장소를 다른 까닭으로 빼면 두 번째 글이 까닭을 틀리게 알린다.
+// 시험에서 직접 불러 까닭마다 글을 본다.
+export function missingPlaceMessage(book: BookId, sceneId: string, placeId: string, approvedPlaces: readonly Place[]): string {
+  const place = approvedPlaces.find((item) => item.id === placeId)
+  const first = place ? firstAppearanceOf('places', place, book) : null
+  if (first?.book != null && bookOrder(first.book) > bookOrder(book)) {
+    return `${sceneId}: 장소 ${josa(placeId, '은는')} ${formatRef(first, 'name')}에서 처음 나와 ${getBook(book).name} 묶음에 넣을 수 없습니다`
+  }
+  return `${sceneId}: 장소 ${placeId}가 places.json의 승인된 항목에 없습니다`
+}
+
+function checkSceneIds(book: BookId, file: SceneFile): void {
   file.scenes.forEach((scene, index) => {
     if (scene.chapter !== file.chapter) {
       throw new Error(`${scene.id}: chapter가 ${scene.chapter}인데 ${file.chapter}장 파일에 들어 있습니다`)
     }
-    const expectedId = `genesis-${String(file.chapter).padStart(2, '0')}-${String(index + 1).padStart(2, '0')}`
+    const expectedId = sceneIdOf(book, file.chapter, index + 1)
     if (scene.id !== expectedId) throw new Error(`${scene.id}: id가 ${expectedId}여야 합니다`)
   })
 }

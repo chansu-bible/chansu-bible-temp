@@ -1,13 +1,19 @@
+import type { BookId } from 'reader-core'
 import { describe, expect, it } from 'vitest'
-import { mergeCanon, type CanonOutput } from '../src/canon/merge.ts'
+import { mergeCanon, type CanonOutput, type MergeOptions } from '../src/canon/merge.ts'
 import { CanonOutputSchema } from '../src/canon/merge.ts'
 import { validateCanon } from '../src/canon/validate.ts'
 import type { Canon, Character, Place, Proposal } from '../src/schema.ts'
 
 const NOW = '2026-10-07T01:02:03.000Z'
+// 창세기 1~10장의 절 수
+const verseCounts = new Map<BookId, number[]>([['genesis', [31, 25, 24, 26, 32, 22, 24, 22, 29, 32]]])
+// 창세기 장을 읽은 출력으로 합친다
+const genesis: MergeOptions = { book: 'genesis', verseCounts }
 
 type CharacterOut = CanonOutput['characters'][number]
 
+// 모델 출력. 모델은 책 없이 "장:절"로 인용한다.
 function characterOut(
   overrides: Omit<Partial<CharacterOut>, 'facts'> & { facts?: Partial<CharacterOut['facts']> } = {},
 ): CharacterOut {
@@ -31,9 +37,12 @@ function characterOut(
   }
 }
 
+// 설정집에 있는 항목. 인용에 책이 붙어 있다.
 function character(overrides: Partial<Character> = {}): Character {
+  const out = characterOut()
   return {
-    ...characterOut(),
+    ...out,
+    facts: { ...out.facts, firstAppearance: 'genesis 1:26', sources: ['genesis 1:26-27'] },
     status: 'approved',
     refs: [],
     ...overrides,
@@ -46,7 +55,7 @@ function place(overrides: Partial<Place> = {}): Place {
     name: '에덴',
     aliases: ['에덴동산'],
     status: 'approved',
-    facts: { firstAppearance: '2:8', description: '동산', sources: ['2:8'] },
+    facts: { firstAppearance: 'genesis 2:8', description: '동산', sources: ['genesis 2:8'] },
     location: { lat: 31.02, lng: 47.43, certainty: '추정' },
     design: { landscape: '평야', notes: '' },
     ...overrides,
@@ -64,13 +73,13 @@ function output(overrides: Partial<CanonOutput> = {}): CanonOutput {
 describe('mergeCanon', () => {
   it('새 id는 draft로 추가한다. 출력의 status는 무시한다', () => {
     const adam = { ...characterOut(), status: 'approved' } as CharacterOut
-    const result = mergeCanon(canon(), output({ characters: [adam] }), NOW)
+    const result = mergeCanon(canon(), output({ characters: [adam] }), NOW, genesis)
 
     expect(result.added).toEqual([{ kind: 'characters', id: 'adam' }])
     expect(result.canon.characters).toHaveLength(1)
     expect(result.canon.characters[0]).toMatchObject({ id: 'adam', status: 'draft', refs: [] })
     expect(result.proposals).toEqual([])
-    expect(validateCanon(result.canon)).toEqual([])
+    expect(validateCanon(result.canon, verseCounts)).toEqual([])
   })
 
   it('장소, 시대, 물건도 추가한다', () => {
@@ -108,6 +117,7 @@ describe('mergeCanon', () => {
         ],
       }),
       NOW,
+      genesis,
     )
     expect(result.added).toEqual([
       { kind: 'places', id: 'nod' },
@@ -117,9 +127,85 @@ describe('mergeCanon', () => {
     expect(result.canon.places[0]?.status).toBe('draft')
   })
 
+  it('출력의 책 없는 인용에 책을 붙인다', () => {
+    const result = mergeCanon(
+      canon(),
+      output({
+        characters: [
+          characterOut({
+            facts: { firstAppearance: '2:7', attire: [{ from: '3:21', description: '가죽옷' }], sources: ['2:7', '3:21'] },
+          }),
+        ],
+        places: [
+          {
+            id: 'nod',
+            name: '놋',
+            aliases: [],
+            facts: { firstAppearance: '4:16', description: '에덴 동편', sources: ['4:16'] },
+            location: { lat: null, lng: null, certainty: '불명' },
+            design: { landscape: '', notes: '' },
+          },
+        ],
+        eras: [
+          {
+            id: 'flood',
+            name: '홍수',
+            range: { from: '6:9', to: '8:22' },
+            years: { from: null, to: null },
+            facts: { description: '', present: [], absent: [], sources: ['6:14'] },
+            design: { visualNotes: '' },
+          },
+        ],
+        things: [
+          {
+            id: 'ark',
+            name: '방주',
+            aliases: [],
+            facts: { description: '잣나무 배', details: [], sources: ['6:14-15'] },
+            design: { visualNotes: '' },
+          },
+        ],
+      }),
+      NOW,
+      genesis,
+    )
+    expect(result.warnings).toEqual([])
+    expect(result.canon.characters[0]?.facts).toMatchObject({
+      firstAppearance: 'genesis 2:7',
+      attire: [{ from: 'genesis 3:21', description: '가죽옷' }],
+      sources: ['genesis 2:7', 'genesis 3:21'],
+    })
+    expect(result.canon.places[0]?.facts).toMatchObject({ firstAppearance: 'genesis 4:16', sources: ['genesis 4:16'] })
+    expect(result.canon.eras[0]).toMatchObject({
+      range: { from: 'genesis 6:9', to: 'genesis 8:22' },
+      facts: { sources: ['genesis 6:14'] },
+    })
+    expect(result.canon.things[0]?.facts.sources).toEqual(['genesis 6:14-15'])
+  })
+
+  it('다른 책을 가리키는 인용은 그대로 두고, 그 책 본문이 있을 때만 받아들인다', () => {
+    const out = output({ characters: [characterOut({ facts: { sources: ['1:26-27', 'exodus 1:1'] } })] })
+    const withExodus = new Map<BookId, number[]>([...verseCounts, ['exodus', [22]]])
+    const accepted = mergeCanon(canon(), out, NOW, { book: 'genesis', verseCounts: withExodus })
+    expect(accepted.warnings).toEqual([])
+    expect(accepted.canon.characters[0]?.facts.sources).toEqual(['genesis 1:26-27', 'exodus 1:1'])
+
+    const rejected = mergeCanon(canon(), out, NOW, genesis)
+    expect(rejected.canon.characters).toEqual([])
+    expect(rejected.warnings).toHaveLength(1)
+    expect(rejected.warnings[0]).toContain('출애굽기 본문이 없어 절 인용을 확인할 수 없습니다(exodus 1:1)')
+  })
+
+  it('읽을 수 없는 인용은 바꾸지 않고, 그 항목은 넣지 않고 경고한다', () => {
+    const result = mergeCanon(canon(), output({ characters: [characterOut({ facts: { firstAppearance: '2장 7절' } })] }), NOW, genesis)
+    expect(result.canon.characters).toEqual([])
+    expect(result.warnings).toHaveLength(1)
+    expect(result.warnings[0]).toContain('facts.firstAppearance')
+  })
+
   it('승인된 항목과 id가 같으면 추가하지 않고 달라진 필드마다 proposal을 만든다', () => {
     const existing = canon({
-      characters: [character({ facts: { ...character().facts, notes: '흙으로 지음', sources: ['1:26-27'] } })],
+      characters: [character({ facts: { ...character().facts, notes: '흙으로 지음', sources: ['genesis 1:26-27'] } })],
     })
     const result = mergeCanon(
       existing,
@@ -132,6 +218,7 @@ describe('mergeCanon', () => {
         ],
       }),
       NOW,
+      genesis,
     )
 
     expect(result.added).toEqual([])
@@ -140,7 +227,7 @@ describe('mergeCanon', () => {
     const byField = Object.fromEntries(result.proposals.map((proposal) => [proposal.field, proposal]))
     expect(Object.keys(byField).sort()).toEqual(['design.hair', 'facts.notes', 'facts.sources', 'facts.years'].sort())
     // 배열은 합치고, 빈 값(null)은 기존 값을 지우지 않는다
-    expect(byField['facts.sources']?.value).toEqual(['1:26-27', '5:5'])
+    expect(byField['facts.sources']?.value).toEqual(['genesis 1:26-27', 'genesis 5:5'])
     expect(byField['facts.years']?.value).toEqual({ born: 0, died: 930 })
     // 본문 근거 글은 기존 글 뒤에 이어 붙인 값을 제안한다
     expect(byField['facts.notes']).toMatchObject({
@@ -148,11 +235,11 @@ describe('mergeCanon', () => {
       value: '흙으로 지음\n930세에 죽음',
       status: 'open',
       createdAt: NOW,
-      sources: ['5:5'],
+      sources: ['genesis 5:5'],
     })
     expect(new Set(result.proposals.map((proposal) => proposal.id)).size).toBe(result.proposals.length)
     expect(result.canon.proposals).toEqual(result.proposals)
-    expect(validateCanon(result.canon)).toEqual([])
+    expect(validateCanon(result.canon, verseCounts)).toEqual([])
   })
 
   it('이름이나 별칭이 같으면 같은 항목으로 보고, 그 id를 가리키는 관계를 기존 id로 바꾼다', () => {
@@ -180,6 +267,7 @@ describe('mergeCanon', () => {
         ],
       }),
       NOW,
+      genesis,
     )
 
     expect(result.added).toEqual([{ kind: 'characters', id: 'eve' }])
@@ -187,21 +275,21 @@ describe('mergeCanon', () => {
     expect(result.proposals).toEqual([])
     const eve = result.canon.characters.find((item) => item.id === 'eve')
     expect(eve?.facts.relations).toEqual([{ type: '남편', to: 'adam' }])
-    expect(validateCanon(result.canon)).toEqual([])
+    expect(validateCanon(result.canon, verseCounts)).toEqual([])
   })
 
   it('이름이 같아도 아버지가 다르면 다른 인물로 추가하고, 아버지가 같으면 같은 인물로 합친다', () => {
-    const facts = characterOut().facts
+    const facts = character().facts
     const existing = canon({
       characters: [
         character(),
-        character({ id: 'cain', name: '가인', status: 'draft', facts: { ...facts, firstAppearance: '4:1', sources: ['4:1'] } }),
-        character({ id: 'jared', name: '야렛', status: 'draft', facts: { ...facts, firstAppearance: '5:15', sources: ['5:15'] } }),
+        character({ id: 'cain', name: '가인', status: 'draft', facts: { ...facts, firstAppearance: 'genesis 4:1', sources: ['genesis 4:1'] } }),
+        character({ id: 'jared', name: '야렛', status: 'draft', facts: { ...facts, firstAppearance: 'genesis 5:15', sources: ['genesis 5:15'] } }),
         character({
           id: 'enoch-cain',
           name: '에녹',
           status: 'draft',
-          facts: { ...facts, firstAppearance: '4:17', relations: [{ type: '아버지', to: 'cain' }], sources: ['4:17'] },
+          facts: { ...facts, firstAppearance: 'genesis 4:17', relations: [{ type: '아버지', to: 'cain' }], sources: ['genesis 4:17'] },
         }),
       ],
     })
@@ -210,19 +298,19 @@ describe('mergeCanon', () => {
       name: '에녹',
       facts: { firstAppearance: '5:18', relations: [{ type: '아버지', to: 'jared' }], sources: ['5:18'] },
     })
-    const split = mergeCanon(existing, output({ characters: [sethite] }), NOW)
+    const split = mergeCanon(existing, output({ characters: [sethite] }), NOW, genesis)
     expect(split.added).toEqual([{ kind: 'characters', id: 'enoch' }])
     expect(split.canon.characters.find((item) => item.id === 'enoch-cain')?.facts.relations).toEqual([
       { type: '아버지', to: 'cain' },
     ])
-    expect(validateCanon(split.canon)).toEqual([])
+    expect(validateCanon(split.canon, verseCounts)).toEqual([])
 
     const cainite = characterOut({
       id: 'enoch',
       name: '에녹',
       facts: { firstAppearance: '4:17', relations: [{ type: '아버지', to: 'cain' }], notes: '성을 쌓음', sources: ['4:17'] },
     })
-    const joined = mergeCanon(existing, output({ characters: [cainite] }), NOW)
+    const joined = mergeCanon(existing, output({ characters: [cainite] }), NOW, genesis)
     expect(joined.added).toEqual([])
     expect(joined.updated).toEqual([{ kind: 'characters', id: 'enoch-cain' }])
   })
@@ -235,6 +323,7 @@ describe('mergeCanon', () => {
       existing,
       output({ characters: [characterOut({ aliases: ['사람'], facts: { notes: '새 메모', sources: ['2:7'] } })] }),
       NOW,
+      genesis,
     )
 
     expect(result.proposals).toEqual([])
@@ -244,7 +333,7 @@ describe('mergeCanon', () => {
       status: 'draft',
       refs: ['adam-front.jpg'],
       aliases: ['사람'],
-      facts: { notes: '옛 메모\n새 메모', sources: ['1:26-27', '2:7'] },
+      facts: { notes: '옛 메모\n새 메모', sources: ['genesis 1:26-27', 'genesis 2:7'] },
     })
   })
 
@@ -257,8 +346,14 @@ describe('mergeCanon', () => {
       facts: { description: '엿새 창조', present: ['빛(1:3)'], absent: [], sources: ['1:3'] },
       design: { visualNotes: '' },
     }
+    const stored = {
+      ...era,
+      status: 'draft' as const,
+      range: { from: 'genesis 1:1', to: 'genesis 2:3' },
+      facts: { ...era.facts, sources: ['genesis 1:3'] },
+    }
     const result = mergeCanon(
-      canon({ eras: [{ ...era, status: 'draft' }] }),
+      canon({ eras: [stored] }),
       output({
         eras: [
           {
@@ -270,17 +365,18 @@ describe('mergeCanon', () => {
         ],
       }),
       NOW,
+      genesis,
     )
     expect(result.updated).toEqual([{ kind: 'eras', id: 'creation-week' }])
     expect(result.canon.eras[0]).toMatchObject({
-      range: { from: '1:1', to: '2:3' },
+      range: { from: 'genesis 1:1', to: 'genesis 2:3' },
       years: { from: 0, to: 0 },
-      facts: { description: '엿새 창조', present: ['빛(1:3)', '사람(1:27)'] },
+      facts: { description: '엿새 창조', present: ['빛(1:3)', '사람(1:27)'], sources: ['genesis 1:3'] },
     })
   })
 
   it('facts.notes와 facts.description은 바꾸지 않고 이어 붙이고, 같은 글은 다시 붙이지 않는다', () => {
-    const facts = characterOut().facts
+    const facts = character().facts
     const existing = canon({
       characters: [character({ id: 'noah', name: '노아', status: 'draft', facts: { ...facts, notes: '방주를 지었다.' } })],
       places: [place({ status: 'draft' })],
@@ -298,19 +394,28 @@ describe('mergeCanon', () => {
         },
       ],
     })
-    const once = mergeCanon(existing, out, NOW)
+    const once = mergeCanon(existing, out, NOW, genesis)
     expect(once.canon.characters[0]?.facts.notes).toBe('방주를 지었다.\n포도나무를 심었다.')
     expect(once.canon.places[0]?.facts.description).toBe('동산\n네 강이 흐른다')
     expect(once.canon.places[0]?.design.landscape).toBe('숲')
-    const twice = mergeCanon(once.canon, out, NOW)
+    const twice = mergeCanon(once.canon, out, NOW, genesis)
     expect(twice.updated).toEqual([])
     expect(twice.canon.characters[0]?.facts.notes).toBe('방주를 지었다.\n포도나무를 심었다.')
   })
 
   it('첫 등장은 더 앞선 절을 남긴다', () => {
     const existing = canon({ characters: [character({ status: 'draft' })] })
-    const result = mergeCanon(existing, output({ characters: [characterOut({ facts: { firstAppearance: '2:7' } })] }), NOW)
-    expect(result.canon.characters[0]?.facts.firstAppearance).toBe('1:26')
+    const result = mergeCanon(existing, output({ characters: [characterOut({ facts: { firstAppearance: '2:7' } })] }), NOW, genesis)
+    expect(result.canon.characters[0]?.facts.firstAppearance).toBe('genesis 1:26')
+  })
+
+  it('첫 등장은 genesis 2:7과 genesis 4:1 가운데 앞선 것을 남긴다', () => {
+    const at = (firstAppearance: string) =>
+      canon({ characters: [character({ status: 'draft', facts: { ...character().facts, firstAppearance } })] })
+    const earlier = mergeCanon(at('genesis 4:1'), output({ characters: [characterOut({ facts: { firstAppearance: '2:7' } })] }), NOW, genesis)
+    expect(earlier.canon.characters[0]?.facts.firstAppearance).toBe('genesis 2:7')
+    const kept = mergeCanon(at('genesis 2:7'), output({ characters: [characterOut({ facts: { firstAppearance: '4:1' } })] }), NOW, genesis)
+    expect(kept.canon.characters[0]?.facts.firstAppearance).toBe('genesis 2:7')
   })
 
   it('id의 띄어쓰기와 대문자는 고쳐서 넣고 경고에 적는다. 관계도 고친 id를 가리킨다', () => {
@@ -327,6 +432,7 @@ describe('mergeCanon', () => {
         ],
       }),
       NOW,
+      genesis,
     )
     expect(result.added).toEqual([
       { kind: 'characters', id: 'mizraim' },
@@ -334,7 +440,7 @@ describe('mergeCanon', () => {
     ])
     expect(result.canon.characters[1]?.facts.relations).toEqual([{ type: '조상', to: 'mizraim' }])
     expect(result.warnings).toEqual(['characters/Miz raim: id를 mizraim로 고쳤습니다'])
-    expect(validateCanon(result.canon)).toEqual([])
+    expect(validateCanon(result.canon, verseCounts)).toEqual([])
   })
 
   it('없는 인물을 가리키는 관계는 버리고 경고한다', () => {
@@ -342,6 +448,7 @@ describe('mergeCanon', () => {
       canon(),
       output({ characters: [characterOut({ facts: { relations: [{ type: '아내', to: 'eve' }] } })] }),
       NOW,
+      genesis,
     )
     expect(result.canon.characters[0]?.facts.relations).toEqual([])
     expect(result.warnings).toHaveLength(1)
@@ -358,6 +465,7 @@ describe('mergeCanon', () => {
         ],
       }),
       NOW,
+      genesis,
     )
     expect(result.canon.characters).toEqual([])
     expect(result.added).toEqual([])
@@ -369,16 +477,17 @@ describe('mergeCanon', () => {
       canon({ characters: [character()] }),
       output({ characters: [characterOut({ facts: { notes: '새 사실' } })] }),
       NOW,
+      genesis,
     )
     expect(first.proposals).toHaveLength(1)
-    const second = mergeCanon(first.canon, output({ characters: [characterOut({ facts: { notes: '새 사실' } })] }), NOW)
+    const second = mergeCanon(first.canon, output({ characters: [characterOut({ facts: { notes: '새 사실' } })] }), NOW, genesis)
     expect(second.proposals).toEqual([])
     expect(second.canon.proposals).toHaveLength(1)
   })
 
   it('반려된 항목도 다시 추가하지 않는다', () => {
     const existing = canon({ characters: [character({ status: 'rejected' })] })
-    const result = mergeCanon(existing, output({ characters: [characterOut()] }), NOW)
+    const result = mergeCanon(existing, output({ characters: [characterOut()] }), NOW, genesis)
     expect(result.added).toEqual([])
     expect(result.canon.characters).toEqual(existing.characters)
   })
@@ -394,7 +503,7 @@ describe('mergeCanon', () => {
       sources: [],
       status: 'dismissed',
     }
-    const result = mergeCanon(canon({ proposals: [old] }), output(), NOW)
+    const result = mergeCanon(canon({ proposals: [old] }), output(), NOW, genesis)
     expect(result.canon.proposals).toEqual([old])
   })
 })
