@@ -35,7 +35,8 @@ export type StatusResponse = {
   canon: Record<CanonKind, StateCounts> | null
   proposalsOpen: number | null
   canonError: string | null
-  imageVersions: ImageVersion[]
+  // 그림 목록(ImageCatalog)의 버전을 그대로 싣는다. 읽기 전용이다.
+  imageVersions: readonly ImageVersion[]
 }
 
 // 상태를 읽을 폴더. 비우면 pipeline의 paths 기본값을 쓴다.

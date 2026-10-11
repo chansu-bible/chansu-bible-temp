@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { api } from '../api.ts'
+import { isImageVersionId } from '../ids.ts'
 import type { ImageVersion } from '../types.ts'
 import { errorMessage } from '../useLoad.ts'
 import DataTable from './DataTable.tsx'
 import { TextField } from './Fields.tsx'
 
-const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/
 const EMPTY = { id: '', label: '', note: '' }
 
 // 그림 버전 표와 새 버전 폼. images 단계는 목록의 마지막 버전에 그린다.
@@ -31,8 +31,8 @@ export default function VersionList({
 
   async function create() {
     const version = { id: form.id.trim(), label: form.label.trim(), note: form.note.trim() }
-    if (!ID_PATTERN.test(version.id)) {
-      setError('id는 영문 소문자·숫자·하이픈만 쓰고, 소문자나 숫자로 시작해야 해요')
+    if (!isImageVersionId(version.id)) {
+      setError('id는 영문 소문자·숫자·하이픈만 쓰고, 소문자로 시작해야 해요')
       return
     }
     if (!version.label) {
@@ -93,7 +93,7 @@ export default function VersionList({
           onChange={(v) => change('id', v)}
           disabled={busy}
           placeholder="v2"
-          hint="영문 소문자·숫자·하이픈"
+          hint="영문 소문자로 시작, 소문자·숫자·하이픈"
         />
         <TextField label="이름" value={form.label} onChange={(v) => change('label', v)} disabled={busy} />
         <TextField label="메모" value={form.note} onChange={(v) => change('note', v)} disabled={busy} />

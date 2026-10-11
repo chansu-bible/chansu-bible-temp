@@ -2,14 +2,25 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { mediaPath, sceneIdOf, validatePack, verseAudioName, type BookId } from 'reader-core'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { BundleChapter } from '../src/build/buildBundle.ts'
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
+import type { BundleChapter, ImageCatalog } from '../src/build/buildBundle.ts'
 import { writeBundles } from '../src/build/writeBundle.ts'
+import { displayPath } from '../src/paths.ts'
 import { contentHash } from '../src/release/hash.ts'
-import { readReleaseInputs, type ReleaseInputs, type ReleaseInputsOptions } from '../src/release/inputs.ts'
+import { readReleaseInputs, type BookInputs, type ReleaseInputs, type ReleaseInputsOptions } from '../src/release/inputs.ts'
 import { buildPack, type BuiltPack } from '../src/release/pack.ts'
 import type { ReleaseParts } from '../src/release/releases.ts'
-import { BundleSchema, type Bundle, type Character, type Place, type QuizQuestion, type Scene } from '../src/schema.ts'
+import {
+  BundleSchema,
+  type Bundle,
+  type Character,
+  type ImageVersion,
+  type Place,
+  type QuizFile,
+  type QuizQuestion,
+  type Scene,
+  type SceneFile,
+} from '../src/schema.ts'
 import { joinMp3, mp3DurationMs } from '../src/tts/mp3.ts'
 
 // 폴더 목록의 순서는 운영체제마다 다르다(NTFS는 이름순이고 macOS는 아니다). reversed를 켜면 readdir이 목록을 거꾸로 돌려준다.
@@ -164,6 +175,10 @@ const image = {
 
 const v1 = { id: 'v1', label: '1차', note: '' }
 const v2 = { id: 'v2', label: '2차', note: '' }
+const v3 = { id: 'v3', label: '3차', note: '' }
+
+// 읽기 전용 필드를 푼 형. 형 변환으로 읽기 전용 입력의 필드를 바꾸는 시험에 쓴다.
+type Writable<T> = { -readonly [Key in keyof T]: T[Key] }
 
 const word = (text: string, strong: string | null, morph: string) => ({ text, strong, morph })
 
@@ -714,6 +729,107 @@ describe('buildPack', () => {
     expect(inputs).toEqual(snapshot)
   })
 
+  it('입력은 읽기 전용 형이라 필드, 목록, 표를 고치면 형 오류가 난다', () => {
+    // 형 검사(npm run typecheck)가 본다. 읽기 전용을 빼면 Readonly를 씌운 형과 달라져 여기서 형 오류가 난다.
+    expectTypeOf<ReleaseInputs>().toEqualTypeOf<Readonly<ReleaseInputs>>()
+    expectTypeOf<BookInputs>().toEqualTypeOf<Readonly<BookInputs>>()
+    expectTypeOf<ImageCatalog>().toEqualTypeOf<Readonly<ImageCatalog>>()
+    expectTypeOf<ReleaseInputs['books']>().toEqualTypeOf<readonly BookId[]>()
+    expectTypeOf<ReleaseInputs['byBook']>().toEqualTypeOf<ReadonlyMap<BookId, BookInputs>>()
+    expectTypeOf<ReleaseInputs['audio']>().toEqualTypeOf<ReadonlyMap<string, number | null>>()
+    expectTypeOf<ReleaseInputs['canon']['places']>().toEqualTypeOf<readonly Place[]>()
+    expectTypeOf<ReleaseInputs['catalog']['versions']>().toEqualTypeOf<readonly ImageVersion[]>()
+    expectTypeOf<ReleaseInputs['catalog']['files']>().toEqualTypeOf<Readonly<Record<string, readonly string[]>>>()
+    expectTypeOf<BookInputs['sceneFiles']>().toEqualTypeOf<readonly SceneFile[]>()
+    expectTypeOf<BookInputs['quizzes']>().toEqualTypeOf<readonly QuizFile[]>()
+  })
+
+  // 장 문맥은 inputs 객체마다 쌓아 두고 다시 쓴다. 형 변환으로 읽기 전용을 풀어 같은 객체의 일부를 다른 객체로 바꿔도 낡은 문맥을 쓰면 안 된다.
+  describe('같은 inputs 객체의 일부를 다른 객체로 바꾸면 쌓아 둔 장 문맥을 쓰지 않는다', () => {
+    it('catalog를 바꾸면 새 catalog의 그림을 쓴다. 공개 꾸러미의 기본 그림 버전도 새 catalog의 마지막이다', async () => {
+      const inputs = await readInputs()
+      // 먼저 만들어 장 문맥을 쌓아 둔다.
+      const before = await buildPack(inputs, 'genesis', 1, { preview: true })
+      expect(before.pack.scenes.map((item) => Object.keys(item.images))).toEqual([
+        ['v1', 'v2'],
+        ['v1', 'v2'],
+      ])
+
+      // 그림 버전 v3을 더해 새로 읽고, 그 catalog만 처음 inputs 객체에 끼운다(읽기 전용은 형 변환으로 푼다).
+      const v3Image = { g11: Buffer.from('g11-v3'), g12: Buffer.from('g12-v3') }
+      await put('content/images/versions.json', [v1, v2, v3])
+      await put(`content/images/v3/${G11}.png`, v3Image.g11)
+      await put(`content/images/v3/${G12}.png`, v3Image.g12)
+      const next = await readInputs()
+      expect(next.catalog).not.toBe(inputs.catalog)
+      const writable = inputs as Writable<ReleaseInputs>
+      writable.catalog = next.catalog
+
+      const preview = await buildPack(inputs, 'genesis', 1, { preview: true })
+      expect(preview.pack.scenes.map((item) => Object.keys(item.images))).toEqual([
+        ['v1', 'v2', 'v3'],
+        ['v1', 'v2', 'v3'],
+      ])
+      const published = await buildPack(inputs, 'genesis', 1, { preview: false })
+      expect(published.pack.scenes.map((item) => item.images)).toEqual([
+        { v3: mediaPath(G11, contentHash(v3Image.g11), 'png') },
+        { v3: mediaPath(G12, contentHash(v3Image.g12), 'png') },
+      ])
+      // 새로 읽은 inputs로 만든 꾸러미와 바이트까지 같다.
+      expect((await buildPack(next, 'genesis', 1, { preview: true })).bytes.equals(preview.bytes)).toBe(true)
+      expect((await buildPack(next, 'genesis', 1, { preview: false })).bytes.equals(published.bytes)).toBe(true)
+    })
+
+    it.each<[string, (put: (file: string, data: unknown) => Promise<void>) => Promise<void>, (target: Writable<ReleaseInputs>, next: ReleaseInputs) => void]>([
+      [
+        '낭독 목록(audio)',
+        // 셋째 절 낭독이 없어지면 둘째 장면의 낭독이 없어진다. 낡은 목록이면 없는 파일을 읽으려다 던진다.
+        () => rm(path.join(dirs.audioDir, 'genesis-01-003.mp3')),
+        (target, next) => {
+          target.audio = next.audio
+        },
+      ],
+      [
+        '설정집(canon)',
+        // 하와가 승인되면 첫 장면의 인물에 든다.
+        (put) =>
+          put('content/story-bible/characters.json', [
+            character('adam', '아담', 'genesis 1:1'),
+            character('eve', '하와', 'genesis 1:2'),
+            character('moses', '모세', 'exodus 1:1'),
+          ]),
+        (target, next) => {
+          target.canon = next.canon
+        },
+      ],
+      [
+        '책의 콘텐츠(byBook의 창세기)',
+        // 퀴즈가 모두 승인되면 꾸러미의 퀴즈가 는다.
+        (put) =>
+          put('content/quiz/genesis-01.json', { chapter: 1, questions: genesisQuestions.map((item) => ({ ...item, status: 'approved' })) }),
+        (target, next) => {
+          const books = target.byBook as Map<BookId, BookInputs>
+          books.set('genesis', next.byBook.get('genesis')!)
+        },
+      ],
+    ])('%s', async (_name, change, replace) => {
+      const inputs = await readInputs()
+      const before = [await buildPack(inputs, 'genesis', 1, { preview: false }), await buildPack(inputs, 'genesis', 1, { preview: true })]
+      await change(put)
+      const next = await readInputs()
+      replace(inputs, next)
+      for (const [index, preview] of [false, true].entries()) {
+        const label = preview ? '미리 보기' : '공개'
+        const after = await buildPack(inputs, 'genesis', 1, { preview })
+        const fresh = await buildPack(next, 'genesis', 1, { preview })
+        expect(after.bytes.equals(fresh.bytes), label).toBe(true)
+        expect(after.media, label).toEqual(fresh.media)
+        // 바꾼 것이 꾸러미에 드러나, 낡은 문맥과 견주는 시험이 뜻이 있다.
+        expect(after.hash, label).not.toBe(before[index]!.hash)
+      }
+    })
+  })
+
   it('미리 보기와 공개 꾸러미를 번갈아 만들어도 서로 섞이지 않는다', async () => {
     const inputs = await readInputs()
     const published = await buildPack(inputs, 'genesis', 1, { preview: false })
@@ -757,6 +873,18 @@ describe('buildPack', () => {
       await expect(buildPack(await readInputs(), 'genesis', 1, { preview: false })).rejects.toThrow(
         `${G11}: 장면 낭독을 잇지 못했습니다(genesis-01-001.mp3, genesis-01-002.mp3): 2번째 파일에서 MP3 프레임을 찾지 못했습니다`,
       )
+    })
+
+    it('그림 파일을 읽지 못하면 장면 id, 그림 버전, 파일 이름을 밝혀 던진다. 경로는 displayPath로 보인다', async () => {
+      const inputs = await readInputs()
+      const missing = path.join(dirs.imagesDir, 'v1', `${G12}.png`)
+      await rm(missing)
+      const message = `${G12}: v1 그림을 읽지 못했습니다(${G12}.png): ENOENT: no such file or directory, open '${displayPath(missing)}'`
+      await expect(buildPack(inputs, 'genesis', 1, { preview: true })).rejects.toThrow(new Error(message))
+      // 공개 꾸러미는 기본 그림 버전(v2)만 읽으니 v1의 빠진 그림에 걸리지 않는다.
+      expect((await buildPack(inputs, 'genesis', 1, { preview: false })).pack.scenes[1]!.images).toEqual({
+        v2: mediaPath(G12, contentHash(image.g12v2), 'jpg'),
+      })
     })
   })
 })

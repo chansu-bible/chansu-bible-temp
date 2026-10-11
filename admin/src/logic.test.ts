@@ -11,7 +11,7 @@ import {
   usageCountOf,
 } from './canonForm.ts'
 import { citationLabel } from './citations.ts'
-import { splitIds } from './ids.ts'
+import { isImageVersionId, splitIds } from './ids.ts'
 import {
   bookChoiceProblem,
   bookChoices,
@@ -633,5 +633,11 @@ describe('ids', () => {
     expect(splitIds('adam, eve\nseth  cain,,')).toEqual(['adam', 'eve', 'seth', 'cain'])
     expect(splitIds(' , \n ')).toEqual([])
     expect(splitIds('')).toEqual([])
+  })
+
+  it('그림 버전 id는 영문 소문자로 시작하고 소문자·숫자·하이픈만 쓴다', () => {
+    for (const id of ['v1', 'v2-sunburst', 'v3-reference', 'a', 'v10']) expect(isImageVersionId(id), id).toBe(true)
+    // 숫자로 시작하면 객체의 키 차례가 숫자순으로 바뀌어 그림 버전 목록 차례가 깨진다.
+    for (const id of ['2', '10', '2-sunburst', '0', '-v1', 'V1', 'v_1', 'v.1', 'v 1', '']) expect(isImageVersionId(id), id).toBe(false)
   })
 })

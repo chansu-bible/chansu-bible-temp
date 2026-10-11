@@ -26,8 +26,8 @@ import { readQuizFiles } from '../quiz/files.ts'
 import { readSceneFiles } from '../scenes/files.ts'
 import { readSource } from '../source/files.ts'
 import { readAudioCatalog } from '../tts/audioCatalog.ts'
-import { joinMp3 } from '../tts/mp3.ts'
-import { buildBundle, sceneAudioParts, type BundleChapter, type ImageCatalog } from './buildBundle.ts'
+import { buildBundle, type ImageCatalog } from './buildBundle.ts'
+import { joinSceneAudio } from './sceneAudio.ts'
 import { buildSources } from './sources.ts'
 
 // 묶음을 만들며 읽고 쓰는 폴더와 파일. 이름은 paths.ts의 경로와 같고, 비운 것은 그 경로(저장소의 content)다.
@@ -79,29 +79,7 @@ function checkImages(sceneFiles: SceneFile[], catalog: ImageCatalog, imagesDir: 
 // 장면 낭독으로 쓸 파일: 쓸 곳(앱 콘텐츠 폴더 안)과 이어 붙인 내용
 type SceneAudio = { target: string; bytes: Uint8Array }
 
-// 장면 낭독 바이트. 장면에 든 절 낭독(audioDir 안의 파일)을 차례로 이어 붙인다. 책 묶음과 장 꾸러미가 함께 쓴다.
-// 모든 낭독이 같은 고정 비트레이트 MP3라 프레임을 잇기만 하면 된다.
-// verses는 buildChapter가 만든 장의 절이다. 절 낭독 경로(묶음 경로)가 붙어 있어야 하고, 그 파일 이름을 audioDir에서 찾는다.
-// 꾸러미처럼 절 낭독을 null로 바꾼 절을 주면 이을 것이 없어 던진다.
-// 비었거나 MP3가 아니거나 형식이 다른 절 낭독도 길이를 재는 데는 걸리지 않아(길이만 null이다) 이을 때 비로소 드러난다. 그때 장면 id와 절 낭독 파일을 밝혀 던진다.
-export async function joinSceneAudio(
-  scene: { id: string; verseStart: number; verseEnd: number },
-  verses: BundleChapter['verses'],
-  audioDir: string,
-): Promise<Buffer> {
-  const names = sceneAudioParts(scene, verses).map((file) => path.basename(file))
-  if (names.length === 0) throw new Error(`${scene.id}: 장면 낭독에 들어갈 절 낭독이 없습니다`)
-  try {
-    const parts = await Promise.all(names.map((name) => readFile(path.join(audioDir, name))))
-    const joined = joinMp3(parts)
-    return Buffer.from(joined.buffer, joined.byteOffset, joined.byteLength)
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`${scene.id}: 장면 낭독을 잇지 못했습니다(${names.join(', ')}): ${message}`)
-  }
-}
-
-// 묶음의 장면 낭독을 모두 이어 둔다.
+// 묶음의 장면 낭독을 모두 이어 둔다(이어 붙이는 일은 sceneAudio.ts의 joinSceneAudio가 한다).
 // 앱 콘텐츠 폴더를 비우기 전에 잇지 못하는 절 낭독이 드러나야 하므로 미리 이어 두고, 쓸 파일을 돌려준다.
 // 낭독 전부를 메모리에 두며 지금은 30MB쯤이다. 크게 늘면 여기서는 이어 보기만 하고 쓸 때 다시 잇는 쪽으로 바꾼다.
 async function joinBundleAudio(bundle: Bundle, audioDir: string, appContentDir: string): Promise<SceneAudio[]> {

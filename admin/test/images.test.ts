@@ -1,8 +1,10 @@
 import { existsSync } from 'node:fs'
 import { readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
+import { IMAGE_VERSION_ID_PATTERN } from 'pipeline'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createApp } from '../server/app.ts'
+import { isImageVersionId } from '../src/ids.ts'
 import { JPEG, makeTempContent, type TempContent } from './fixtures.ts'
 
 let dirs: TempContent
@@ -49,6 +51,23 @@ describe('그림 버전', () => {
       expect((await app.request('/api/images/versions', { method: 'POST', ...json(body) })).status).toBe(400)
     }
     expect((await versionsOnDisk()).length).toBe(2)
+  })
+
+  it('숫자로 시작하는 id는 400이고 목록에도 폴더에도 더하지 않는다(객체 키 차례가 숫자순으로 바뀐다)', async () => {
+    for (const id of ['3', '10', '3-test']) {
+      const res = await app.request('/api/images/versions', { method: 'POST', ...json({ id, label: '3차', note: '' }) })
+      expect(res.status, id).toBe(400)
+      expect((await read(res)).error, id).toContain('id는 영문 소문자로 시작하고')
+      expect(existsSync(path.join(dirs.imagesDir, id)), id).toBe(false)
+    }
+    expect((await versionsOnDisk()).length).toBe(2)
+  })
+
+  it('화면의 id 규칙(isImageVersionId)은 서버가 쓰는 규칙(IMAGE_VERSION_ID_PATTERN)과 같다', () => {
+    // 화면 코드는 pipeline을 가져오지 못해 규칙을 옮겨 두었다. 어긋나면 화면은 받고 서버가 400을 주거나 그 반대가 된다.
+    for (const id of ['v1', 'v2-sunburst', 'a', 'z9', 'v10', '2', '10', '2-test', '0', '-v1', 'v-', 'V1', 'v_1', 'v.1', 'v 1', '', '가나']) {
+      expect(isImageVersionId(id), JSON.stringify(id)).toBe(IMAGE_VERSION_ID_PATTERN.test(id))
+    }
   })
 
   it('같은 id는 409', async () => {

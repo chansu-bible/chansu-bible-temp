@@ -111,7 +111,10 @@ export const CanonKindSchema = z.enum(['characters', 'places', 'eras', 'things']
 // 화풍 참고 이미지 파일 이름 규칙. 폴더 구분자가 들어갈 수 없어서 refs 폴더 밖을 가리킬 수 없다.
 export const REFERENCE_FILE_PATTERN = /^[a-z0-9][a-z0-9._-]{0,79}\.(jpg|jpeg|png|webp)$/
 // 그림 버전 id 규칙. content/images/<id>/ 폴더 이름이 된다.
-export const IMAGE_VERSION_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/
+// 영문 소문자로 시작한다. "2", "10"처럼 정수로 읽히는 키는 객체에서 숫자순으로 앞에 오므로,
+// 이런 id가 있으면 장면의 images 키 차례가 그림 버전 목록 차례와 달라져 꾸러미 바이트도 달라진다.
+// 막아야 하는 것은 정수 id뿐이지만, 규칙을 단순하게 두려고 숫자로 시작하는 id를 모두 막는다.
+export const IMAGE_VERSION_ID_PATTERN = /^[a-z][a-z0-9-]*$/
 // 참고 이미지 올리기·가져오기 크기 한도
 export const MAX_REFERENCE_BYTES = 15 * 1024 * 1024
 

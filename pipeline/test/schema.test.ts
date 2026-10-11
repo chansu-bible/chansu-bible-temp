@@ -105,4 +105,19 @@ describe('ImageVersionSchema', () => {
     expect(() => ImageVersionSchema.parse({ id: 'V1', label: '1차', note: '' })).toThrow()
     expect(() => ImageVersionSchema.parse({ id: 'v1', label: '', note: '' })).toThrow()
   })
+
+  it('영문 소문자로 시작하지 않는 id를 거부한다. 숫자로 시작하면 객체의 키 차례가 숫자순으로 바뀌기 때문이다', () => {
+    // 정수로 읽히는 키는 객체에서 숫자순으로 앞에 온다. 장면의 images 키 차례가 그림 버전 목록 차례와 달라진다.
+    expect(Object.keys({ v1: 0, 10: 0, 2: 0 })).toEqual(['2', '10', 'v1'])
+    for (const id of ['2', '10', '0', '007', '4294967294', '2-sunburst', '1e3']) {
+      expect(() => ImageVersionSchema.parse({ id, label: '버전', note: '' }), id).toThrow()
+      expect(IMAGE_VERSION_ID_PATTERN.test(id), id).toBe(false)
+    }
+  })
+
+  it('영문 소문자로 시작하는 id는 받고, 그 id를 키로 넣은 차례가 키 차례가 된다', () => {
+    const ids = ['v10', 'v2', 'b', 'a1', 'v1-flare', 'z-9']
+    for (const id of ids) expect(ImageVersionSchema.parse({ id, label: '버전', note: '' }).id).toBe(id)
+    expect(Object.keys(Object.fromEntries(ids.map((id) => [id, 0])))).toEqual(ids)
+  })
 })

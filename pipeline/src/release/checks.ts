@@ -1,5 +1,5 @@
 import { verseAudioName, type BookId, type ReleaseChecks } from 'reader-core'
-import { sceneImageStem } from '../images/versions.ts'
+import { sceneImageIndex } from '../images/versions.ts'
 import { chapterInputsOf, type ReleaseInputs } from './inputs.ts'
 
 // 장 하나의 공개 점검. 필수 셋이 모두 참이어야 공개할 수 있고, 선택은 승인된 만큼 나가는 개수다.
@@ -17,11 +17,10 @@ export function chapterChecks(inputs: ReleaseInputs, book: BookId, chapter: numb
 
   const scenesApproved = scenes.length > 0 && scenes.every((scene) => scene.review.status === 'approved')
 
+  // 기본 그림 버전의 장면 그림 표. 카탈로그마다 한 번 만든 표를 장마다 다시 쓴다(꾸러미와 묶음이 쓰는 표와 같다).
   const defaultVersion = inputs.catalog.versions.at(-1)
-  const imageStems = new Set(
-    (defaultVersion ? (inputs.catalog.files[defaultVersion.id] ?? []) : []).flatMap((name) => sceneImageStem(name) ?? []),
-  )
-  const imagesComplete = scenes.length > 0 && scenes.every((scene) => imageStems.has(scene.id))
+  const defaultImages = defaultVersion ? sceneImageIndex(inputs.catalog).get(defaultVersion.id) : undefined
+  const imagesComplete = scenes.length > 0 && scenes.every((scene) => defaultImages?.has(scene.id) === true)
 
   const audioComplete = source.verses.every((verse) => typeof inputs.audio.get(verseAudioName(book, chapter, verse.verse)) === 'number')
 

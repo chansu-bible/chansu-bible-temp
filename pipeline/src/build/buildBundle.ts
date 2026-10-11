@@ -26,16 +26,23 @@ import {
   type Verse,
 } from '../schema.ts'
 import { firstAppearanceOf } from '../canon/citations.ts'
-import { sceneImageStem } from '../images/versions.ts'
+import { sceneImageIndex } from '../images/versions.ts'
 import { posLabel } from '../original/morph.ts'
 import { findCoverageProblems } from '../scenes/coverage.ts'
 import { canonForBook, type BookCanon } from './canonForBook.ts'
 
 // files: 버전 id → 그 버전 폴더에 있는 그림 파일 이름들
-export type ImageCatalog = { versions: ImageVersion[]; files: Record<string, string[]> }
+// 한 번 읽어 두고 읽기만 하는 값이다. 버전마다 그림 찾는 표(sceneImageIndex)를 이 객체에 매어 쌓아 두므로, 만든 뒤에는 고치지 않는다.
+export type ImageCatalog = Readonly<{ versions: readonly ImageVersion[]; files: Readonly<Record<string, readonly string[]>> }>
 
 // 묶음에 넣을 설정집(모든 책). 승인 여부는 bookCanonOf가, 그 책까지 나왔는지와 인용 모양은 canonForBook이 맡는다.
-export type BundleCanon = { characters: Character[]; places: Place[]; eras: Era[]; things?: Thing[] }
+// 읽기 전용 목록도 받는다(꾸러미를 만드는 입력의 설정집이 그렇다).
+export type BundleCanon = {
+  readonly characters: readonly Character[]
+  readonly places: readonly Place[]
+  readonly eras: readonly Era[]
+  readonly things?: readonly Thing[]
+}
 
 // 책 하나의 묶음에 들어가는 설정집. approvedPlaces는 책에 맞추기 전의 승인된 장소 전체다.
 export type BookBundleCanon = BookCanon & { approvedPlaces: readonly Place[] }
@@ -47,7 +54,7 @@ export type AudioCatalog = ReadonlyMap<string, number | null> | ReadonlySet<stri
 export type BundleExtras = {
   original?: OriginalFile | null
   lexicon?: LexiconFile | null
-  quizzes?: QuizFile[]
+  quizzes?: readonly QuizFile[]
   sources?: BundleSource[]
 }
 
@@ -77,7 +84,7 @@ function audioDurations(audio: AudioCatalog): ReadonlyMap<string, number | null>
 // 사람이 승인한 항목만 앱에 나간다. 검수 전 초안은 지도와 인물 카드에 올리지 않는다.
 // 그 가운데 이 책을 다 읽은 독자가 아는 항목만, 인용을 묶음 모양으로 바꿔 넣는다(canonForBook). 책마다 한 번만 돌린다.
 export function bookCanonOf(book: BookId, source: Source, canon: BundleCanon): BookBundleCanon {
-  const approved = <T extends { status: string }>(items: T[]) => items.filter((item) => item.status === 'approved')
+  const approved = <T extends { status: string }>(items: readonly T[]) => items.filter((item) => item.status === 'approved')
   const approvedPlaces = approved(canon.places)
   const bookCanon = canonForBook(
     {
@@ -174,7 +181,8 @@ export function buildBundle(
     characters: characters.map(toBundleCharacter),
     eras: eras.map(toBundleEra),
     things: things.map(toBundleThing),
-    imageVersions: catalog.versions,
+    // 카탈로그는 읽기 전용이라 묶음에는 복사해 넣는다.
+    imageVersions: [...catalog.versions],
     // 가장 나중에 추가한 버전을 기본으로 보여 준다.
     defaultImageVersion: catalog.versions.at(-1)?.id ?? null,
     lexicon,
@@ -309,14 +317,6 @@ function toBundleThing(thing: Thing): BundleThing {
 type SceneWithoutAudio = Omit<BundleScene, 'audio' | 'audioMs'>
 type VerseAudio = { verse: number; audio: string | null; audioMs: number | null }
 
-// 장면 낭독에 들어가는 절 낭독 파일(묶음 안 경로)을 차례대로. writeBundle이 이 파일들을 이어 붙인다.
-// 앱은 장면마다 이 파일 하나를 재생한다. 화면을 꺼도 절마다 파일을 바꾸지 않아 끊기지 않고, 잠금 화면에는 장면 단위로 보인다.
-export function sceneAudioParts(scene: { verseStart: number; verseEnd: number }, verses: VerseAudio[]): string[] {
-  return verses.flatMap((verse) =>
-    verse.verse >= scene.verseStart && verse.verse <= scene.verseEnd && verse.audio !== null ? [verse.audio] : [],
-  )
-}
-
 function withSceneAudio(scene: SceneWithoutAudio, verses: VerseAudio[]): BundleScene {
   const parts = verses.filter((verse) => verse.verse >= scene.verseStart && verse.verse <= scene.verseEnd && verse.audio !== null)
   if (parts.length === 0) return { ...scene, audio: null, audioMs: null }
@@ -349,10 +349,12 @@ function fallbackScene(book: BookId, chapter: number, verseCount: number, catalo
 // 버전마다 그 장면의 그림(sceneImageStem이 장면 id인 파일)을 찾는다.
 // 한 버전에 둘 이상이면 이름순(UTF-16 코드 단위)으로 앞의 것이다. 폴더 목록 순서는 컴퓨터마다 달라서 목록에서 처음 만난 것을 고르지 않는다.
 // 장 꾸러미의 해시가 이 고르기에 달려 있다. 공개 콘텐츠를 읽을 때는 assertUniqueImageStems가 둘 이상을 막는다.
+// 파일 이름마다 규칙을 대 보지 않고, 카탈로그마다 한 번 만든 표(sceneImageIndex)에서 찾는다. 장면 수 x 파일 수로 늘지 않는다.
 function imagesFor(sceneId: string, catalog: ImageCatalog): Record<string, string> {
+  const index = sceneImageIndex(catalog)
   const images: Record<string, string> = {}
   for (const version of catalog.versions) {
-    const [file] = (catalog.files[version.id] ?? []).filter((name) => sceneImageStem(name) === sceneId).sort()
+    const file = index.get(version.id)?.get(sceneId)
     if (file) images[version.id] = `content/images/${version.id}/${file}`
   }
   return images

@@ -29,26 +29,31 @@ import { readAudioCatalog } from '../tts/audioCatalog.ts'
 // 하나만 바꾸면 나머지는 저장소 것을 그대로 읽으므로, 시험은 모두 임시 폴더로 바꿔 준다.
 export type ReleaseInputsOptions = Omit<BundleDirs, 'appContentDir'>
 
-// 책 하나의 콘텐츠
-export type BookInputs = {
+// 설정집의 항목 목록(인물, 장소, 시대, 물건, 제안)을 읽기 전용으로 한 것
+type ReadonlyCanon = { readonly [Kind in keyof Canon]: readonly Canon[Kind][number][] }
+
+// 책 하나의 콘텐츠. 읽기만 한다.
+export type BookInputs = Readonly<{
   source: Source
   // 장면 파일들(장 번호 오름차순)
-  sceneFiles: SceneFile[]
+  sceneFiles: readonly SceneFile[]
   // 퀴즈 파일들(장 번호 오름차순)
-  quizzes: QuizFile[]
+  quizzes: readonly QuizFile[]
   // 책의 원어 파일. 원어 자료가 없는 책은 null
   original: OriginalFile | null
-}
+}>
 
 // 점검과 꾸러미를 만드는 데 쓰는 콘텐츠. 한 번 읽어 두고 읽기만 한다.
 // 같은 콘텐츠는 어느 컴퓨터에서 읽어도 같은 값이 된다. 폴더 목록은 이름순이고, 책과 장은 성경 순서와 장 번호 순서다.
-export type ReleaseInputs = {
+// 필드와 목록과 표를 읽기 전용 형으로 두어 고치면 형 오류가 난다. 꾸러미를 만드는 쪽(pack.ts)이 이 객체마다 장 문맥을 쌓아 두므로, 읽은 뒤에는 바꾸지 않는다.
+// 필드 안의 항목(장면, 퀴즈 같은 스키마의 값)은 형으로 막지 않는다. 시험이 얼린 입력으로 건드리지 않는지 본다.
+export type ReleaseInputs = Readonly<{
   // 본문이 있는 책(성경 순서)
-  books: BookId[]
+  books: readonly BookId[]
   // 책 id → 그 책의 콘텐츠. books의 책마다 하나 있다.
   byBook: ReadonlyMap<BookId, BookInputs>
   // 설정집 전체. 승인 전 항목도 든다(승인된 것만 거르는 일은 묶음과 꾸러미를 만들 때 한다).
-  canon: Canon
+  canon: ReadonlyCanon
   // 그림 버전 목록과, 버전마다 그 폴더의 그림 파일 이름(이름순). 한 버전 폴더에 한 장면의 그림이 둘 이상이면 읽을 때 오류를 낸다.
   catalog: ImageCatalog
   // 낭독 파일 이름(이름순) → 재생 길이(ms). 길이를 잴 수 없는 파일은 null이다.
@@ -60,7 +65,7 @@ export type ReleaseInputs = {
   // 그림과 낭독 파일이 있는 폴더. 꾸러미를 만들 때 파일 내용을 여기서 읽는다.
   imagesDir: string
   audioDir: string
-}
+}>
 
 async function readBookInputs(
   book: BookId,

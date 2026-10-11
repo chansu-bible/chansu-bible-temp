@@ -5,7 +5,7 @@ import { sceneIdOf, type BookId } from 'reader-core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { displayPath } from '../src/paths.ts'
 import { chapterChecks } from '../src/release/checks.ts'
-import { chapterInputsOf, findChapterInputs, readReleaseInputs, type ReleaseInputsOptions } from '../src/release/inputs.ts'
+import { chapterInputsOf, findChapterInputs, readReleaseInputs, type ReleaseInputs, type ReleaseInputsOptions } from '../src/release/inputs.ts'
 import type { Place, QuizQuestion, Scene } from '../src/schema.ts'
 import { readAudioCatalog } from '../src/tts/audioCatalog.ts'
 import { mp3DurationMs } from '../src/tts/mp3.ts'
@@ -239,6 +239,24 @@ describe('공개 점검과 콘텐츠 읽기', () => {
       await rm(path.join(dirs.imagesDir, 'v2', `${G12}.png`))
       await put(`content/images/v2/${G12}.${ext}`, png)
       expect((await checksOf('genesis', 1)).required).toEqual(required(true, true, true))
+    })
+
+    it('그림 파일이 아주 많아도 장마다 파일 목록을 훑지 않는다(카탈로그마다 한 번 만든 표를 쓴다)', async () => {
+      const inputs = await readInputs()
+      // 기본 버전(v2)에 이 장의 그림 둘과 다른 장의 그림 2000개를 둔다(읽을 때처럼 이름순).
+      const names = [`${G11}.png`, `${G12}.png`, ...Array.from({ length: 2000 }, (_, index) => `other-${String(index).padStart(4, '0')}.png`)].sort()
+      const crowded: ReleaseInputs = { ...inputs, catalog: { ...inputs.catalog, files: { ...inputs.catalog.files, v2: names } } }
+      expect(chapterChecks(crowded, 'genesis', 1).required.imagesComplete).toBe(true)
+      expect(chapterChecks({ ...crowded, catalog: { ...crowded.catalog, files: { ...crowded.catalog.files, v2: names.slice(1) } } }, 'genesis', 1).required.imagesComplete).toBe(false)
+
+      // 장마다 2000개에 규칙을 대 보면 장 천 개에 0.6초쯤 걸린다. 표를 쓰면 3ms 안팎이다. 병렬로 도는 다른 시험 때문에 한 번이 느려질 수 있어 가장 빠른 한 번을 잰다.
+      let fastest = Infinity
+      for (let run = 0; run < 3; run++) {
+        const started = performance.now()
+        for (let count = 0; count < 1000; count++) chapterChecks(crowded, 'genesis', 1)
+        fastest = Math.min(fastest, performance.now() - started)
+      }
+      expect(fastest, `${fastest.toFixed(1)}ms`).toBeLessThan(100)
     })
 
     it('절 낭독이 하나 빠지면 audioComplete가 거짓이다', async () => {

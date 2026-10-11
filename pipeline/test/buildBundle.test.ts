@@ -1,4 +1,4 @@
-import type { BookId } from 'reader-core'
+import { sceneIdOf, type BookId } from 'reader-core'
 import { describe, expect, expectTypeOf, it } from 'vitest'
 import {
   bookCanonOf,
@@ -6,9 +6,11 @@ import {
   buildChapter,
   chapterContextOf,
   missingPlaceMessage,
-  sceneAudioParts,
+  type BundleChapter,
   type ChapterContext,
 } from '../src/build/buildBundle.ts'
+import { sceneAudioParts } from '../src/build/sceneAudio.ts'
+import { sceneImageStem } from '../src/images/versions.ts'
 import {
   BundleSchema,
   type Bundle,
@@ -19,6 +21,7 @@ import {
   type QuizFile,
   type Scene,
   type Source,
+  type SourceChapter,
   type Thing,
 } from '../src/schema.ts'
 
@@ -781,6 +784,54 @@ describe('buildChapter', () => {
         expect(imagesOf(listed), listed.join(', ')).toEqual({ v1: 'content/images/v1/genesis-01-01.jpg' })
         expect(listed).toEqual(before)
       }
+    })
+
+    it('그림 파일이 아주 많아도 장면마다 파일 목록을 훑지 않는다(버전 3개 x 파일 2000개, 장면 50개). 고르는 그림은 옛 방식과 같다', () => {
+      const count = 50
+      const versions = ['v1', 'v2', 'v3'].map((id) => ({ id, label: id, note: '' }))
+      const sceneIds = Array.from({ length: count }, (_, index) => sceneIdOf('genesis', 1, index + 1))
+      const files = Object.fromEntries(
+        versions.map(({ id }, v) => {
+          const ext = ['png', 'jpg', 'webp'][v]!
+          const used = [
+            ...sceneIds.map((sceneId) => `${sceneId}.${ext}`),
+            // 같은 장면의 그림이 하나 더 있는 장면(이름순으로 앞의 것을 고른다)과, 장면 그림이 아닌 남은 파일
+            ...sceneIds.filter((_, index) => index % 5 === v).map((sceneId) => `${sceneId}.jpeg`),
+            ...sceneIds.map((sceneId) => `${sceneId}.bak`),
+          ]
+          // 나머지는 이 장 밖의 장면 그림이다. 이름순이 아니게 섞는다(7919는 소수라 2000개를 빠짐없이 한 번씩 고른다).
+          const names = [...used, ...Array.from({ length: 2000 - used.length }, (_, index) => `exodus-${String(index + 1).padStart(4, '0')}.${ext}`)]
+          return [id, names.map((_, index) => names[(index * 7919) % names.length]!)]
+        }),
+      )
+      expect(Object.values(files).map((names) => new Set(names).size)).toEqual([2000, 2000, 2000])
+
+      // 옛 방식: 장면마다 버전의 모든 파일에 규칙을 대 보고 이름순으로 앞의 것
+      const catalog = { versions, files }
+      const oldWay = (sceneId: string) => {
+        const images: Record<string, string> = {}
+        for (const version of catalog.versions) {
+          const [name] = (catalog.files[version.id] ?? []).filter((item) => sceneImageStem(item) === sceneId).sort()
+          if (name) images[version.id] = `content/images/${version.id}/${name}`
+        }
+        return images
+      }
+      const chapter: SourceChapter = { chapter: 1, verses: Array.from({ length: count }, (_, index) => ({ verse: index + 1, text: '말' })) }
+      const sceneFile = { chapter: 1, scenes: sceneIds.map((id, index) => scene({ id, verseStart: index + 1, verseEnd: index + 1 })) }
+
+      // 카탈로그 객체마다 표를 새로 만드니, 매번 새 객체로 처음부터 만든다. 병렬로 도는 다른 시험 때문에 한 번이 느려질 수 있어 가장 빠른 한 번을 잰다.
+      let fastest = Infinity
+      let built: BundleChapter | undefined
+      for (let run = 0; run < 5; run++) {
+        const started = performance.now()
+        built = buildChapter('genesis', chapter, sceneFile, chapterContext({ catalog: { versions, files } }))
+        fastest = Math.min(fastest, performance.now() - started)
+      }
+      expect(built!.scenes.map((item) => item.images)).toEqual(sceneIds.map(oldWay))
+      // 고른 그림이 비어 있지 않아야 견줌이 뜻이 있다(버전마다 장면 그림이 있고, 둘인 장면은 .jpeg가 앞선다).
+      expect(built!.scenes[0]!.images).toEqual({ v1: `content/images/v1/${sceneIds[0]}.jpeg`, v2: `content/images/v2/${sceneIds[0]}.jpg`, v3: `content/images/v3/${sceneIds[0]}.webp` })
+      // 옛 방식은 이 크기에서 60~100ms 걸린다(300000번 규칙을 댄다).
+      expect(fastest, `${fastest.toFixed(1)}ms`).toBeLessThan(50)
     })
   })
 

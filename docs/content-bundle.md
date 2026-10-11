@@ -111,7 +111,7 @@ app/public/                     웹 앱의 사이트 루트. 아래 "경로"의 
 
 ### ImageVersion
 
-`{ id: string, label: string, note: string }`. `id`는 영문 소문자·숫자·하이픈이고 그림 폴더 이름과 같다. `label`은 버전 바꾸기 버튼에 보여 줄 이름, `note`는 설명이다.
+`{ id: string, label: string, note: string }`. `id`는 영문 소문자로 시작하고 소문자·숫자·하이픈만 쓰며 그림 폴더 이름과 같다. 숫자로 시작하는 id("2", "10")는 받지 않는다. 객체의 키 차례가 숫자순으로 바뀌어 `images`의 키 차례가 버전 목록과 달라지기 때문이다. `label`은 버전 바꾸기 버튼에 보여 줄 이름, `note`는 설명이다.
 
 ### Chapter
 

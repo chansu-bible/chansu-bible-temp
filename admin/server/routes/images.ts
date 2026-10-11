@@ -23,7 +23,7 @@ export function imageRoutes(ctx: AppContext): Hono {
   app.post('/versions', async (c) => {
     const parsed = ImageVersionSchema.safeParse(await readJsonBody(c.req.raw))
     if (!parsed.success) {
-      throw new HttpError(400, errorMessage(parsed.error, '그림 버전이 형식에 맞지 않습니다(id는 영문 소문자·숫자·-)'))
+      throw new HttpError(400, errorMessage(parsed.error, '그림 버전이 형식에 맞지 않습니다(id는 영문 소문자로 시작하고 소문자·숫자·-만 씁니다)'))
     }
     const version = parsed.data
     if ((await readImageVersions(file)).some((existing) => existing.id === version.id)) {

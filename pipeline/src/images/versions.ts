@@ -85,6 +85,34 @@ export function sceneImageStem(name: string): string | null {
   return name.slice(0, dot)
 }
 
+// 버전 id → (장면 id → 그 버전 폴더에 있는 그 장면의 그림 파일 이름)
+export type SceneImageIndex = ReadonlyMap<string, ReadonlyMap<string, string>>
+
+const sceneImageIndexes = new WeakMap<ImageCatalog, SceneImageIndex>()
+
+// 장면의 그림을 찾는 표. 버전마다 파일 이름을 한 번 훑어 만들고, 카탈로그 객체마다 쌓아 둔다.
+// 장면마다 모든 파일 이름에 sceneImageStem을 대 보면 장면 수 x 파일 수가 된다(성경 전체로는 한 번 돌리는 데 십수 초다).
+// 한 버전에 같은 장면의 그림이 둘 이상이면 이름순(UTF-16 코드 단위)으로 앞의 것이다. 건네받은 목록의 순서는 보지 않고 목록도 바꾸지 않는다.
+// 표는 카탈로그 객체에 매여 있다. 카탈로그는 읽기 전용 값(ImageCatalog)이라 만든 뒤 고치지 않고, 다른 객체는 새 표를 만든다.
+// 장면 그림을 고르는 곳(묶음의 imagesFor)과 공개 점검(chapterChecks)이 함께 쓴다.
+export function sceneImageIndex(catalog: ImageCatalog): SceneImageIndex {
+  const cached = sceneImageIndexes.get(catalog)
+  if (cached) return cached
+  const index = new Map<string, ReadonlyMap<string, string>>()
+  for (const version of catalog.versions) {
+    const byScene = new Map<string, string>()
+    for (const name of catalog.files[version.id] ?? []) {
+      const stem = sceneImageStem(name)
+      if (stem === null) continue
+      const first = byScene.get(stem)
+      if (first === undefined || name < first) byScene.set(stem, name)
+    }
+    index.set(version.id, byScene)
+  }
+  sceneImageIndexes.set(catalog, index)
+  return index
+}
+
 // 한 버전 폴더에 같은 장면의 그림(sceneImageStem이 같은 파일)이 둘 이상이면 그 파일 이름들을 밝혀 오류를 낸다.
 // 한 장면의 그림은 버전마다 하나여야 한다. 둘이면 어느 쪽이 그 장면의 그림인지 사람이 정해야 한다.
 // 장면 그림이 아닌 파일(.bak 같은 남은 파일)은 그림으로 고르지 않으니 세지 않는다.

@@ -3,11 +3,12 @@ import path from 'node:path'
 import { isBookId, isMediaExt, mediaPath, PUBLISH_SCHEMA_VERSION, type BookId, type ChapterPack, type MediaExt } from 'reader-core'
 import { z } from 'zod'
 import { bookCanonOf, buildChapter, chapterContextOf, type BundleChapter, type ChapterContext } from '../build/buildBundle.ts'
-import { joinSceneAudio } from '../build/writeBundle.ts'
+import { joinSceneAudio } from '../build/sceneAudio.ts'
 import { sceneImageStem, versionDir } from '../images/versions.ts'
+import { displayPath } from '../paths.ts'
 import { BundleOriginalVerseSchema, BundleQuizQuestionSchema, BundleSceneSchema, BundleVerseSchema, type BundleScene } from '../schema.ts'
 import { contentHash, jsonBytes } from './hash.ts'
-import { chapterInputsOf, type ReleaseInputs } from './inputs.ts'
+import { chapterInputsOf, type BookInputs, type ReleaseInputs } from './inputs.ts'
 import type { ReleaseParts } from './releases.ts'
 
 // 꾸러미가 가리키는 미디어 파일 하나. to는 콘텐츠 뿌리 기준 media/ 경로(이름에 내용 해시가 든다)이고 size는 바이트 수다.
@@ -33,9 +34,20 @@ const ChapterPackSchema = z.object({
   quiz: z.array(BundleQuizQuestionSchema),
 })
 
+// 쌓아 둔 장 문맥과, 그 문맥을 만들 때 읽은 입력의 객체들
+type CachedContext = {
+  context: ChapterContext
+  content: BookInputs
+  canon: ReleaseInputs['canon']
+  catalog: ReleaseInputs['catalog']
+  audio: ReleaseInputs['audio']
+}
+
 // 같은 콘텐츠(inputs)로 장을 여럿 만들 때 책마다 장 문맥을 한 번만 만든다(설정집을 책에 맞춰 거르는 bookCanonOf가 책마다 한 번이다).
 // inputs는 한 번 읽어 두고 읽기만 하는 값(ReleaseInputs)이라, 만든 문맥을 그대로 다시 쓴다.
-const contexts = new WeakMap<ReleaseInputs, Map<BookId, ChapterContext>>()
+// 그래도 형 변환으로 같은 inputs 객체의 설정집, 그림 목록, 낭독 목록이나 책의 콘텐츠를 다른 객체로 바꾸면 낡은 문맥이 된다.
+// 문맥을 만들 때 읽은 객체를 함께 두고, 다시 쓰기 전에 지금의 객체와 같은지 본다. 다르면 새로 만든다.
+const contexts = new WeakMap<ReleaseInputs, Map<BookId, CachedContext>>()
 
 // 책의 장 문맥. 책 묶음(buildBundle)과 같은 만들기라 꾸러미에도 그 책까지 나온 승인된 장소·인물만 들어간다.
 // 설정집은 책 전체의 본문으로 거르고(뒤 책에서 끝나는 시대의 끝이 그 본문의 마지막 절이다), 원어와 퀴즈도 책 전체의 파일을 넘긴다(buildChapter가 그 장의 것을 찾는다).
@@ -45,12 +57,16 @@ function bookContext(inputs: ReleaseInputs, book: BookId): ChapterContext {
     books = new Map()
     contexts.set(inputs, books)
   }
-  const cached = books.get(book)
-  if (cached) return cached
   // buildPack이 chapterInputsOf로 본문이 있는 책인지 먼저 봤다.
-  const { source, original, quizzes } = inputs.byBook.get(book)!
-  const context = chapterContextOf(bookCanonOf(book, source, inputs.canon), inputs.audio, inputs.catalog, { original, quizzes })
-  books.set(book, context)
+  const content = inputs.byBook.get(book)!
+  const { canon, catalog, audio } = inputs
+  const cached = books.get(book)
+  if (cached && cached.content === content && cached.canon === canon && cached.catalog === catalog && cached.audio === audio) {
+    return cached.context
+  }
+  const { source, original, quizzes } = content
+  const context = chapterContextOf(bookCanonOf(book, source, canon), audio, catalog, { original, quizzes })
+  books.set(book, { context, content, canon, catalog, audio })
   return context
 }
 
@@ -97,11 +113,19 @@ export async function buildPack(inputs: ReleaseInputs, book: BookId, chapter: nu
 
 // 묶음 경로(content/images/<버전>/<파일 이름>)의 그림을 이 컴퓨터의 그림 폴더에서 읽어 미디어를 만든다.
 // 묶음 경로를 저장소 경로로 쓰지 않는다(그림 폴더를 바꿔 주면 맞지 않는다). 파일 이름만 떼어 그림 폴더의 그 버전 폴더에서 찾는다.
+// 읽지 못하면 어느 장면의 어느 버전 그림인지 밝혀 던진다(장이 많아도 어느 파일 때문인지 바로 보인다).
 async function imageMedia(imagesDir: string, sceneId: string, version: string, file: string, preview: boolean): Promise<PackMedia> {
   const name = path.posix.basename(file)
   const ext = sceneImageExt(sceneId, name)
   const from = path.join(versionDir({ id: version }, imagesDir), name)
-  const bytes = await readFile(from)
+  let bytes: Buffer
+  try {
+    bytes = await readFile(from)
+  } catch (error) {
+    // 시스템 오류 글에는 읽은 경로가 이 컴퓨터의 절대 경로로 들어 있다. 다른 오류 글처럼 displayPath로 보이게 한다.
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`${sceneId}: ${version} 그림을 읽지 못했습니다(${name}): ${message.replaceAll(from, displayPath(from))}`)
+  }
   return { from, to: mediaPath(sceneId, contentHash(bytes), ext, preview), size: bytes.length }
 }
 
@@ -119,7 +143,9 @@ async function narrationMedia(audioDir: string, scene: BundleScene, verses: Bund
 }
 
 // 부분 해시. 공개 화면이 다시 공개할 때 무엇이 바뀌었는지(글, 그림, 낭독, 퀴즈, 원어) 보이는 데 쓴다.
-// 꾸러미의 값은 모두 어느 한 부분에 들어, 꾸러미 해시가 바뀌면 적어도 한 부분이 바뀐다.
+// 꾸러미의 값이 모두 어느 한 부분에 드는 것은 아니다. schemaVersion, bookId, chapter는 어느 부분에도 들지 않고(책과 장은 공개 상태 파일의 자리가 가리킨다),
+// 절의 audio도 늘 null이라 넣지 않는다. 나머지는 모두 어느 한 부분에 든다.
+// 그래서 PUBLISH_SCHEMA_VERSION을 올리면 부분은 하나도 바뀌지 않는데 꾸러미 해시는 바뀐다.
 function partsOf(pack: ChapterPack): ReleaseParts {
   const hashOf = (value: unknown) => contentHash(jsonBytes(value))
   return {

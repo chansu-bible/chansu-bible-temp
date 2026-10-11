@@ -9,6 +9,7 @@ import {
   assertUniqueImageStems,
   readImageCatalog,
   readImageVersions,
+  sceneImageIndex,
   sceneImageStem,
   versionDir,
   writeImageVersions,
@@ -56,6 +57,13 @@ describe('readImageVersions', () => {
       await expect(readImageVersions(file), text).rejects.toThrow(`${displayPath(file)}: `)
     }
   })
+
+  it('숫자로 시작하는 id가 든 목록은 파일 이름을 앞에 붙여 오류를 낸다(객체 키 차례가 숫자순으로 바뀐다)', async () => {
+    for (const id of ['2', '10', '2-sunburst']) {
+      await writeFile(file, JSON.stringify([v1, { ...v2, id }]))
+      await expect(readImageVersions(file), id).rejects.toThrow(`${displayPath(file)}: `)
+    }
+  })
 })
 
 describe('writeImageVersions', () => {
@@ -70,8 +78,10 @@ describe('writeImageVersions', () => {
     expect(existsSync(file)).toBe(false)
   })
 
-  it('id 규칙에 맞지 않으면 쓰지 않는다', async () => {
+  it('id 규칙에 맞지 않으면 쓰지 않는다. 숫자로 시작하는 id도 그렇다', async () => {
     await expect(writeImageVersions([{ ...v1, id: 'V1 flare' }], file)).rejects.toThrow()
+    await expect(writeImageVersions([v1, { ...v2, id: '2' }], file)).rejects.toThrow()
+    expect(existsSync(file)).toBe(false)
   })
 })
 
@@ -91,6 +101,13 @@ describe('addImageVersion', () => {
   it('이미 있는 id면 오류를 낸다', async () => {
     await writeFile(file, JSON.stringify([v1]))
     await expect(addImageVersion(v1, { file, imagesDir: dir })).rejects.toThrow('그림 버전이 이미 있습니다: v1-flare')
+  })
+
+  it('숫자로 시작하는 id는 목록에도 폴더에도 더하지 않는다', async () => {
+    await writeFile(file, JSON.stringify([v1]))
+    await expect(addImageVersion({ ...v2, id: '2' }, { file, imagesDir: dir })).rejects.toThrow()
+    expect(await readImageVersions(file)).toEqual([v1])
+    expect(existsSync(path.join(dir, '2'))).toBe(false)
   })
 })
 
@@ -157,6 +174,50 @@ describe('sceneImageStem', () => {
     ['점으로 시작하는 이름', '.png'],
   ])('%s(%s)은 장면 그림이 아니다', (_name, file) => {
     expect(sceneImageStem(file)).toBeNull()
+  })
+})
+
+describe('sceneImageIndex', () => {
+  const catalogOf = (files: Record<string, string[]>): ImageCatalog => ({ versions: [v1, v2], files })
+  const entries = (index: ReturnType<typeof sceneImageIndex>, version: string) => Object.fromEntries(index.get(version) ?? [])
+
+  it('버전마다 장면 id → 그림 파일 이름 표를 버전 목록 차례로 만든다. 장면 그림이 아닌 파일은 넣지 않는다', () => {
+    const index = sceneImageIndex(
+      catalogOf({
+        'v1-flare': ['genesis-01-01.png', 'genesis-01-02.jpg', 'genesis-01-02.bak', 'genesis-01-03.PNG', 'genesis-01-03.gif', 'x', 'genesis-01-04.png.tmp', 'genesis-01-05.mp3'],
+        'v2-sunburst': ['genesis-01-01.webp'],
+      }),
+    )
+    expect([...index.keys()]).toEqual(['v1-flare', 'v2-sunburst'])
+    expect(entries(index, 'v1-flare')).toEqual({ 'genesis-01-01': 'genesis-01-01.png', 'genesis-01-02': 'genesis-01-02.jpg' })
+    expect(entries(index, 'v2-sunburst')).toEqual({ 'genesis-01-01': 'genesis-01-01.webp' })
+  })
+
+  it('한 버전에 같은 장면의 그림이 둘 이상이면 목록 순서와 상관없이 이름순(UTF-16 코드 단위)으로 앞의 것이고, 목록은 바꾸지 않는다', () => {
+    // 폴더 목록 순서는 운영체제마다 다르다. 처음 만난 것을 고르면 컴퓨터마다 다른 그림이 된다.
+    const names = ['a.png', 'a.bak', 'a.webp', 'a.jpg', 'a.jpeg']
+    for (const listed of [names, [...names].reverse()]) {
+      const before = [...listed]
+      const index = sceneImageIndex(catalogOf({ 'v1-flare': listed, 'v2-sunburst': [] }))
+      expect(index.get('v1-flare')!.get('a'), listed.join(', ')).toBe('a.jpeg')
+      expect(listed).toEqual(before)
+    }
+  })
+
+  it('파일 목록이 없는 버전, 파일이 없는 버전은 빈 표다. 목록에 없는 버전의 파일은 보지 않는다', () => {
+    const index = sceneImageIndex({ versions: [v1, v2], files: { 'v2-sunburst': [], other: ['genesis-01-01.png'] } })
+    expect(entries(index, 'v1-flare')).toEqual({})
+    expect(entries(index, 'v2-sunburst')).toEqual({})
+    expect(index.has('other')).toBe(false)
+    expect(sceneImageIndex({ versions: [], files: {} }).size).toBe(0)
+  })
+
+  it('카탈로그 객체마다 한 번만 만들고, 다른 객체는 새로 만든다', () => {
+    const catalog = catalogOf({ 'v1-flare': ['genesis-01-01.png'], 'v2-sunburst': [] })
+    expect(sceneImageIndex(catalog)).toBe(sceneImageIndex(catalog))
+    const copy = { ...catalog, files: { ...catalog.files, 'v2-sunburst': ['genesis-01-01.jpg'] } }
+    expect(entries(sceneImageIndex(copy), 'v2-sunburst')).toEqual({ 'genesis-01-01': 'genesis-01-01.jpg' })
+    expect(entries(sceneImageIndex(catalog), 'v2-sunburst')).toEqual({})
   })
 })
 
