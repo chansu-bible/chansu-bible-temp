@@ -1,6 +1,14 @@
 import type { BookId } from 'reader-core'
 import { describe, expect, expectTypeOf, it } from 'vitest'
-import { buildBundle, buildChapter, missingPlaceMessage, sceneAudioParts, type ChapterContext } from '../src/build/buildBundle.ts'
+import {
+  bookCanonOf,
+  buildBundle,
+  buildChapter,
+  chapterContextOf,
+  missingPlaceMessage,
+  sceneAudioParts,
+  type ChapterContext,
+} from '../src/build/buildBundle.ts'
 import {
   BundleSchema,
   type Bundle,
@@ -531,6 +539,27 @@ describe('책마다 묶음', () => {
     ])
   })
 
+  // 장 꾸러미도 이 만들기로 문맥을 만든다. 승인된 전체나 뒤 책 항목으로 직접 만들면 뒤 책 인물과 장소가 꾸러미에 샌다.
+  it('장 문맥은 그 책 묶음에 드는 장소·인물 id만 갖고, 승인된 장소는 책과 상관없이 모두 갖는다', () => {
+    const draft: Place = { ...eden, id: 'nod', name: '놋', status: 'draft' }
+    const canon = canonOf([eden, midian, draft], [adam, moses], [patriarchs, wilderness])
+    const contextOf = (book: BookId, bookSource: Source) =>
+      chapterContextOf(bookCanonOf(book, bookSource, canon), new Map(), { versions: [], files: {} }, {})
+
+    // 창세기: 출애굽기에서 처음 나오는 미디안과 모세는 뺀다. 출애굽기에서 끝나는 족장 시대가 있어도 던지지 않는다(창세기 본문의 끝으로 맞춘다).
+    const genesis = contextOf('genesis', genesisTo12)
+    expect([...genesis.placeIds]).toEqual(['eden'])
+    expect([...genesis.characterIds]).toEqual(['adam'])
+    // 승인된 장소는 오류 글이 까닭을 밝히는 데 쓰니 뒤 책 것도 든다. 승인되지 않은 장소는 없다.
+    expect(genesis.approvedPlaces.map((place) => place.id)).toEqual(['eden', 'midian'])
+
+    // 출애굽기: 앞 책에서 나온 에덴과 아담도 든다.
+    const exodus = contextOf('exodus', exodusTo16)
+    expect([...exodus.placeIds]).toEqual(['eden', 'midian'])
+    expect([...exodus.characterIds]).toEqual(['adam', 'moses'])
+    expect(exodus.approvedPlaces.map((place) => place.id)).toEqual(['eden', 'midian'])
+  })
+
   it('장면 파일이 없는 장의 대체 장면 id와 제목에 책을 쓴다', () => {
     const sourceWithChapter6: Source = { ...source, chapters: [...source.chapters, { chapter: 6, verses: [{ verse: 1, text: '바' }] }] }
     const bundle = buildBundle('genesis', sourceWithChapter6, [], canonOf(places))
@@ -727,10 +756,8 @@ describe('buildChapter', () => {
 
   it('장면이 가리키는 장소는 ctx의 장소 id에 있어야 하고, 없으면 승인된 장소를 보고 까닭을 밝혀 던진다', () => {
     const toEden = { chapter: 1, scenes: [scene({ placeId: 'eden' })] }
-    // 에덴이 승인된 장소에 있어도 이 책 묶음의 장소 id에 없으면 던진다.
-    expect(() => buildChapter('genesis', chapter1, toEden, chapterContext({ placeIds: new Set() }))).toThrow(
-      'genesis-01-01: 장소 eden가 places.json의 승인된 항목에 없습니다',
-    )
+    // 에덴이 승인된 장소에 있어도 이 책 묶음의 장소 id에 없으면 던진다. 여기서는 문만 본다(까닭 글은 아래와 missingPlaceMessage 시험이 본다).
+    expect(() => buildChapter('genesis', chapter1, toEden, chapterContext({ placeIds: new Set() }))).toThrow('genesis-01-01: 장소 eden')
     expect(buildChapter('genesis', chapter1, toEden, chapterContext()).scenes[0]!.placeId).toBe('eden')
 
     // 처음 나오는 곳이 뒤 책인 승인된 장소는 그렇게 알린다.
@@ -766,8 +793,17 @@ describe('buildChapter', () => {
     expect(() => buildChapter('genesis', chapter1, file, chapterContext())).toThrow(message)
   })
 
-  // buildBundle이 장마다 buildChapter를 부른다. 묶음 파일이 그대로이려면 키 순서까지 같아야 한다.
-  it('책 묶음의 장은 장마다 buildChapter로 만든 것과 같다(키 순서까지)', () => {
+  it('다른 장의 장면 파일을 받으면 던진다', () => {
+    // 절 범위와 장면 id가 맞아서 장 번호를 보지 않으면 다른 검사는 모두 지나간다.
+    const secondChapterFile = { chapter: 2, scenes: [scene({ id: 'genesis-02-01', chapter: 2 })] }
+    expect(() => buildChapter('genesis', chapter1, secondChapterFile, chapterContext())).toThrow('창세기 1장에 2장 장면 파일을 받았습니다')
+    const firstChapterFile = { chapter: 1, scenes: [scene({ verseEnd: 2 })] }
+    expect(() => buildChapter('genesis', chapter2, firstChapterFile, chapterContext())).toThrow('창세기 2장에 1장 장면 파일을 받았습니다')
+  })
+
+  // buildBundle이 장마다 buildChapter를 부른다. 장 꾸러미도 같은 문맥 만들기(bookCanonOf, chapterContextOf)로 부르면 묶음의 장과 같은 장이 나온다.
+  // 둘 다 buildChapter가 만든 것이라 이 시험은 키 순서를 고정하지 못한다. 순서는 아래 시험이 글자로 고정한다.
+  it('buildBundle이 만드는 문맥과 같은 문맥이면 장이 같다', () => {
     const adam = character({ id: 'adam', name: '아담' })
     const cain = character({ id: 'cain', name: '가인', status: 'draft' })
     const files = [
@@ -788,10 +824,13 @@ describe('buildChapter', () => {
       ['genesis-01-002.mp3', 1500],
       ['genesis-02-002.mp3', null],
     ])
-    const bundle = buildBundle('genesis', source, files, canonOf(places, [adam, cain]), durations, catalog, { original, quizzes })
+    const canon = canonOf(places, [adam, cain])
+    const extras = { original, quizzes }
+    const bundle = buildBundle('genesis', source, files, canon, durations, catalog, extras)
 
-    // 책 묶음에 들어가는 인물 id만 ctx에 둔다(승인되지 않은 가인은 없다).
-    const ctx = chapterContext({ catalog, durations, characterIds: new Set(['adam']), original, quizzes })
+    // 문맥은 내보낸 만들기로 만든다. 책 묶음에 들어가는 인물 id만 든다(승인되지 않은 가인은 없다).
+    const ctx = chapterContextOf(bookCanonOf('genesis', source, canon), durations, catalog, extras)
+    expect([...ctx.characterIds]).toEqual(['adam'])
     const chapters = source.chapters.map((sourceChapter) =>
       buildChapter('genesis', sourceChapter, files.find((file) => file.chapter === sourceChapter.chapter) ?? null, ctx),
     )
@@ -800,5 +839,16 @@ describe('buildChapter', () => {
     // 같은 ctx로 다시 만들어도 같다. ctx를 바꾸지 않는다.
     expect(JSON.stringify(buildChapter('genesis', chapter1, files[0]!, ctx))).toBe(JSON.stringify(chapters[0]))
     expect(bundle.chapters[0]!.scenes[0]!.characters).toEqual(['adam'])
+  })
+
+  // 장 꾸러미의 해시는 JSON.stringify한 바이트로 정한다. 키 순서가 바뀌면 내용이 같아도 해시가 바뀐다.
+  it('절 하나와 장면 하나의 JSON은 키 순서까지 정해진 글자로 나온다', () => {
+    const tiny = { chapter: 1, verses: [{ verse: 1, text: '가' }] }
+    const file = { chapter: 1, scenes: [scene({ verseEnd: 1 })] }
+    const chapter = buildChapter('genesis', tiny, file, chapterContext())
+    expect(JSON.stringify(chapter.verses[0])).toBe('{"verse":1,"text":"가","audio":null,"audioMs":null}')
+    expect(JSON.stringify(chapter.scenes[0])).toBe(
+      '{"id":"genesis-01-01","verseStart":1,"verseEnd":1,"title":"제목","commentary":"해설","explanation":[],"history":[],"glossary":[],"placeId":null,"characters":[],"images":{},"reviewStatus":"draft","audio":null,"audioMs":null}',
+    )
   })
 })
