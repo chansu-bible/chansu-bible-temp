@@ -65,13 +65,17 @@ sudo pmset -a sleep 0 disksleep 0 autorestart 1
 
 리포는 공백이 없는 경로(`~/chansu-bible`)에 둔다. `~/Documents`, `~/Desktop`, `~/Downloads` 안에는 두지 않는다. macOS 개인 정보 보호 창이 Docker의 폴더 붙이기를 막을 수 있고, launchd 명령은 공백이 든 경로를 나눠 읽기 때문이다.
 
+리포는 비공개라서 받기 전에 GitHub에 로그인한다. 같은 로그인이 맥미니에서 푸시할 때도 쓰인다(10절).
+
 ```bash
-git clone https://github.com/chansu-bible/chansu-bible-temp.git ~/chansu-bible
-cd ~/chansu-bible && git switch feature/books-and-release
+brew install gh
+gh auth login            # GitHub.com, HTTPS, 브라우저로 로그인
+gh repo clone chansu-bible/chansu-bible-temp ~/chansu-bible
+cd ~/chansu-bible && git switch main
 npm ci && npm run pipeline -- build
 ```
 
-- main에 합친 뒤에는 `git switch main`이다. 맥미니는 GitHub에서 받으므로 그 브랜치가 푸시되어 있어야 한다.
+- 배포는 main을 받는다. 작업 중인 브랜치를 시험해 보려면 그 브랜치로 바꾼다(`git switch feature/books-and-release`). 맥미니는 GitHub에서 받으므로 그 브랜치가 푸시되어 있어야 한다.
 - `build`는 책 묶음을 `app/public/content`에 만든다. 서버가 질문하기에 쓰는 자료이고, Compose가 이 폴더를 읽기 전용으로 붙인다. 띄우기 전에 만들어 둔다.
 
 ## 5. 설정
