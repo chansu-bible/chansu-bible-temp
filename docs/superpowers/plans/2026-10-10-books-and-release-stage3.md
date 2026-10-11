@@ -260,7 +260,7 @@ npm test && npm run typecheck -w mobile && npm run typecheck -w server && npm ru
 - [ ] **Step 5: 커밋과 합치기** — `docs: 여러 책과 장 공개 3단계(앱) 완료`. 세 단계가 끝났으므로 `docs/git-convention.md`대로 main에 `--no-ff`로 합친다(`merge: 여러 책과 장 공개 (feature/books-and-release)`). 푸시는 사용자가 정한다.
   - 합치기 전에 리눅스 컨테이너에서 `npm test`를 한 번 돌린다.
     - 이 PC의 Windows 계정에서 건너뛰는 시험이 있을 수 있다. 1단계의 링크 시험이 그랬고, 이 시험은 2단계 Task 9에서 묶음 읽기와 함께 지운다.
-    - Pages 배포는 main에 푸시할 때 Ubuntu에서 `npm test`를 돌린다.
+    - 자동 시험(`.github/workflows/ci.yml`)은 PR과 main 푸시 때 Ubuntu에서 `npm test`를 돌린다.
   - 리포를 붙이지 않고 커밋된 파일만 넣어 돌린다. 그래야 Windows의 `node_modules`를 건드리지 않는다.
 
     ```bash

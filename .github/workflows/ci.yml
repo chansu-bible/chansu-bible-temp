@@ -1,0 +1,35 @@
+name: 시험
+
+# PR과 main 푸시마다 시험·형 검사·묶음 만들기·웹 목업 빌드를 돌린다. 배포는 하지 않는다(앱으로 쓰므로 웹 목업 사이트는 두지 않는다).
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      # 본문·장면·그림·음성으로 책 묶음을 만든다. API는 부르지 않는다. 앱 형 검사가 이 묶음을 앱에 넣으므로 먼저 만든다.
+      - run: npm run pipeline -- build
+      - run: npm run typecheck -w server
+      - run: npm run typecheck -w pipeline
+      - run: npm run typecheck -w admin
+      - run: npm run lint -w admin
+      - run: npm run typecheck -w mobile
+      - run: npm run build -w app

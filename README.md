@@ -4,15 +4,15 @@
 
 설계 문서: [docs/superpowers/specs/2026-10-04-scene-bible-reader-design.md](docs/superpowers/specs/2026-10-04-scene-bible-reader-design.md), 네이티브 앱은 [docs/superpowers/specs/2026-10-09-native-app-design.md](docs/superpowers/specs/2026-10-09-native-app-design.md)
 
-## 사이트
+## 자동 시험
 
-`main`에 푸시하면 GitHub Pages에 자동으로 배포된다: https://chansu-bible.github.io/chansu-bible-temp/
+PR을 열거나 `main`에 푸시하면 GitHub Actions가 시험, 묶음 만들기, 형 검사, 웹 목업 빌드를 돌린다(`.github/workflows/ci.yml`). 배포는 하지 않는다. 이제 앱으로 쓰므로 웹 목업 사이트(GitHub Pages)는 두지 않는다.
 
 ## 구조
 
 | 폴더 | 내용 |
 |---|---|
-| `app/` | 읽기 화면 웹 목업 (React + Vite + TypeScript). 깃허브 페이지로 배포 |
+| `app/` | 읽기 화면 웹 목업 (React + Vite + TypeScript). 로컬에서 `npm run dev`로 본다 |
 | `mobile/` | 네이티브 앱 (Expo SDK 57, React Native). 안드로이드·iOS, 확인용 Expo 웹 |
 | `packages/reader-core/` | 웹 목업과 앱이 함께 쓰는 읽기 계산 모듈과 묶음 타입 |
 | `server/` | 앱 기록 동기화 서버 (Hono, Postgres). 키클락 토큰을 검증한다 |
@@ -85,7 +85,7 @@ npm run admin
 
 `content/story-bible/`의 `characters.json`, `places.json`, `eras.json`, `things.json`이 인물·장소·시대·물건의 확정 정보다. 항목마다 `facts`(본문 근거, 절 인용)와 `design`(제작상 결정)을 나누고, `status`가 `approved`인 항목만 그림과 시나리오가 참조한다. `npm run pipeline -- canon --book genesis --chapter N`이 본문에서 초안을 뽑고, 승인된 항목에 대한 변경은 `proposals.json`에 제안으로만 쌓인다. 초안은 그릴 대상만 담는다. 이름 있는 인물과 고유 지명, 본문이 지목한 사물이 대상이고, 하나님과 "땅·하늘·빛" 같은 일반 명사는 넣지 않는다. 시대 구분은 사람이 미리 해 둔다.
 
-설정집은 성경 전체에 하나다. 절 인용은 `genesis 2:7`처럼 책 id를 붙여 저장한다(관리 도구에서는 `창세기 2:7`로 보이고, 그렇게 써도 받는다). 설정집을 읽고 쓸 때마다 인용한 책의 본문으로 절 수를 확인하므로, 설정집이 어떤 책을 인용하면 그 책의 본문 파일(`content/source/<책 id>.json`)도 함께 커밋한다. 없으면 `build`와 Pages 배포가 실패한다.
+설정집은 성경 전체에 하나다. 절 인용은 `genesis 2:7`처럼 책 id를 붙여 저장한다(관리 도구에서는 `창세기 2:7`로 보이고, 그렇게 써도 받는다). 설정집을 읽고 쓸 때마다 인용한 책의 본문으로 절 수를 확인하므로, 설정집이 어떤 책을 인용하면 그 책의 본문 파일(`content/source/<책 id>.json`)도 함께 커밋한다. 없으면 `build`와 자동 시험이 실패한다.
 
 ## 명령
 
@@ -95,7 +95,7 @@ npm run admin
 | `npm test` | 전체 테스트 |
 | `npm run infra:up`, `npm run infra:down` | 개발용 Postgres·키클락을 띄우고 멈춘다 |
 | `npm run server` | 동기화 서버를 띄운다 (http://127.0.0.1:8790) |
-| `npm run pipeline -- source --book genesis --chapters 1-10` | 위키문헌에서 개역한글 본문을 받아 `content/source/<책 id>.json`에 저장한다. `--chapters`(`3`, `1-10`)가 없으면 책 전체를 받는다. 있던 본문 파일은 이번에 받은 장으로 바뀐다(더하지 않는다). 설정집이 인용한 장이 빠지면 설정집 검증이 실패해 `build`와 Pages 배포가 멈춘다 |
+| `npm run pipeline -- source --book genesis --chapters 1-10` | 위키문헌에서 개역한글 본문을 받아 `content/source/<책 id>.json`에 저장한다. `--chapters`(`3`, `1-10`)가 없으면 책 전체를 받는다. 있던 본문 파일은 이번에 받은 장으로 바뀐다(더하지 않는다). 설정집이 인용한 장이 빠지면 설정집 검증이 실패해 `build`와 자동 시험이 멈춘다 |
 | `npm run pipeline -- images --book genesis --chapter 1 --allow-draft` | 1장 장면 중 그림이 없는 것을 OpenAI로 그려 `content/images/`에 저장한다 |
 | `npm run pipeline -- canon --book genesis --chapter 1` | 1장 본문에서 설정집 초안(인물·장소·시대·물건)을 뽑는다. `--dry-run`은 프롬프트만 보여 준다 |
 | `npm run pipeline -- migrate-canon-refs --book genesis` | 책이 없는 옛 설정집 인용(`2:7`)에 책을 붙인다. 한 번만 쓰는 이전이고, `--dry-run`은 몇 개인지만 보여 준다 |

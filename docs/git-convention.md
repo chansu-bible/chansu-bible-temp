@@ -44,7 +44,7 @@ type(scope): 한국어 요약
 
 | 브랜치 | 쓰는 때 |
 |---|---|
-| `main` | 배포 브랜치. 푸시하면 GitHub Pages(웹 목업)가 배포된다 |
+| `main` | 합친 결과를 두는 브랜치. 맥미니는 이 브랜치를 받아 띄운다(`deploy/README.md`) |
 | `feature/<이름>` | 기능 |
 | `fix/<이름>` | 버그 |
 | `refactor/<이름>`, `perf/<이름>` | 구조, 성능 |
@@ -76,10 +76,10 @@ type(scope): 한국어 요약
 
 ## 푸시하기 전에
 
-- 공개 리포다. OpenAI 키가 든 `.env`는 올리지 않는다(.gitignore에 있다).
+- 지금은 비공개 리포지만 한때 공개였다. OpenAI 키가 든 `.env`는 올리지 않는다(.gitignore에 있다).
 - 올릴 변경에 키가 섞이지 않았는지 본다. 아무것도 나오지 않아야 한다.
   ```bash
   git diff origin/main..main | grep -E "sk-[A-Za-z0-9_-]{20,}"
   ```
-- main에 푸시하면 GitHub Actions가 `npm ci`, `npm test`, 묶음 만들기, 웹 목업 빌드를 거쳐 Pages에 배포한다. 로컬에서 같은 확인이 통과한 뒤 푸시한다.
+- PR을 열거나 main에 푸시하면 GitHub Actions가 `npm ci`, `npm test`, 묶음 만들기, 형 검사, 웹 목업 빌드를 돌린다(`.github/workflows/ci.yml`, 배포는 하지 않는다). 로컬에서 같은 확인이 통과한 뒤 푸시한다.
 - 올린 기록을 다시 쓰는 강제 푸시는 하지 않는다.
