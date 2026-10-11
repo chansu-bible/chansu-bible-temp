@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { BookId } from 'reader-core'
 import {
@@ -25,7 +25,8 @@ import { readOriginal } from '../original/files.ts'
 import { listQuizChapters, readQuizFile } from '../quiz/files.ts'
 import { listSceneChapters, readSceneFile } from '../scenes/files.ts'
 import { readSource } from '../source/files.ts'
-import { joinMp3, mp3DurationMs } from '../tts/mp3.ts'
+import { readAudioCatalog } from '../tts/audioCatalog.ts'
+import { joinMp3 } from '../tts/mp3.ts'
 import { buildBundle, sceneAudioParts, type ImageCatalog } from './buildBundle.ts'
 import { buildSources } from './sources.ts'
 
@@ -79,16 +80,6 @@ function checkImages(sceneFiles: SceneFile[], catalog: ImageCatalog, imagesDir: 
       }
     }
   }
-}
-
-// 낭독 파일마다 재생 길이를 잰다. 홈 화면의 "낭독으로 들으면 N분" 안내에 쓴다.
-async function readAudioCatalog(dir: string): Promise<Map<string, number | null>> {
-  if (!existsSync(dir)) return new Map()
-  const names = (await readdir(dir)).filter((name) => name.endsWith('.mp3'))
-  const entries = await Promise.all(
-    names.map(async (name) => [name, mp3DurationMs(await readFile(path.join(dir, name)))] as const),
-  )
-  return new Map(entries)
 }
 
 // 그 책의 퀴즈 파일(content/quiz/genesis-NN.json)을 모두 읽는다.

@@ -1,10 +1,32 @@
 import { existsSync } from 'node:fs'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { addImageVersion, readImageVersions, versionDir, writeImageVersions } from '../src/images/versions.ts'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ImageCatalog } from '../src/build/buildBundle.ts'
+import {
+  addImageVersion,
+  assertUniqueImageStems,
+  readImageCatalog,
+  readImageVersions,
+  versionDir,
+  writeImageVersions,
+} from '../src/images/versions.ts'
+import { displayPath } from '../src/paths.ts'
 import type { ImageVersion } from '../src/schema.ts'
+
+// 폴더 목록의 순서는 운영체제마다 다르다(NTFS는 이름순이고 macOS는 아니다). reversed를 켜면 readdir이 목록을 거꾸로 돌려준다.
+// 어느 운영체제에서 돌려도 "목록 순서에 기대면 결과가 달라지는" 상태가 되어, 이름순으로 정렬하지 않는 코드를 잡는다.
+const listing = vi.hoisted(() => ({ reversed: false }))
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  const list = actual.readdir as (...args: unknown[]) => Promise<unknown[]>
+  const readdirOrReversed = async (...args: unknown[]) => {
+    const names = await list(...args)
+    return listing.reversed ? [...names].reverse() : names
+  }
+  return { ...actual, readdir: readdirOrReversed }
+})
 
 const v1: ImageVersion = { id: 'v1-flare', label: '1차', note: '' }
 const v2: ImageVersion = { id: 'v2-sunburst', label: '2차', note: '최상위 모델' }
@@ -18,6 +40,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  listing.reversed = false
   await rm(dir, { recursive: true, force: true })
 })
 
@@ -60,5 +83,74 @@ describe('addImageVersion', () => {
 describe('versionDir', () => {
   it('버전 폴더 경로', () => {
     expect(versionDir(v1, '/images')).toBe(path.join('/images', 'v1-flare'))
+  })
+})
+
+// 버전 폴더에 빈 그림 파일들을 만든다.
+async function putImages(version: ImageVersion, names: string[]): Promise<void> {
+  await mkdir(versionDir(version, dir), { recursive: true })
+  for (const name of names) await writeFile(path.join(versionDir(version, dir), name), '')
+}
+
+describe('readImageCatalog', () => {
+  beforeEach(async () => {
+    await writeFile(file, JSON.stringify([v1, v2]))
+  })
+
+  it('버전 목록과, 버전마다 그림 파일 이름을 이름순으로 읽는다. 숨김 파일은 뺀다', async () => {
+    await putImages(v1, ['b.png', 'a.jpg', '.DS_Store', 'c.webp'])
+    const catalog = await readImageCatalog({ file, imagesDir: dir })
+    expect(catalog.versions).toEqual([v1, v2])
+    // 폴더가 없는 버전(v2)은 파일이 없다.
+    expect(catalog.files).toEqual({ 'v1-flare': ['a.jpg', 'b.png', 'c.webp'], 'v2-sunburst': [] })
+  })
+
+  it('폴더 목록이 어떤 순서로 와도 이름순이다. 대문자가 소문자보다 앞이다(로케일 순서가 아니다)', async () => {
+    // 이름의 반대 순서로 만든다. 만든 순서가 아니라 이름이 순서를 정해야 한다.
+    await putImages(v1, ['genesis-01-02.png', 'genesis-01-01.png', 'Genesis-01-03.png'])
+    await putImages(v2, ['b.webp', 'a.webp'])
+    const sorted = {
+      'v1-flare': ['Genesis-01-03.png', 'genesis-01-01.png', 'genesis-01-02.png'],
+      'v2-sunburst': ['a.webp', 'b.webp'],
+    }
+
+    // 시험용 readdir이 정말 목록을 뒤집는다.
+    const listed = await readdir(versionDir(v1, dir))
+    listing.reversed = true
+    expect(await readdir(versionDir(v1, dir))).toEqual([...listed].reverse())
+
+    expect((await readImageCatalog({ file, imagesDir: dir })).files).toEqual(sorted)
+    listing.reversed = false
+    expect((await readImageCatalog({ file, imagesDir: dir })).files).toEqual(sorted)
+  })
+})
+
+describe('assertUniqueImageStems', () => {
+  const catalogOf = (files: Record<string, string[]>): ImageCatalog => ({ versions: [v1, v2], files })
+
+  it('한 버전 폴더에서 확장자를 뗀 이름이 모두 다르면 통과한다. 다른 버전에 같은 이름이 있어도 괜찮다', () => {
+    const catalog = catalogOf({ 'v1-flare': ['genesis-01-01.png', 'genesis-01-02.png'], 'v2-sunburst': ['genesis-01-01.jpg', 'genesis-01-02.jpg'] })
+    expect(() => assertUniqueImageStems(catalog, dir)).not.toThrow()
+  })
+
+  it('확장자를 뗀 이름이 같은 파일이 한 버전 폴더에 둘이면 두 파일 이름과 폴더를 밝혀 던진다', () => {
+    const catalog = catalogOf({ 'v1-flare': ['genesis-01-01.png'], 'v2-sunburst': ['genesis-01-01.jpg', 'genesis-01-01.png', 'genesis-01-02.jpg'] })
+    expect(() => assertUniqueImageStems(catalog, dir)).toThrow(
+      `${displayPath(versionDir(v2, dir))}: 같은 장면의 그림이 둘 이상입니다(genesis-01-01.jpg, genesis-01-01.png). 하나만 남기세요`,
+    )
+  })
+
+  it('셋이면 셋을 모두 밝힌다', () => {
+    const catalog = catalogOf({ 'v1-flare': ['a.bak', 'a.jpg', 'a.png'], 'v2-sunburst': [] })
+    expect(() => assertUniqueImageStems(catalog, dir)).toThrow('(a.bak, a.jpg, a.png)')
+  })
+
+  it('이름이 .png.tmp로 끝나는 임시 파일은 .png 파일과 다른 이름으로 본다', () => {
+    const catalog = catalogOf({ 'v1-flare': ['genesis-01-01.png', 'genesis-01-01.png.tmp'], 'v2-sunburst': [] })
+    expect(() => assertUniqueImageStems(catalog, dir)).not.toThrow()
+  })
+
+  it('파일 목록이 없는 버전은 비어 있는 것으로 본다', () => {
+    expect(() => assertUniqueImageStems({ versions: [v1, v2], files: {} }, dir)).not.toThrow()
   })
 })
